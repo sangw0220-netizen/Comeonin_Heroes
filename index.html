@@ -1528,38 +1528,76 @@ function processHeroTick(h,dt){
     return;
   }
 
+  // 핵을 찾지 못한 상태에서도 무작위 좌표를 배회하지 않고,
+  // 암벽을 뚫는 비용까지 고려한 A* 경로로 핵을 향합니다.
+  // 이렇게 하면 시야 밖에 핵이 있어도 결국 핵으로 수렴합니다.
   h.wanderTicks=(h.wanderTicks||0)+dt; h.stuckTicks=(h.stuckTicks||0)+dt;
-  if(h.wanderTicks>WANDER_RETARGET_SEC){rerollWanderTarget(h);h.stuckTicks=0;}
 
-  const passableForHeroPath=(r,c)=>{ if(!inBounds(r,c))return false; const t=state.grid[r][c]; return t.type==='floor'&&t.obstacle!=='pillar'; };
-  const queue=[[h.r,h.c]],cameFrom=new Map(),distMap=new Map(),keyOf=(r,c)=>r+'_'+c;
-  distMap.set(keyOf(h.r,h.c),0);
-  while(queue.length){const [cr,cc]=queue.shift();for(const [nr,nc] of neighbors4(cr,cc)){if(!passableForHeroPath(nr,nc))continue;const key=keyOf(nr,nc);if(distMap.has(key))continue;distMap.set(key,distMap.get(keyOf(cr,cc))+1);cameFrom.set(key,[cr,cc]);queue.push([nr,nc]);}}
-  let step=null; const targetKey=keyOf(h.wanderR,h.wanderC);
-  if(distMap.has(targetKey)){
-    let cur=[h.wanderR,h.wanderC]; while(true){const prev=cameFrom.get(keyOf(cur[0],cur[1]));if(!prev){step=null;break;}if(prev[0]===h.r&&prev[1]===h.c){step=cur;break;}cur=prev;}
-  }
-  if(!step){
-    let frontier=null,frontierScore=Infinity;
-    for(const key of distMap.keys()){
-      const [baseR,baseC]=key.split('_').map(Number);
-      for(const [nr,nc] of neighbors4(baseR,baseC)){
-        const t=state.grid[nr][nc];
-        const isRock=t.type==='rock'&&!t.isEntrance;
-        const isPillar=t.obstacle==='pillar';
-        if(!isRock&&!isPillar)continue;
-        if(h.prevR===nr&&h.prevC===nc)continue;
-        // 벽에 장애물이 있으면 35% 확률로 무시하고 다른 길을 찾습니다.
-        if(isRock&&t.obstacle&&Math.random()<0.35)continue;
-        const dFromStart=distMap.get(key),dToGoal=Math.abs(h.wanderR-nr)+Math.abs(h.wanderC-nc);
-        const score=dToGoal*5+dFromStart*0.35+Math.random()*0.01;
-        if(score<frontierScore){frontierScore=score;frontier={baseR,baseC,r:nr,c:nc};}
+  function heroCoreRouteStep(){
+    const startKey=h.r+'_'+h.c;
+    const goalKey=CORE_R+'_'+CORE_C;
+    if(startKey===goalKey) return null;
+
+    const open=[];
+    const came=new Map();
+    const gScore=new Map([[startKey,0]]);
+    const fScore=new Map([[startKey,Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C)]]);
+    const closed=new Set();
+    const keyOf=(r,c)=>r+'_'+c;
+    const parseKey=k=>k.split('_').map(Number);
+    const terrainCost=(r,c)=>{
+      const t=state.grid[r][c];
+      if(t.type==='core') return 1;
+      if(t.type==='rock') return t.obstacle ? 6 : 3;
+      if(t.obstacle==='pillar') return 7;
+      if(t.obstacle==='web') return 2;
+      return 1;
+    };
+    const pushOpen=(key)=>{
+      const f=fScore.get(key);
+      let i=open.length;
+      while(i>0 && (fScore.get(open[i-1])??Infinity)>f) i--;
+      open.splice(i,0,key);
+    };
+    pushOpen(startKey);
+
+    while(open.length){
+      const current=open.shift();
+      if(closed.has(current)) continue;
+      const [cr,cc]=parseKey(current);
+      if(current===goalKey){
+        let cur=current;
+        let prev=came.get(cur);
+        if(!prev) return null;
+        while(prev && prev!==startKey){ cur=prev; prev=came.get(cur); }
+        return parseKey(cur);
+      }
+      closed.add(current);
+      for(const [nr,nc] of neighbors4(cr,cc)){
+        if(!inBounds(nr,nc)) continue;
+        const nt=state.grid[nr][nc];
+        if(nt.type==='rock' && nt.isEntrance) continue;
+        const nk=keyOf(nr,nc);
+        if(closed.has(nk)) continue;
+        const tentative=(gScore.get(current)??Infinity)+terrainCost(nr,nc);
+        if(tentative < (gScore.get(nk)??Infinity)){
+          came.set(nk,current);
+          gScore.set(nk,tentative);
+          fScore.set(nk,tentative+Math.abs(nr-CORE_R)+Math.abs(nc-CORE_C));
+          pushOpen(nk);
+        }
       }
     }
-    if(frontier){
-      if(frontier.baseR!==h.r||frontier.baseC!==h.c){let cur=[frontier.baseR,frontier.baseC];while(true){const prev=cameFrom.get(keyOf(cur[0],cur[1]));if(!prev){cur=null;break;}if(prev[0]===h.r&&prev[1]===h.c){step=[cur[0],cur[1]];break;}cur=prev;}}
-      else step=[frontier.r,frontier.c];
-    }
+    return null;
+  }
+
+  let step=heroCoreRouteStep();
+
+  // 예외적으로 경로 계산이 실패하면 기존의 개척 로직을 보조 수단으로 사용합니다.
+  if(!step){
+    if(h.stuckTicks>=2&&!h.showedQuestion){sayHero(h,'?','question',1800,true);h.showedQuestion=true;}
+    if(h.stuckTicks>5){h.stuckTicks=0;h.showedQuestion=false;}
+    return;
   }
   if(!step){if(h.stuckTicks>=4&&!h.showedQuestion){sayHero(h,'?','question',1800,true);h.showedQuestion=true;}if(h.stuckTicks>8){rerollWanderTarget(h);h.stuckTicks=0;h.showedQuestion=false;}return;}
   const [tr,tc]=step;const tile=state.grid[tr][tc];
