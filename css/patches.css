@@ -252,8 +252,10 @@
   #stageBadge .sb-sub{font-size:7px;}
 
   /* Panel becomes an action sheet rather than a generic information box. */
-  #panelWrap{order:2;margin-top:5px;flex:0 0 auto;max-height:27vh;min-height:112px;overflow:hidden;border:1px solid rgba(183,155,255,.14);border-radius:12px;background:rgba(20,14,34,.72);}
-  .panel-box{padding:8px 9px;min-height:112px;}
+  #panelWrap{order:2;margin-top:5px;flex:0 0 auto;max-height:27vh;min-height:112px;overflow:hidden;border:1px solid rgba(183,155,255,.14);border-radius:12px;background:rgba(20,14,34,.72);
+    display:flex;flex-direction:column; /* fix: kicker/panel-box/action이 세로로 쌓이고, panel-box만 남는 공간을 채움 */
+  }
+  .panel-box{padding:8px 9px;min-height:0;flex:1 1 auto;}
   .panel-box h3{font-size:13px;margin:0 0 3px;color:#fff;}
   .panel-hint{font-size:9.5px;line-height:1.4;color:#aaa0c0;}
   .panel-box .shop-list{padding-bottom:2px;}
@@ -262,9 +264,11 @@
   #logWrap{order:3;margin-top:4px;flex:0 0 auto;max-height:12vh;overflow:hidden;}
   #log{font-size:8.5px;line-height:1.35;}
 
-  /* Action labels injected by v39. */
-  .ux-panel-kicker{display:inline-flex;align-items:center;gap:4px;margin-bottom:4px;padding:2px 6px;border-radius:999px;background:rgba(139,107,242,.12);border:1px solid rgba(183,155,255,.18);font-size:7.5px;color:#b9ace0;font-weight:900;}
-  .ux-panel-action{margin-top:5px;padding:6px 7px;border-radius:8px;background:rgba(224,182,74,.06);border:1px dashed rgba(224,182,74,.22);font-size:8.5px;color:#cdbf9d;line-height:1.35;}
+  /* Action labels injected by v39.
+     fix: 이제 #panelBox 안이 아니라 #panelWrap의 직속 자식(패널 바깥, 위/아래 고정 바)으로 삽입되므로
+     panel-box가 다시 그려져도 사라지지 않는다. flex:0 0 auto로 항상 자기 콘텐츠 높이만 차지한다. */
+  .ux-panel-kicker{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;margin:6px 9px 0;padding:2px 6px;border-radius:999px;background:rgba(139,107,242,.12);border:1px solid rgba(183,155,255,.18);font-size:7.5px;color:#b9ace0;font-weight:900;align-self:flex-start;}
+  .ux-panel-action{flex:0 0 auto;margin:5px 9px 8px;padding:6px 7px;border-radius:8px;background:rgba(224,182,74,.06);border:1px dashed rgba(224,182,74,.22);font-size:8.5px;color:#cdbf9d;line-height:1.35;}
 
   /* First-play guide is now a compact bottom instruction card. */
   #firstPlayCoach{left:6px;right:6px;bottom:8px;top:auto;width:auto;max-width:none;padding:9px 10px;border-radius:12px;background:rgba(15,10,27,.96);border:1px solid rgba(183,155,255,.45);box-shadow:0 10px 35px rgba(0,0,0,.62),0 0 22px rgba(139,107,242,.16);z-index:90;}
@@ -308,6 +312,8 @@
   /* The onboarding card sits just above the bottom controls so it never covers them. */
   #firstPlayCoach{
     bottom:calc(65px + env(safe-area-inset-bottom)) !important;
+    transform:none !important; /* fix: desktop centering transform (translateX(-50%)) was leaking into
+                                   the mobile left:6px/right:6px layout above and shoving the card off-screen left */
   }
 
   /* Keep the secondary menu opening upward from the bottom toolbar. */

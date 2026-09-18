@@ -719,8 +719,12 @@
   #zoomBtn.active{background:var(--violet); border-color:var(--violet-bright);}
   #app.compact-view #toolbar, #app.compact-view #panelWrap{display:none;}
 
-  #panelWrap{margin-top:6px; flex:0 0 auto; height:clamp(150px, 24vh, 230px); overflow:hidden; min-height:0;}
-  .panel-box{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:8px; height:100%; min-height:0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden;}
+  #panelWrap{margin-top:6px; flex:0 0 auto; height:clamp(150px, 24vh, 230px); overflow:hidden; min-height:0;
+    display:flex; flex-direction:column; /* fix: panel-box는 이제 flex 아이템으로 남은 공간만 채우고,
+      위/아래에 붙는 .ux-panel-kicker/.ux-panel-action(patches.js가 넣음)는 항상 자기 높이만큼만 차지해서
+      panel-box를 침범하지 않는다 */
+  }
+  .panel-box{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:8px; flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden;}
   .panel-box h3{margin:0 0 5px;font-size:12.5px;color:var(--violet-bright);flex:0 0 auto;}
   .panel-hint{color:var(--muted);font-size:11.5px;line-height:1.35;flex:0 0 auto;}
   .action-btn{width:100%;background:linear-gradient(180deg,#6f4bd6,#5a37bd);border:none;color:#fff;font-family:inherit;font-size:13px;font-weight:700;padding:9px 10px;border-radius:9px;cursor:pointer;margin-top:7px;}
