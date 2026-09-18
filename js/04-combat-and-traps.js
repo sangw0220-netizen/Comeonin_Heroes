@@ -955,7 +955,7 @@ function gameLoop(now){
   syncTokenMoveDuration();
   if(!state||!state.running||state.gameOver) return;
   const stepMs=TICK_MS/Math.max(1,gameSpeed);
-  const paused=(state.phase==='cardSelect' || state.phase==='waveTransition' || state.phase==='eventSelect');
+  const paused=(state.phase==='cardSelect' || state.phase==='waveTransition' || state.phase==='eventSelect' || state.phase==='placeCore');
   let stepped=false;
   if(paused){
     _logicAcc=0;
@@ -974,7 +974,7 @@ function gameLoop(now){
 // 하위 호환용(외부에서 tick()을 호출하는 코드가 있을 경우 1스텝만 안전하게 진행)
 function tick(){
   if(!state||!state.running||state.gameOver) return;
-  if(state.phase==='cardSelect' || state.phase==='waveTransition' || state.phase==='eventSelect'){ renderUI(); return; }
+  if(state.phase==='cardSelect' || state.phase==='waveTransition' || state.phase==='eventSelect' || state.phase==='placeCore'){ renderUI(); return; }
   simulateStep(TICK_MS/1000);
   renderUI();
 }
@@ -1280,44 +1280,54 @@ function simulateStep(dt){
   }
 }
 
-function chooseHeroEntranceForStage(stageIndex){
-  if(!state) return null;
+/* v40: 웨이브에 맞는 침입구 개수를 맞춰줍니다.
+   기존 침입구는 그대로 두고 부족한 만큼만 새로 추가합니다(최대 5곳).
+   예전에는 10웨이브마다 침입구 3곳을 통째로 다른 위치로 옮겼지만,
+   이제는 21/41/61/81웨이브에서 한 곳씩 "늘어나기만" 합니다. */
+function syncHeroEntrancesForWave(wave){
+  if(!state||!state.grid) return null;
+  const want=heroSpawnCountForWave(wave);
+  const current=Array.isArray(state.heroSpawnPoints)?state.heroSpawnPoints.slice():[];
+  if(current.length>=want) return current;
+
   const candidates=[];
   for(let c=0;c<GRID;c++){ candidates.push([0,c],[GRID-1,c]); }
   for(let r=1;r<GRID-1;r++){ candidates.push([r,0],[r,GRID-1]); }
-  const current=Array.isArray(state.heroSpawnPoints)?state.heroSpawnPoints:[];
   const shuffled=candidates.slice().sort(()=>Math.random()-.5);
-  const picks=[];
-  for(const pos of shuffled){
-    if(current.some(sp=>sp.r===pos[0]&&sp.c===pos[1])) continue;
-    if(picks.some(x=>Math.abs(x[0]-pos[0])+Math.abs(x[1]-pos[1])<Math.max(3,Math.floor(GRID*.12)))) continue;
-    picks.push(pos);
-    if(picks.length>=3) break;
-  }
-  while(picks.length<3){
-    const pos=candidates[Math.floor(Math.random()*candidates.length)];
-    if(!picks.some(x=>x[0]===pos[0]&&x[1]===pos[1])) picks.push(pos);
-  }
 
-  // 기존 3개 침입구 표시를 모두 제거합니다.
-  for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
-    if(state.grid[r][c] && state.grid[r][c].isEntrance){
-      state.grid[r][c].isEntrance=false;
-    }
-  }
-  const points=picks.map(([r,c])=>({r,c}));
-  points.forEach(point=>{
-    state.grid[point.r][point.c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
-    state.fxEvents.push({type:'spawnBurst',r:point.r,c:point.c,color:'rgba(224,73,95,.95)'});
+  const minGap=Math.max(3,Math.floor(GRID*.12));
+  const added=[];
+  const farEnough=(pos,list)=>!list.some(sp=>{
+    const rr=Array.isArray(sp)?sp[0]:sp.r, cc=Array.isArray(sp)?sp[1]:sp.c;
+    return Math.abs(rr-pos[0])+Math.abs(cc-pos[1])<minGap;
   });
+
+  for(const pos of shuffled){
+    if(current.length+added.length>=want) break;
+    if(!farEnough(pos,current)||!farEnough(pos,added)) continue;
+    added.push(pos);
+  }
+  // 간격 조건 때문에 자리를 못 찾으면 조건을 풀고 채웁니다.
+  while(current.length+added.length<want){
+    const pos=candidates[Math.floor(Math.random()*candidates.length)];
+    const dup=current.some(sp=>sp.r===pos[0]&&sp.c===pos[1])||added.some(p=>p[0]===pos[0]&&p[1]===pos[1]);
+    if(!dup) added.push(pos);
+  }
+  if(!added.length) return current;
+
+  added.forEach(([r,c])=>{
+    state.grid[r][c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
+    state.fxEvents.push({type:'spawnBurst',r,c,color:'rgba(224,73,95,.95)'});
+  });
+
+  const points=current.concat(added.map(([r,c])=>({r,c})));
   state.heroSpawnPoints=points.map(sp=>({...sp}));
   state.heroSpawnPoint={...points[0]};
-  state.heroSpawnStage=stageIndex;
   state._mapDirty=true;
   state._rangesDirty=true;
   state._panelDirty=true;
   ENTRANCES=points.map(sp=>({...sp}));
-  addLog(`<span class="hl-red">🚪 새로운 용사 침입구 3곳이 발견되었습니다!</span> — ${stageIndex*10+1}~${stageIndex*10+10}웨이브 동안 이곳에서 침입합니다.`);
+  addLog(`<span class="hl-red">🚪 새로운 용사 침입구가 열렸습니다!</span> — 이제 침입구는 총 <b>${points.length}곳</b>입니다.`);
   return points;
 }
 
@@ -1325,10 +1335,9 @@ function startWave(){
   state.phase='invasion';
   state.wave++;
   state.invasionTimer=0;
-  // 11, 21, 31...웨이브 시작 시 용사 침입구를 새로 랜덤 지정합니다.
-  if(state.wave>1 && state.wave%10===1){
-    chooseHeroEntranceForStage(Math.floor((state.wave-1)/10));
-  }
+  // v40: 매 웨이브마다 현재 웨이브에 맞는 침입구 개수를 확인하고,
+  // 부족하면 새 침입구를 추가합니다(21/41/61/81웨이브에서 1곳씩, 최대 5곳).
+  syncHeroEntrancesForWave(state.wave);
   configureStageEvent();
   // v20: 건설 단계(build)에서만 의미있는 웨이브 한정 계약/카드 보너스를 여기서 소모합니다.
   if(state.contractNoObstacleWaves>0) state.contractNoObstacleWaves--;

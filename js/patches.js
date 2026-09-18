@@ -1,46 +1,3 @@
-// ---- mobile-ux-v38-release-js ----
-(function(){
-  const coach=document.getElementById('firstPlayCoach');
-  if(!coach) return;
-  const title=document.getElementById('fpcTitle');
-  const desc=document.getElementById('fpcDesc');
-  const step=document.getElementById('fpcStep');
-  const next=document.getElementById('fpcNext');
-  const close=document.getElementById('fpcClose');
-  const hide=document.getElementById('fpcHide');
-  const dots=[...coach.querySelectorAll('.fpc-dot')];
-  let idx=0;
-  const steps=[
-    ['던전의 길을 먼저 만들어보세요','타일을 탭해 벽을 파면 용사가 지나갈 수 있는 길이 생깁니다.','다음 안내'],
-    ['몬스터를 배치해보세요','하단의 👾 몬스터를 누르고 원하는 타일을 탭하면 몬스터가 배치됩니다.','다음 안내'],
-    ['장애물로 길목을 막아보세요','하단의 🧱 장애물을 눌러 용사의 이동을 방해하거나 전투를 유리하게 만들 수 있습니다.','다음 안내'],
-    ['이제 웨이브를 시작하세요','준비가 끝났다면 상단의 카운트다운 영역을 눌러 침공을 바로 시작할 수 있습니다.','확인했습니다']
-  ];
-  function render(){
-    const x=steps[idx]; step.textContent=(idx+1)+' / '+steps.length; title.textContent=x[0]; desc.textContent=x[1]; next.textContent=x[2]; dots.forEach((d,i)=>d.classList.toggle('on',i<=idx));
-  }
-  function hideCoach(){ coach.classList.remove('show'); document.querySelectorAll('.ux-coach-pulse').forEach(e=>e.classList.remove('ux-coach-pulse')); }
-  function showCoach(){
-    if(typeof state==='undefined' || !state) return;
-    if(localStorage.getItem('dd_v38_8_firstplay_done')==='1') return;
-    idx=0; render(); coach.classList.add('show');
-  }
-  next.addEventListener('click',function(){
-    if(idx<steps.length-1){idx++;render();}
-    else {localStorage.setItem('dd_v38_8_firstplay_done','1');hideCoach();}
-  });
-  close.addEventListener('click',hideCoach);
-  hide.addEventListener('click',hideCoach);
-  /* Start/login flow may occur asynchronously, so observe the first active game state. */
-  let lastState=false;
-  setInterval(function(){
-    const active=(typeof state!=='undefined' && !!state);
-    if(active && !lastState && localStorage.getItem('dd_v38_8_firstplay_done')!=='1') setTimeout(showCoach,450);
-    lastState=active;
-  },500);
-  render();
-})();
-
 // ---- mobile-ux-v39-rework-js ----
 (function(){
   const toolbar=document.getElementById('toolbar');
@@ -158,92 +115,225 @@
     action.textContent='다음 행동 · '+x[2];
   }
   setInterval(updatePanelCue,500);
+})();
 
-  // 기존 온보딩은 기능상 건드리지 않는다. 다만 제거된 하단 건설 버튼을 가리키지 않도록
-  // 첫 단계는 기존 게임의 실제 파기 안내만 유지한다.
+/* =====================================================================
+   v40 신규 온보딩 튜토리얼 (4단계)
+   ---------------------------------------------------------------------
+   예전에는 v38용/v39용 튜토리얼 코드가 둘 다 살아 있어서 같은
+   #firstPlayCoach 요소를 서로 다르게 조작하며 충돌했습니다.
+   (한쪽은 classList 'show'로, 다른 쪽은 style.display로 제어)
+   여기서 하나로 통합하고, 안내 순서도 새로 정의합니다.
+
+   1) 몬스터 버튼 → 몬스터 카드를 골라 배치
+   2) 장애물 버튼 → 장애물을 골라 설치
+   3) 배속 버튼 + 상단 웨이브 타이머 → 빠르게 진행
+   4) 마왕 캐릭터 → 영구 성장 RPG 캐릭터라는 설명
+
+   각 단계는 "해당 행동을 실제로 하면" 자동으로 다음으로 넘어가고,
+   [다음 안내] 버튼으로도 넘어갈 수 있습니다.
+   ===================================================================== */
+(function(){
   const coach=document.getElementById('firstPlayCoach');
   if(!coach) return;
-  const title=document.getElementById('fpcTitle');
-  const desc=document.getElementById('fpcDesc');
-  const step=document.getElementById('fpcStep');
-  const next=document.getElementById('fpcNext');
-  let current=1, hiddenThisGame=false, prevMonsterCount=null, prevObstacleCount=null, started=false;
 
-  const steps={
-    1:{t:'먼저 길을 만들어보세요',d:'⛏️ 벽 타일을 한 번 터치해서 던전 통로를 만들어보세요.',focus:()=>null},
-    2:{t:'몬스터를 배치해보세요',d:'👾 몬스터를 선택하고, 던전에 배치하세요.',focus:()=>monster},
-    3:{t:'장애물을 설치해보세요',d:'🧱 장애물을 선택하고, 용사의 길목에 설치하세요.',focus:()=>obstacle},
-    4:{t:'이제 웨이브를 시작하세요',d:'⚔️ 준비가 끝났다면 상단의 웨이브 버튼을 눌러 전투를 시작하세요.',focus:()=>document.getElementById('phaseBtn')}
+  const elTitle=document.getElementById('fpcTitle');
+  const elDesc =document.getElementById('fpcDesc');
+  const elStep =document.getElementById('fpcStep');
+  const btnNext=document.getElementById('fpcNext');
+  const btnClose=document.getElementById('fpcClose');
+  const btnHide =document.getElementById('fpcHide');
+
+  const DONE_KEY='dd_v40_tutorial_done';
+  const TOTAL=4;
+
+  let current=0;            // 0 = 아직 시작 안 함, 1..4 = 진행 중
+  let hiddenThisRun=false;  // 이번 판에서만 숨김
+  let lastStateRef=null;
+  let startPending=false;   // 핵 배치가 끝나면 튜토리얼을 시작해야 함
+  let prevMonsters=0, prevObstacles=0;
+
+  function isDone(){
+    try{ return localStorage.getItem(DONE_KEY)==='1'; }catch(_){ return false; }
+  }
+  function markDone(){
+    try{ localStorage.setItem(DONE_KEY,'1'); }catch(_){}
+  }
+
+  /* 하이라이트 대상은 화면 구성이 바뀌어도 안전하게 찾도록 함수로 둡니다.
+     (하단 툴바는 위쪽 v39 코드가 DOM을 재배치하므로 매번 다시 찾아야 합니다.) */
+  const STEPS={
+    1:{
+      title:'몬스터를 배치해보세요',
+      desc:'👾 <b>몬스터</b> 버튼을 누른 뒤 원하는 몬스터 카드를 고르고, 던전 안의 빈 칸을 터치하면 배치됩니다.',
+      targets:()=>[document.querySelector('#toolbar [data-tool="monster"]')]
+    },
+    2:{
+      title:'장애물로 길목을 막아보세요',
+      desc:'🧱 <b>장애물</b> 버튼을 누르고 설치할 장애물을 고른 뒤, 빈 칸을 터치하면 설치됩니다. 용사의 이동을 방해하고 전투를 유리하게 만듭니다.',
+      targets:()=>[document.querySelector('#toolbar [data-tool="obstacle"]')]
+    },
+    3:{
+      title:'웨이브를 빠르게 진행할 수 있어요',
+      desc:'⏩ <b>배속</b> 버튼으로 게임 속도를 올릴 수 있고, 상단의 <b>용사 난입까지 남은 시간</b>을 누르면 기다리지 않고 웨이브를 바로 시작할 수 있습니다.',
+      targets:()=>[document.getElementById('speedBtn'), document.getElementById('phaseBtn')]
+    },
+    4:{
+      title:'마왕은 계속 성장하는 캐릭터입니다',
+      desc:'👑 <b>마왕</b>은 직접 싸우는 RPG 캐릭터로, 용사를 처치하면 경험치를 얻어 레벨이 오릅니다. 게임이 끝난 뒤 <b>‘마왕의 성장’</b> 메뉴에서 스킬·장비를 영구적으로 강화할 수 있어요.',
+      targets:()=>[document.querySelector('#tokenLayer .mawang-token')]
+    }
   };
 
-  function focusStep(){
-    document.querySelectorAll('.ux-focus').forEach(x=>x.classList.remove('ux-focus'));
-    const f=steps[current]&&steps[current].focus();
-    if(f) f.classList.add('ux-focus');
-    if(title) title.textContent=steps[current].t;
-    if(desc) desc.textContent=steps[current].d;
-    if(step) step.textContent=current+' / 4';
-    coach.querySelectorAll('.fpc-dot').forEach((d,i)=>d.classList.toggle('on',i===current-1));
-    if(next) next.textContent=current===4?'안내 닫기':'다음 안내';
+  function clearHighlight(){
+    document.querySelectorAll('.ux-focus').forEach(el=>el.classList.remove('ux-focus'));
+  }
+  function applyHighlight(){
+    clearHighlight();
+    const step=STEPS[current];
+    if(!step) return;
+    (step.targets()||[]).forEach(el=>{ if(el) el.classList.add('ux-focus'); });
+  }
+  function render(){
+    const step=STEPS[current];
+    if(!step) return;
+    if(elStep)  elStep.textContent=current+' / '+TOTAL;
+    if(elTitle) elTitle.textContent=step.title;
+    if(elDesc)  elDesc.innerHTML=step.desc;
+    if(btnNext) btnNext.textContent=(current>=TOTAL?'안내 닫기':'다음 안내');
+    coach.querySelectorAll('.fpc-dot').forEach((d,i)=>d.classList.toggle('on', i<=current-1));
+    applyHighlight();
   }
   function show(){
-    if(hiddenThisGame || localStorage.getItem('dd_v38_9_firstplay_done')==='1') return;
+    coach.classList.add('show');
     coach.style.display='block';
-    focusStep();
+  }
+  function hide(){
+    coach.classList.remove('show');
+    coach.style.display='none';
+    clearHighlight();
+  }
+  function begin(){
+    if(hiddenThisRun || isDone()) return;
+    // v40: 핵 배치 단계가 끝나기 전에는 튜토리얼을 띄우지 않습니다.
+    if(typeof state!=='undefined' && state && (state.phase==='placeCore' || state.corePlaced===false)) return;
+    current=1; show(); render();
+  }
+  function goto(n){
+    if(current<=0) return;
+    current=n;
+    if(current>TOTAL){ finish(); return; }
+    render();
   }
   function finish(){
-    current=5;
-    coach.style.display='none';
-    document.querySelectorAll('.ux-focus').forEach(x=>x.classList.remove('ux-focus'));
-    localStorage.setItem('dd_v38_9_firstplay_done','1');
+    current=0;
+    markDone();
+    hide();
   }
-  if(next) next.addEventListener('click',function(){
-    if(current>=4) finish();
-    else { current++; focusStep(); }
-  });
-  const close=document.getElementById('fpcClose');
-  if(close) close.addEventListener('click',()=>{
-    hiddenThisGame=true;
-    coach.style.display='none';
-    document.querySelectorAll('.ux-focus').forEach(x=>x.classList.remove('ux-focus'));
-  });
-  const hide=document.getElementById('fpcHide');
-  if(hide) hide.addEventListener('click',()=>{
-    hiddenThisGame=true;
-    coach.style.display='none';
-    document.querySelectorAll('.ux-focus').forEach(x=>x.classList.remove('ux-focus'));
-  });
+  function skipThisRun(){
+    current=0;
+    hiddenThisRun=true;
+    hide();
+  }
 
-  document.addEventListener('click',function(e){
-    if(hiddenThisGame || typeof state==='undefined' || !state) return;
-    if(current===1 && e.target.closest && e.target.closest('.cell')){
-      current=2; focusStep();
-    }else if(current===2 && typeof state.monsters!=='undefined' && (state.monsters.length||0)>0){
-      current=3; focusStep();
-    }else if(current===3 && typeof state.obstacles!=='undefined' && Object.keys(state.obstacles||{}).length>0){
-      current=4; focusStep();
+  if(btnNext)  btnNext.addEventListener('click', ()=>goto(current+1));
+  if(btnClose) btnClose.addEventListener('click', skipThisRun);
+  if(btnHide)  btnHide.addEventListener('click', skipThisRun);
+
+  /* 마왕 토큰은 게임이 시작된 뒤에 생성되므로, 4단계에서 대상이 늦게 나타날 수 있습니다.
+     하이라이트가 비어 있으면 잠시 뒤 다시 시도합니다. */
+  function ensureHighlightLater(){
+    if(current!==4) return;
+    if(!document.querySelector('#tokenLayer .mawang-token.ux-focus')) applyHighlight();
+  }
+
+  /* 장애물은 state.obstacles가 아니라 각 타일(grid[r][c].obstacle)에 저장됩니다.
+     기존 튜토리얼 코드는 존재하지 않는 state.obstacles를 세고 있어서
+     "장애물을 설치하면 다음 단계로" 감지가 동작하지 않았습니다. */
+  function countObstacles(){
+    if(!state||!state.grid) return 0;
+    let n=0;
+    for(let r=0;r<state.grid.length;r++){
+      const row=state.grid[r];
+      if(!row) continue;
+      for(let c=0;c<row.length;c++){ if(row[c]&&row[c].obstacle) n++; }
     }
-  },true);
+    return n;
+  }
 
-  let lastStateRef=null;
   setInterval(function(){
     try{
       if(typeof state==='undefined' || !state || !state.running) return;
-      if(!started || state!==lastStateRef){
-        started=true;
+
+      // 새 게임이 시작되면 튜토리얼을 처음부터 다시 판단합니다.
+      if(state!==lastStateRef){
         lastStateRef=state;
-        current=1;
-        prevMonsterCount=state.monsters?.length||0;
-        prevObstacleCount=Object.keys(state.obstacles||{}).length;
-        show();
+        hiddenThisRun=false;
+        prevMonsters=(state.monsters&&state.monsters.length)||0;
+        prevObstacles=countObstacles();
+        current=0;
+        hide();
+        startPending=!isDone();
+        return;
       }
-      const mc=state.monsters?.length||0;
-      const oc=Object.keys(state.obstacles||{}).length;
-      if(current===2 && mc>prevMonsterCount){ current=3; focusStep(); }
-      if(current===3 && oc>prevObstacleCount){ current=4; focusStep(); }
-      if(current===4 && state.phase!=='build'){ finish(); }
-      prevMonsterCount=mc;
-      prevObstacleCount=oc;
+
+      /* v40: 핵 배치가 끝나기 전에는 기다렸다가, 끝나는 즉시 1단계를 띄웁니다.
+         (begin()을 한 번만 호출하면 배치 중일 때 영영 시작되지 않습니다.) */
+      if(startPending){
+        if(hiddenThisRun||isDone()){ startPending=false; return; }
+        if(state.phase==='placeCore'||state.corePlaced===false) return;
+        startPending=false;
+        prevMonsters=(state.monsters&&state.monsters.length)||0;
+        prevObstacles=countObstacles();
+        setTimeout(begin,500);
+        return;
+      }
+      if(current<=0) return;
+
+      const mc=(state.monsters&&state.monsters.length)||0;
+      const oc=countObstacles();
+
+      // 실제로 그 행동을 하면 자동으로 다음 단계로 넘어갑니다.
+      if(current===1 && mc>prevMonsters) goto(2);
+      else if(current===2 && oc>prevObstacles) goto(3);
+      else if(current===3 && state.phase!=='build') goto(4);
+
+      prevMonsters=mc;
+      prevObstacles=oc;
+      ensureHighlightLater();
     }catch(_){}
   },350);
+})();
+
+/* =====================================================================
+   v40 — 마력의 핵 배치 단계 안내 배너
+   보드 위에 "핵을 놓을 자리를 고르세요" 안내를 띄우고,
+   배치가 끝나면(phase가 build로 바뀌면) 자동으로 사라집니다.
+   ===================================================================== */
+(function(){
+  const frame=document.getElementById('board-frame');
+  if(!frame) return;
+
+  let hint=null;
+  function ensureHint(){
+    if(hint&&hint.isConnected) return hint;
+    hint=document.createElement('div');
+    hint.id='corePlaceHint';
+    hint.innerHTML='<div class="cph-title">🔮 마력의 핵을 놓을 자리를 고르세요</div>'+
+                   '<div class="cph-desc">초록색으로 표시된 칸을 터치하면 그 자리에 핵이 세워집니다.<br>핵은 <b>6×6 공간</b>이 필요하고, <b>용사 침입구 근처</b>에는 놓을 수 없어요.</div>';
+    frame.appendChild(hint);
+    return hint;
+  }
+  function removeHint(){
+    if(hint&&hint.isConnected) hint.remove();
+    hint=null;
+  }
+
+  setInterval(function(){
+    try{
+      if(typeof state==='undefined'||!state||!state.running){ removeHint(); return; }
+      if(state.phase==='placeCore') ensureHint();
+      else removeHint();
+    }catch(_){ }
+  },200);
 })();

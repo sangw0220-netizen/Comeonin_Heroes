@@ -474,6 +474,13 @@ function pointerMove(x,y){
 function pointerEnd(){
   if(!pointerDown) return;
   pointerDown=false;
+  // v40: 핵 배치 단계에서는 탭이 오직 '핵 놓기'로만 쓰입니다.
+  if(state && state.running && state.phase==='placeCore'){
+    const sc=startCell;
+    startCell=null;
+    if(!dragMoved && sc) placeCoreAt(sc.r,sc.c);
+    return;
+  }
   if(!dragMoved && startCell && state && state.running){
     const {r,c}=startCell;
     const tile=state.grid[r][c];
@@ -770,7 +777,7 @@ function sellMonster(id){
 
 /* ---------------- start / end ---------------- */
 els.startBtn.addEventListener('click', attemptStart);
-if(els.metaGrowthBtn) els.metaGrowthBtn.addEventListener('click', openMetaGrowth);
+if(els.metaGrowthBtn) els.metaGrowthBtn.addEventListener('click', ()=>openMetaGrowth());
 if(els.metaGrowthCloseBtn) els.metaGrowthCloseBtn.addEventListener('click', closeMetaGrowth);
 if(els.metaGrowthOverlay) els.metaGrowthOverlay.addEventListener('click',(e)=>{ if(e.target===els.metaGrowthOverlay) closeMetaGrowth(); });
 document.querySelectorAll('#metaGrowthOverlay .meta-tab').forEach(btn=>btn.addEventListener('click',()=>{ metaGrowthTab=btn.dataset.metaTab||'unlock'; metaGrowthGradeFilter='all'; renderMetaGrowth(); Sound.ui(); }));
@@ -962,7 +969,7 @@ function endGame(){
     const retry=document.getElementById('restartBtn');
     if(retry) retry.addEventListener('click', attemptStart, {once:true});
     const metaGrowthEndBtn=document.getElementById('metaGrowthEndBtn');
-    if(metaGrowthEndBtn) metaGrowthEndBtn.addEventListener('click', openMetaGrowth);
+    if(metaGrowthEndBtn) metaGrowthEndBtn.addEventListener('click', ()=>openMetaGrowth());
     const rankingBtn=document.getElementById('rankingBtn');
     if(rankingBtn) rankingBtn.addEventListener('click', openRankingScreen);
   }, 1050);
@@ -1088,11 +1095,12 @@ function partySizeForWave(wave, remaining){
   return Math.max(1,Math.min(5,maxParty,remaining));
 }
 function pickPartyEdgeSpawnCells(count){
-  // 현재 10웨이브 구간의 고정 침입구를 실제 스폰 좌표로 사용합니다.
+  // 현재 활성화된 침입구 전부를 실제 스폰 좌표로 사용합니다.
+  // (v40: 침입구 개수가 웨이브에 따라 1~5개로 늘어나므로 예전의 3개 고정 제한을 없앴습니다.)
   // 중요: 침입구가 rock으로 남아 있어도 spawnHero()가 해당 칸을 floor로 바꾸므로
   // 여기서는 rock 여부 때문에 스폰 후보를 탈락시키지 않습니다.
   const anchors=(Array.isArray(state?.heroSpawnPoints)&&state.heroSpawnPoints.length)
-    ? state.heroSpawnPoints.slice(0,3)
+    ? state.heroSpawnPoints.slice()
     : (state?.heroSpawnPoint?[state.heroSpawnPoint]:[]);
   if(!anchors.length || !state?.grid) return [];
 
@@ -1890,4 +1898,46 @@ function processMonsterTick(m,dt){
   if(floorN.length && Math.random()<0.6){
     const pick=floorN[Math.floor(Math.random()*floorN.length)]; m.r=pick[0]; m.c=pick[1];
   }
+}
+
+/* =====================================================================
+   v40 — 마력의 핵 직접 배치
+   게임을 시작하면 phase='placeCore' 상태로 들어가고,
+   플레이어가 맵의 빈 칸을 눌러 핵 위치를 정합니다.
+   확정되면 3×3 공간이 열리고 마왕이 그 자리로 이동한 뒤 건설 단계가 시작됩니다.
+   ===================================================================== */
+function placeCoreAt(r,c){
+  if(!state||state.phase!=='placeCore'||state.corePlaced) return false;
+  const reason=corePlacementBlockReason(r,c);
+  if(reason){
+    addLog(`<span class="hl-red">여기에는 마력의 핵을 놓을 수 없습니다.</span> ${reason}`);
+    Sound.ui();
+    return false;
+  }
+
+  // 3×3 공간을 열고 중앙에 핵을 놓습니다.
+  for(const [rr,cc] of coreFootprintCells(r,c)){
+    state.grid[rr][cc]={type:'floor',isEntrance:false,obstacle:null};
+  }
+  state.grid[r][c]={type:'core'};
+  CORE_R=r; CORE_C=c;
+
+  // 마왕을 새 핵 위치로 옮깁니다(아직 없으면 생성).
+  if(state.mawang){ state.mawang.r=r; state.mawang.c=c; }
+  else state.mawang=createMawangEntity(r,c);
+
+  state.corePlaced=true;
+  state.phase='build';
+  state.buildTimer=buildTimeForWave(1);
+  state._mapDirty=true;
+  state._rangesDirty=true;
+  state._panelDirty=true;
+  state.selected=null;
+  state.fxEvents.push({type:'spawnBurst',r,c,color:'rgba(224,182,74,.98)'});
+  Sound.ui();
+  addLog(`<span class="hl-gold">🔮 마력의 핵을 설치했습니다.</span> 이제 던전을 파고 몬스터를 배치하세요. <span class="hl-gold">1분</span> 뒤 첫 웨이브가 시작됩니다.`);
+  buildMapDOM();
+  centerZoomOnCore();
+  renderUI();
+  return true;
 }

@@ -385,6 +385,58 @@ const ROCK_WEIGHT=8;
 const HERO_DIG_TIME=3.0;
 const VISION_RANGE=6;
 const REVEAL_RADIUS=2;
+/* v40: 게임 시작 시 플레이어가 마력의 핵 위치를 직접 고릅니다.
+   - 핵은 CORE_FOOTPRINT_SIZE × CORE_FOOTPRINT_SIZE 공간을 확보해야 합니다.
+   - 용사 침입구에서 일정 거리 이상 떨어져야 합니다.
+   크기를 바꾸고 싶으면 CORE_FOOTPRINT_SIZE만 수정하면 됩니다. */
+const CORE_FOOTPRINT_SIZE=6;                   // 6 = 6×6
+/* 짝수 크기는 정확한 중앙이 없으므로, 누른 칸을 기준으로 위/왼쪽에 조금 덜,
+   아래/오른쪽에 조금 더 뻗는 방식으로 범위를 잡습니다.
+   예) 6일 때 누른 칸 기준 -2 ~ +3 (총 6칸) */
+const CORE_OFFSET_LOW=-Math.floor((CORE_FOOTPRINT_SIZE-1)/2);
+const CORE_OFFSET_HIGH=CORE_OFFSET_LOW+CORE_FOOTPRINT_SIZE-1;
+/* 침입구와 핵 '영역 가장자리' 사이의 최소 거리입니다.
+   (영역이 커졌으므로 중심이 아니라 가장자리 기준으로 재야 실제 여유가 보장됩니다.) */
+const CORE_MIN_DIST_FROM_ENTRANCE=3;
+function coreFootprintCells(r,c){
+  const out=[];
+  for(let dr=CORE_OFFSET_LOW;dr<=CORE_OFFSET_HIGH;dr++){
+    for(let dc=CORE_OFFSET_LOW;dc<=CORE_OFFSET_HIGH;dc++){
+      out.push([r+dr,c+dc]);
+    }
+  }
+  return out;
+}
+/* 핵을 (r,c)에 놓을 수 있는지 판정합니다.
+   불가능하면 사유 문자열을, 가능하면 null을 반환합니다. */
+function corePlacementBlockReason(r,c){
+  if(!state||!state.grid) return '아직 준비 중입니다.';
+  const sizeText=`${CORE_FOOTPRINT_SIZE}×${CORE_FOOTPRINT_SIZE}`;
+  // 영역이 맵 밖으로 나가면 안 됩니다.
+  if(r+CORE_OFFSET_LOW<0||c+CORE_OFFSET_LOW<0||
+     r+CORE_OFFSET_HIGH>GRID-1||c+CORE_OFFSET_HIGH>GRID-1){
+    return `맵 가장자리에는 놓을 수 없습니다. (${sizeText} 공간 필요)`;
+  }
+  const spawns=(Array.isArray(state.heroSpawnPoints)&&state.heroSpawnPoints.length)
+    ? state.heroSpawnPoints
+    : (state.heroSpawnPoint?[state.heroSpawnPoint]:[]);
+  const cells=coreFootprintCells(r,c);
+  for(const [rr,cc] of cells){
+    const t=state.grid[rr]&&state.grid[rr][cc];
+    if(!t) return `맵 가장자리에는 놓을 수 없습니다. (${sizeText} 공간 필요)`;
+    if(t.isEntrance) return '용사 침입구와 겹칠 수 없습니다.';
+  }
+  for(const sp of spawns){
+    let nearest=Infinity;
+    for(const [rr,cc] of cells){
+      const d=Math.max(Math.abs(sp.r-rr),Math.abs(sp.c-cc));
+      if(d<nearest) nearest=d;
+    }
+    if(nearest<CORE_MIN_DIST_FROM_ENTRANCE) return '용사 침입구와 너무 가깝습니다.';
+  }
+  return null;
+}
+function canPlaceCoreAt(r,c){ return corePlacementBlockReason(r,c)===null; }
 let gameSpeed=1;
 
 const AURA_RADIUS=1;
@@ -574,6 +626,18 @@ const HERO_REGEN_PER_LEVEL=0.12;
 const HERO_DEF_PER_LEVEL=0.55;
 const HERO_LEVEL_SIZE_MUL=0.035;
 const HERO_LEVEL_SIZE_CAP=0.6;
+/* 전투 화면 시인성(v40): 몬스터/용사/마왕 토큰의 "보이는 크기"에만 곱해지는 배율입니다.
+   이동·사거리·충돌 판정은 전부 격자(r,c) 기준이라 이 값을 바꿔도 게임 밸런스는 그대로입니다.
+   캐릭터가 더 크게 보이길 원하면 이 숫자만 올리면 됩니다(1.0 = 기존 크기). */
+const TOKEN_VIEW_SCALE=1.3;
+/* v40: 용사 침입구 개수는 웨이브에 따라 늘어납니다.
+   1~20웨이브=1곳, 21~40=2곳, 41~60=3곳, 61~80=4곳, 81~=5곳(최대). */
+const HERO_SPAWN_MAX_POINTS=5;
+const HERO_SPAWN_WAVES_PER_POINT=20;
+function heroSpawnCountForWave(wave){
+  const w=Math.max(1, wave|0);
+  return Math.min(HERO_SPAWN_MAX_POINTS, Math.floor((w-1)/HERO_SPAWN_WAVES_PER_POINT)+1);
+}
 const HERO_SIGHT_RANGE=5;              // 용사가 마력핵을 발견하는 거리(기존)
 const RANGED_LOS_CHECK=true;
 // 몬스터는 마력핵 방어구역을 벗어나지 않도록 행동 반경을 제한합니다.

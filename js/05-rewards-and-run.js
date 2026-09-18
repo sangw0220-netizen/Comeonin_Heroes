@@ -521,7 +521,13 @@ function renderUI(){
   els.killCount.textContent=`처치 ${state.killCount}`;
   els.killStatText.textContent=`${state.killCount}명`;
   if(els.monsterCapText) els.monsterCapText.textContent=`${state.monsters.length}/${state.monsterCap||MONSTER_CAP_START}`;
-  if(state.phase==='build'){
+  if(state.phase==='placeCore'){
+    els.phaseLabel.textContent='마력의 핵 배치';
+    els.timerText.textContent='위치 선택';
+    els.phaseBtn.classList.add('locked');
+    els.phaseBtn.title='';
+    els.toolbar.classList.add('locked');
+  } else if(state.phase==='build'){
     if(state.villagePrepTimer!=null){
       // v38.6: 마을 습격 예고 카운트다운 (이 동안 몬스터 생성 가능)
       els.phaseLabel.textContent='마을 습격까지';
@@ -570,7 +576,7 @@ function renderUI(){
   // 실제로 맵이 변경된 경우에만 다시 렌더링합니다.
   const heroDigging=state.phase==='invasion' && state.heroes.some(h=>h.digging);
   const villagePrepActive=state.phase==='build' && state.villagePrepTimer!=null;
-  if((state.phase==='build' && !villagePrepActive) || heroDigging || state._mapDirty!==false){
+  if(state.phase==='placeCore' || (state.phase==='build' && !villagePrepActive) || heroDigging || state._mapDirty!==false){
     renderMapCells();
     state._mapDirty=false;
   }
@@ -642,6 +648,10 @@ function renderMapCells(){
         ob=OBSTACLE_TYPES.find(o=>o.id===t.obstacle);
         cls+=' has-obstacle obstacle-'+(ob?ob.kind:'');
         if(isObstacleRoot(r,c)) cls+=' obstacle-root';
+      }
+      if(state && state.phase==='placeCore'){
+        // v40: 핵을 놓을 수 있는 칸을 초록, 놓을 수 없는 칸을 붉게 표시합니다.
+        cls+=canPlaceCoreAt(r,c) ? ' core-place-ok' : ' core-place-bad';
       }
       if(state && state.activeTool==='obstacle' && state.selectedObstacleType && state.phase==='build'){
         if(state.selectedObstacleType==='__wall_dig__'){
@@ -904,7 +914,7 @@ function syncTokens(){
   for(const m of state.monsters){
     const key='m'+m.id; seen.add(key);
     const el=ensureToken(key, m.typeId, 'monster');
-    const size=px*(0.95+m.tier*0.16);
+    const size=px*(0.95+m.tier*0.16)*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
     updateFacing(el, m.r, m.c, !!MONSTER_FACING_INVERT[m.typeId]);
@@ -932,10 +942,11 @@ function syncTokens(){
 
 
   // ===== 플레이어 전용 마왕 토큰 =====
-  if(state.mawang && !state.mawang.dead){
+  // v40: 핵 배치 단계에서는 마왕이 설 자리가 아직 정해지지 않았으므로 표시하지 않습니다.
+  if(state.mawang && !state.mawang.dead && state.corePlaced!==false && state.phase!=='placeCore'){
     const m=state.mawang; const key='mawang'; seen.add(key);
     const el=ensureToken(key,'__mawang__','mawang-token');
-    const size=px*1.52;
+    const size=px*1.52*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
     // 마왕 원본 스프라이트는 오른쪽을 바라보고 있으므로, 이동 방향과 시선을 일치시킵니다.
@@ -952,7 +963,7 @@ function syncTokens(){
     const key='h'+h.id; seen.add(key);
     const el=ensureToken(key, h.typeId, 'hero');
     const levelMul=1+Math.min(HERO_LEVEL_SIZE_CAP, Math.max(0,(h.level||1)-1)*HERO_LEVEL_SIZE_MUL);
-    const size=px*(h.isBoss?1.6:1.0)*levelMul;
+    const size=px*(h.isBoss?1.6:1.0)*levelMul*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(h.c*px+px/2)+'px'; el.style.top=(h.r*px+px/2)+'px';
     updateFacing(el, h.r, h.c, Object.prototype.hasOwnProperty.call(HERO_FACING_INVERT,h.typeId)?HERO_FACING_INVERT[h.typeId]:true);

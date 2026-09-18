@@ -802,9 +802,9 @@ function renderMawangGrowthTab(content){
         <div class="mawang-command">🎯 현재 명령: <b style="color:#fff">${cmdMeta.name}</b><br>${cmdMeta.desc}</div>
       </div>
     </div>
-    <div class="mawang-inline-note">기본 성장: 레벨업마다 <b style="color:#f7d58f">힘 +2 · 체력 +2 · 지능 +1 · 민첩 +1 · 지배 +1</b>. 지배 수치가 높을수록 마왕의 몬스터 지원 범위가 넓어집니다. 장비는 영혼으로 강화하며 모든 장비의 최대 레벨은 ${MAWANG_EQUIP_MAX_LEVEL}입니다.</div>
-    <div class="mawang-inline-note">원본 스탯 — 💪 힘 ${st.str||mawangProfile.stats.str} · ❤️ 체력 ${st.vit||mawangProfile.stats.vit} · 🧠 지능 ${st.int||mawangProfile.stats.int} · ⚡ 민첩 ${st.agi||mawangProfile.stats.agi} · 👑 지배 ${st.dom||mawangProfile.stats.dom}</div>
-    <div class="mawang-inline-note">장비 현황 — ⚔️ 무기 Lv.${mawangEquipLevel('weapon')} · 🛡️ 방어구 Lv.${mawangEquipLevel('armor')} · 💠 장식구 Lv.${mawangEquipLevel('accessory')} · 🥾 신발 Lv.${mawangEquipLevel('boots')} · 🧤 장갑 Lv.${mawangEquipLevel('gloves')}</div>`;
+    <div class="mawang-inline-note"><b class="mawang-note-label">📈 레벨업 성장 (매 레벨)</b><span class="mawang-chip">힘 <b>+2</b></span><span class="mawang-chip">체력 <b>+2</b></span><span class="mawang-chip">지능 <b>+1</b></span><span class="mawang-chip">민첩 <b>+1</b></span><span class="mawang-chip">지배 <b>+1</b></span><div style="margin-top:7px;">지배 수치가 높을수록 마왕의 몬스터 지원 범위가 넓어집니다. 장비는 영혼으로 강화하며 모든 장비의 최대 레벨은 ${MAWANG_EQUIP_MAX_LEVEL}입니다.</div></div>
+    <div class="mawang-inline-note"><b class="mawang-note-label">🧬 원본 스탯</b><span class="mawang-chip">💪 힘 <b>${st.str||mawangProfile.stats.str}</b></span><span class="mawang-chip">❤️ 체력 <b>${st.vit||mawangProfile.stats.vit}</b></span><span class="mawang-chip">🧠 지능 <b>${st.int||mawangProfile.stats.int}</b></span><span class="mawang-chip">⚡ 민첩 <b>${st.agi||mawangProfile.stats.agi}</b></span><span class="mawang-chip">👑 지배 <b>${st.dom||mawangProfile.stats.dom}</b></span></div>
+    <div class="mawang-inline-note"><b class="mawang-note-label">🎒 장비 현황</b><span class="mawang-chip">⚔️ 무기 <b>Lv.${mawangEquipLevel('weapon')}</b></span><span class="mawang-chip">🛡️ 방어구 <b>Lv.${mawangEquipLevel('armor')}</b></span><span class="mawang-chip">💠 장식구 <b>Lv.${mawangEquipLevel('accessory')}</b></span><span class="mawang-chip">🥾 신발 <b>Lv.${mawangEquipLevel('boots')}</b></span><span class="mawang-chip">🧤 장갑 <b>Lv.${mawangEquipLevel('gloves')}</b></span></div>`;
   }else if(mawangSubTab==='skills'){
     body.innerHTML=`<div class="mawang-skill-header"><div><b style="color:#fff">마왕 스킬 포인트</b><div class="mawang-skill-note">레벨업마다 +1. 노드에 표시된 비용만큼 사용합니다. 한 계열의 이전 노드를 먼저 찍어야 다음 노드가 열립니다.</div></div><div class="mawang-sp">SP ${mawangProfile.skillPoints}</div></div><div class="mawang-tree"></div>`;
     const tree=body.querySelector('.mawang-tree');
@@ -1006,19 +1006,17 @@ function freshState(){
   CORE_R=Math.floor(GRID/2); CORE_C=Math.floor(GRID/2);
   ENTRANCES=[];
   const grid=[];
+  /* v40: 핵 위치는 게임 시작 후 플레이어가 직접 고릅니다.
+     따라서 이 시점에는 핵도, 핵 주변 개방 구역도 만들지 않고 전부 암벽으로 둡니다.
+     실제 배치는 placeCoreAt()에서 처리합니다. */
   for(let r=0;r<GRID;r++){
     const row=[];
-    for(let c=0;c<GRID;c++){
-      let tile;
-      if(r===CORE_R&&c===CORE_C){ tile={type:'core'}; }
-      else if(Math.abs(r-CORE_R)<=REVEAL_RADIUS && Math.abs(c-CORE_C)<=REVEAL_RADIUS){ tile={type:'floor', isEntrance:false, obstacle:null}; }
-      else{ tile={type:'rock'}; }
-      row.push(tile);
-    }
+    for(let c=0;c<GRID;c++){ row.push({type:'rock'}); }
     grid.push(row);
   }
-  // 게임 시작 시 용사 침입구 3곳을 랜덤으로 정합니다.
-  // 이후 10웨이브 동안 같은 3곳을 유지하고, 11/21/31...웨이브에서 새 3곳으로 변경합니다.
+  // v40: 게임 시작(1웨이브) 시점의 침입구 개수는 heroSpawnCountForWave(1)=1곳입니다.
+  // 이후 21/41/61/81웨이브에서 한 곳씩 늘어나며 최대 5곳까지 생깁니다.
+  const initialSpawnCount=heroSpawnCountForWave(1);
   const edgeCandidates=[];
   for(let c=0;c<GRID;c++){ edgeCandidates.push([0,c],[GRID-1,c]); }
   for(let r=1;r<GRID-1;r++){ edgeCandidates.push([r,0],[r,GRID-1]); }
@@ -1027,9 +1025,9 @@ function freshState(){
   for(const pos of shuffled){
     if(picks.some(x=>Math.abs(x[0]-pos[0])+Math.abs(x[1]-pos[1])<Math.max(3,Math.floor(GRID*.12)))) continue;
     picks.push(pos);
-    if(picks.length>=3) break;
+    if(picks.length>=initialSpawnCount) break;
   }
-  while(picks.length<3){
+  while(picks.length<initialSpawnCount){
     const pos=edgeCandidates[Math.floor(Math.random()*edgeCandidates.length)];
     if(!picks.some(x=>x[0]===pos[0]&&x[1]===pos[1])) picks.push(pos);
   }
@@ -1046,7 +1044,7 @@ function freshState(){
     heroSpawnPoint:{...heroSpawnPoints[0]},
     heroSpawnPointLocked:true,
     heroSpawnStage:0,
-    phase:'build', buildTimer:buildTimeForWave(1), invasionTimer:0,
+    phase:'placeCore', corePlaced:false, buildTimer:buildTimeForWave(1), invasionTimer:0,
     spawnCooldown:2, spawnInterval:SPAWN_INTERVAL_START,
     wave:0, waveHeroesTotal:0, waveHeroesSpawned:0, bossSpawnedThisWave:false, bossesSpawnedThisWave:0,
     nextWaveRiskMul:1, nextWaveRewardMul:1,
