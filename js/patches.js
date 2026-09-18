@@ -123,14 +123,22 @@
   },350);
 
   // 기존 패널 안내는 그대로 유지
-  const panel=document.getElementById('panelBox');
+  // fix: 원래는 이 안내 문구(kicker/action)를 #panelBox '안'에 넣었는데,
+  // 전투 중 renderPanel()이 panelBox.innerHTML을 통째로 다시 그릴 때마다
+  // (약 0.3초 주기) 이 요소들이 사라졌다가 여기서 다시 0.5초 주기로 재삽입되면서
+  // panelBox의 내용 높이가 미세하게 흔들리고, overflow-y:auto인 panelBox의
+  // 스크롤 위치가 매번 맨 위로 리셋됐다 (= "패널이 혼자 스크롤되는" 떨림 현상).
+  // panelBox '밖', #panelWrap 안에 고정 배치해서 panelBox가 아무리 다시 그려져도
+  // 이 안내 문구는 절대 건드리지 않도록 분리한다.
+  const panelWrap=document.getElementById('panelWrap');
+  const panelBoxEl=document.getElementById('panelBox');
   function updatePanelCue(){
-    if(!panel || typeof state==='undefined' || !state) return;
-    let kicker=panel.querySelector('.ux-panel-kicker');
+    if(!panelWrap || !panelBoxEl || typeof state==='undefined' || !state) return;
+    let kicker=panelWrap.querySelector('.ux-panel-kicker');
     if(!kicker){
       kicker=document.createElement('div');
       kicker.className='ux-panel-kicker';
-      panel.insertBefore(kicker,panel.firstChild);
+      panelWrap.insertBefore(kicker,panelBoxEl);
     }
     const tool=state.activeTool||'dig';
     const map={
@@ -141,11 +149,11 @@
     };
     const x=map[tool]||map.dig;
     kicker.textContent=x[0]+' '+x[1];
-    let action=panel.querySelector('.ux-panel-action');
+    let action=panelWrap.querySelector('.ux-panel-action');
     if(!action){
       action=document.createElement('div');
       action.className='ux-panel-action';
-      panel.appendChild(action);
+      panelWrap.appendChild(action); // panelBoxEl 다음(패널 바깥 하단)에 위치
     }
     action.textContent='다음 행동 · '+x[2];
   }
