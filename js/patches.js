@@ -203,6 +203,7 @@
     if(btnNext) btnNext.textContent=(current>=TOTAL?'안내 닫기':'다음 안내');
     coach.querySelectorAll('.fpc-dot').forEach((d,i)=>d.classList.toggle('on', i<=current-1));
     applyHighlight();
+    repositionCoach();
   }
   function show(){
     coach.classList.add('show');
@@ -236,6 +237,25 @@
     hide();
   }
 
+  /* v40.1: 팝업 위치를 화면 하단에 고정된 값이 아니라, 현재 툴바 윗변을 기준으로
+     매번 다시 계산합니다. 이전에는 CSS의 고정 bottom 값을 썼는데, 몬스터/장애물
+     패널이 카드 높이에 맞춰 늘어나는 기능이 추가되면서 패널이 팝업 밑으로
+     파고들어 카드를 가리는 문제가 있었습니다(패널이 커진 만큼 팝업도 위로 밀려나야 함). */
+  /* v40.2: 안내 팝업을 하단(패널 위)이 아니라, 핵 설치 안내(#corePlaceHint)와 같은
+     보드 상단에 띄우도록 변경했습니다. 패널/툴바는 항상 보드 '아래'에 있으므로,
+     보드 위쪽에 고정하면 패널이 아무리 커져도 구조적으로 절대 겹치지 않습니다.
+     (지난번의 '패널이 팝업을 가림' 문제를 다시 겪지 않도록 아예 겹칠 수 없는 위치로 옮긴 것) */
+  function repositionCoach(){
+    const boardFrame=document.getElementById('board-frame');
+    if(!boardFrame) return;
+    const r=boardFrame.getBoundingClientRect();
+    if(r.width===0 && r.height===0) return; // 아직 레이아웃 전
+    const gap=10;
+    const topPx=Math.max(8, Math.round(r.top+gap));
+    coach.style.setProperty('top', topPx+'px', 'important');
+    coach.style.setProperty('bottom', 'auto', 'important');
+  }
+
   if(btnNext)  btnNext.addEventListener('click', ()=>goto(current+1));
   if(btnClose) btnClose.addEventListener('click', skipThisRun);
   if(btnHide)  btnHide.addEventListener('click', skipThisRun);
@@ -263,6 +283,8 @@
 
   setInterval(function(){
     try{
+      if(current>0) repositionCoach();
+
       if(typeof state==='undefined' || !state || !state.running) return;
 
       // 새 게임이 시작되면 튜토리얼을 처음부터 다시 판단합니다.
@@ -285,7 +307,7 @@
         startPending=false;
         prevMonsters=(state.monsters&&state.monsters.length)||0;
         prevObstacles=countObstacles();
-        setTimeout(begin,500);
+        setTimeout(function(){ begin(); repositionCoach(); },500);
         return;
       }
       if(current<=0) return;

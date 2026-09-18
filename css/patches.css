@@ -193,9 +193,12 @@
 }
 
 /* First-play helper. It is deliberately lightweight so experienced players can dismiss it. */
-#firstPlayCoach{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:75;width:min(92vw,430px);padding:10px 11px 9px;background:linear-gradient(180deg,rgba(38,28,65,.98),rgba(18,13,31,.98));border:1px solid rgba(224,182,74,.45);border-radius:12px;box-shadow:0 14px 35px rgba(0,0,0,.55),0 0 22px rgba(139,107,242,.15);display:none;backdrop-filter:blur(8px);}
+#firstPlayCoach{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:75;width:min(92vw,430px);padding:10px 11px 9px;background:linear-gradient(180deg,rgba(38,28,65,.98),rgba(18,13,31,.98));border:2px solid #ffd35c;border-radius:12px;box-shadow:0 14px 35px rgba(0,0,0,.55),0 0 26px rgba(255,211,92,.45);display:none;backdrop-filter:blur(8px);
+  pointer-events:none; /* v40.2: 안내창이 보드 위에 떠도 아래 타일 클릭을 막지 않도록, 버튼 외에는 클릭이 그대로 통과합니다 */
+}
+#firstPlayCoach .fpc-close, #firstPlayCoach .fpc-actions{pointer-events:auto;}
 #firstPlayCoach.show{display:block;animation:coachIn .22s ease-out;}
-@keyframes coachIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes coachIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 #firstPlayCoach .fpc-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
 #firstPlayCoach .fpc-step{font-size:9px;font-weight:900;color:#ffe08a;background:rgba(224,182,74,.13);border:1px solid rgba(224,182,74,.25);padding:3px 6px;border-radius:999px;}
 #firstPlayCoach .fpc-title{font-size:12.5px;font-weight:900;color:#fff;flex:1;}
@@ -213,6 +216,36 @@
 
 /* ---- block 1519-1588 ---- */
 /* ===== v38.9 mobile UX structural rework ===== */
+/* ==================================================================
+   v40.3 — 툴바/하이라이트를 항상(모든 화면 폭에서) 적용
+   기존에는 이 규칙들이 전부 @media(max-width:600px) 안에만 있어서,
+   PC처럼 600px보다 넓은 화면에서는 그리드/하이라이트 스타일이 아예
+   적용되지 않아 버튼이 세로로 쌓이고, 강조 테두리도 안 보였습니다.
+   여기서 기본(항상 적용) 버전을 만들고, 아래 미디어쿼리들은 화면이
+   좁을 때 크기만 살짝 조절하는 역할로 남겨둡니다.
+   ================================================================== */
+#toolbar{display:flex;gap:5px;align-items:stretch;}
+#toolbar .ux-primary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;flex:1;min-width:0;}
+#toolbar .ux-primary button{min-width:0;width:100%;height:48px;padding:5px 3px;border-radius:9px;background:linear-gradient(180deg,#251b3f,#171127);border-color:#3d2e60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+#toolbar .ux-primary button .tlabel{font-size:8px;color:#c0b6d7;}
+#toolbar .ux-primary button .ux-label{font-size:8px;color:#81769b;line-height:1;}
+#toolbar .ux-primary button.active{background:linear-gradient(180deg,#6848ad,#3b276a);border-color:#c3a9ff;box-shadow:0 0 0 1px rgba(183,155,255,.18),0 0 12px rgba(139,107,242,.24);}
+#toolbar .ux-primary button[data-tool="dig"]{border-color:#70552b;background:linear-gradient(180deg,#332818,#1c150d);}
+#toolbar .ux-primary button[data-tool="dig"].active{background:linear-gradient(180deg,#71551e,#3d2b10);border-color:#f0cb68;}
+#toolbar .ux-bottom-speed,
+#toolbar .ux-more-toggle{flex:0 0 48px;width:48px;height:48px;border-radius:9px;border:1px solid #443563;background:#19132b;color:#eae6f7;font-family:inherit;font-size:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+#toolbar .ux-more-toggle small{font-size:7px;color:#9c91b6;line-height:1;}
+#toolbar .ux-more-toggle.open{border-color:#b79bff;background:#2b1d4a;}
+#toolbar .ux-secondary{position:absolute;right:0;bottom:57px;width:min(230px,78vw);padding:7px;display:grid;grid-template-columns:repeat(2,1fr);gap:5px;background:rgba(20,14,34,.98);border:1px solid #4a396d;border-radius:12px;box-shadow:0 16px 34px rgba(0,0,0,.55),0 0 20px rgba(139,107,242,.14);z-index:30;}
+#toolbar .ux-secondary.hidden{display:none;}
+#toolbar .ux-secondary button{min-width:0;height:43px;padding:4px;border-radius:8px;background:#211834;border:1px solid #3b2d58;color:#eae6f7;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+#toolbar .ux-secondary button .tlabel{font-size:7.5px;color:#aaa0c0;}
+#toolbar .ux-secondary button.active{border-color:#b79bff;background:#4b3278;}
+#toolbar .ux-secondary button.speed-toggle.active{background:#5b438d;}
+
+.ux-focus{position:relative;z-index:91!important;outline:3px solid #ffd35c!important;outline-offset:2px;border-radius:12px;box-shadow:0 0 0 3px rgba(255,211,92,.35),0 0 22px 4px rgba(255,211,92,.75)!important;animation:uxFocusPulse 1.05s ease-in-out infinite!important;}
+@keyframes uxFocusPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+
 @media (max-width:600px){
   #app{padding:6px 6px 7px;}
   header{position:relative;z-index:5;}
@@ -271,15 +304,15 @@
   .ux-panel-action{flex:0 0 auto;margin:5px 9px 8px;padding:6px 7px;border-radius:8px;background:rgba(224,182,74,.06);border:1px dashed rgba(224,182,74,.22);font-size:8.5px;color:#cdbf9d;line-height:1.35;}
 
   /* First-play guide is now a compact bottom instruction card. */
-  #firstPlayCoach{left:6px;right:6px;bottom:8px;top:auto;width:auto;max-width:none;padding:9px 10px;border-radius:12px;background:rgba(15,10,27,.96);border:1px solid rgba(183,155,255,.45);box-shadow:0 10px 35px rgba(0,0,0,.62),0 0 22px rgba(139,107,242,.16);z-index:90;}
+  #firstPlayCoach{left:6px;right:6px;bottom:8px;top:auto;width:auto;max-width:none;padding:9px 10px;border-radius:12px;background:rgba(15,10,27,.96);border:2px solid #ffd35c;box-shadow:0 10px 35px rgba(0,0,0,.62),0 0 26px rgba(255,211,92,.4);z-index:90;}
   #firstPlayCoach .fpc-title{font-size:12px;}
   #firstPlayCoach .fpc-desc{font-size:9px;line-height:1.4;}
   #firstPlayCoach .fpc-actions{margin-top:6px;display:flex;gap:5px;}
   #firstPlayCoach .fpc-actions button{min-height:32px;font-size:9px;padding:6px 8px;}
   #firstPlayCoach .fpc-actions #fpcNext{flex:1;}
   #firstPlayCoach .fpc-progress{margin-top:6px;}
-  .ux-focus{position:relative;z-index:91!important;box-shadow:0 0 0 2px #e0b64a,0 0 18px rgba(224,182,74,.55)!important;animation:uxFocusPulse 1.05s ease-in-out infinite!important;}
-  @keyframes uxFocusPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+  .ux-focus{position:relative;z-index:91!important;outline:3px solid #ffd35c!important;outline-offset:2px;border-radius:12px;box-shadow:0 0 0 3px rgba(255,211,92,.35),0 0 22px 4px rgba(255,211,92,.75)!important;animation:uxFocusPulse 1.05s ease-in-out infinite!important;}
+  @keyframes uxFocusPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
 }
 @media (max-width:360px){
   #toolbar .ux-primary button{height:45px;}
