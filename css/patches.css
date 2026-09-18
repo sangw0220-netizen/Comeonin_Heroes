@@ -1,0 +1,584 @@
+
+/* ---- block 1301-1305 ---- */
+.cell.zone-room{box-shadow:inset 0 0 0 1px rgba(120,210,255,.08)}
+.cell.zone-corridor{box-shadow:inset 0 -1px 0 rgba(224,182,74,.08)}
+.cell.zone-junction{box-shadow:inset 0 0 0 1px rgba(255,209,102,.11)}
+.cell.zone-corner{box-shadow:inset 0 0 0 1px rgba(183,107,242,.10)}
+.cell.zone-deadend{box-shadow:inset 0 0 0 1px rgba(115,217,154,.10)}
+
+/* ---- block 1308-1346 ---- */
+/* ===== Mobile play-space / touch UX v2 ===== */
+@media (max-width:600px){
+  #app{padding:5px 6px 6px;}
+  header{flex:0 0 auto;}
+  h1.title{font-size:16px;margin:0 0 2px;line-height:1.15;}
+  .subtitle{font-size:8px;margin-bottom:3px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .statbar{gap:3px;}
+  .stat{padding:4px 5px;min-width:0;border-radius:7px;}
+  .stat .label{font-size:8px;margin-bottom:2px;line-height:1.1;}
+  .stat .value{font-size:11px;line-height:1.1;}
+  .stat.phase .value{font-size:10.5px;}
+  .stat .sub{font-size:7.5px;line-height:1.1;}
+  .stat.kills{min-width:0;}
+  #phaseBtn:not(.locked)::after{right:4px;bottom:2px;font-size:9px;}
+
+  #toolbar{gap:4px;margin-top:4px;padding-top:4px;padding-bottom:0;}
+  #toolbar button{padding:5px 7px;min-width:42px;border-radius:7px;font-size:12px;}
+  #toolbar button .tlabel{font-size:7.5px;}
+
+  /* Board gets the vertical space left by the compressed HUD. */
+  #boardWrap{margin-top:4px;min-height:0;}
+  #board-frame{padding:4px;overflow:auto;align-items:center;justify-content:center;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
+  #board-frame.zoomed{align-items:flex-start;justify-content:flex-start;cursor:grab;}
+  #board-inner{touch-action:manipulation;}
+  #board-inner.zoomed{touch-action:none;cursor:grab;}
+
+  /* 15~20% larger default cells on mobile. */
+  .cell{font-size:.64em;}
+  .obstacle-icon{left:0;top:0;width:200%;height:200%;}
+  .token{touch-action:manipulation;}
+}
+
+/* A larger visual footprint makes heroes/monsters easier to hit/read on phones.
+   Actual selection still resolves through the containing grid cell, so existing
+   combat/build logic is unchanged. */
+@media (max-width:600px){
+  #map .cell.has-obstacle .obstacle-icon{transform:scale(calc(var(--ob-level-scale,1) * 1.04));}
+  #tokenLayer .token .tokimg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.85)) drop-shadow(0 0 2px rgba(0,0,0,.55));}
+}
+
+/* ---- block 1351-1422 ---- */
+  /* ===== v37 마왕 RPG 플레이어 캐릭터 ===== */
+  .mawang-token{z-index:35!important;pointer-events:auto;filter:drop-shadow(0 0 7px rgba(212,55,92,.38));}
+  .mawang-token .spriteWrap{width:100%;height:100%;}
+  .mawang-token .tokimg{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 3px 4px rgba(0,0,0,.9));}
+  /* 마왕도 용사/몬스터와 동일한 머리 위 정보 배치를 사용합니다.
+     레벨 → 체력바 순서로 캐릭터 머리 위에 표시하며, 기존 하단 배치를 제거합니다. */
+  .mawang-token .mawang-crown{position:absolute;left:50%;top:-38px;transform:translateX(-50%);font-size:12px;line-height:1;filter:drop-shadow(0 1px 2px #000);z-index:3;pointer-events:none;}
+  .mawang-token .unit-hpbar{top:-4px;bottom:auto;height:5px;border-radius:99px;box-shadow:0 0 5px rgba(224,73,95,.35);}
+  .mawang-token .unit-hpfill{background:linear-gradient(90deg,#9d1c43,#ff536e);}
+  .mawang-token .lvbadge{top:-1px;bottom:auto;left:50%;transform:translate(-50%,-125%);white-space:nowrap;font-size:8.5px;padding:1px 4px;background:rgba(18,10,28,.92);border-color:rgba(244,179,91,.62);color:#f7d58f!important;}
+  .mawang-token.mawang-hit{animation:mawangHit .22s ease-out;}
+  @keyframes mawangHit{50%{filter:drop-shadow(0 0 10px rgba(255,72,96,.9)) brightness(1.35);}}
+  .mawang-selected{outline:2px solid #e0b64a!important;outline-offset:2px;}
+
+  .mawang-growth{display:flex;flex-direction:column;gap:9px;padding:10px 12px 14px;min-height:0;overflow:auto;}
+  .mawang-summary{display:grid;grid-template-columns:96px 1fr;gap:11px;padding:10px;border:1px solid rgba(214,74,104,.28);background:linear-gradient(180deg,rgba(83,22,40,.45),rgba(17,10,25,.5));border-radius:14px;}
+  .mawang-portrait{width:96px;height:110px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,rgba(224,73,95,.18),transparent 62%),rgba(7,5,13,.72);border:1px solid rgba(224,182,74,.25);overflow:hidden;}
+  .mawang-portrait img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;}
+  .mawang-summary-title{font-size:17px;font-weight:800;color:#fff1f4;}
+  .mawang-summary-sub{margin-top:2px;font-size:9px;color:#b7a9c6;line-height:1.45;}
+  .mawang-level-line{display:flex;justify-content:space-between;align-items:center;margin-top:7px;font-size:11px;color:#f7d58f;}
+  .mawang-xp{height:8px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin-top:5px;border:1px solid rgba(255,255,255,.06);}
+  .mawang-xp > div{height:100%;background:linear-gradient(90deg,#913455,#e0b64a);box-shadow:0 0 10px rgba(224,182,74,.25);}
+  .mawang-stat-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:9px;}
+  .mawang-stat{padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.05);font-size:9px;color:#9f92ad;}
+  .mawang-stat b{float:right;color:#f1e6f6;font-size:11px;}
+  .mawang-command{margin-top:8px;padding:7px 9px;border-radius:9px;background:rgba(224,182,74,.07);border:1px solid rgba(224,182,74,.18);font-size:9px;color:#d7c79a;}
+
+  .mawang-subtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:1px;}
+  .mawang-subtab{border:1px solid rgba(183,155,255,.2);background:rgba(255,255,255,.03);color:#b7aec5;border-radius:9px;padding:8px 5px;font-size:10px;cursor:pointer;}
+  .mawang-subtab.active{color:#fff;background:linear-gradient(180deg,rgba(111,53,112,.45),rgba(47,20,45,.62));border-color:rgba(224,182,74,.5);box-shadow:0 0 0 1px rgba(224,182,74,.08) inset;}
+
+  .mawang-skill-header{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid rgba(183,155,255,.15);border-radius:10px;background:rgba(255,255,255,.028);}
+  .mawang-sp{font-size:12px;color:#f7d58f;font-weight:800;}
+  .mawang-skill-note{font-size:8px;color:#9187a6;line-height:1.45;margin-top:5px;}
+  .mawang-tree{display:flex;flex-direction:column;gap:8px;}
+  .mawang-branch{border:1px solid rgba(183,155,255,.16);border-radius:12px;background:rgba(13,9,21,.44);overflow:hidden;}
+  .mawang-branch-head{padding:9px 10px;background:linear-gradient(90deg,rgba(84,37,92,.4),rgba(30,17,37,.18));}
+  .mawang-branch-title{font-size:12px;font-weight:800;color:#fff;}
+  .mawang-branch-desc{font-size:8px;color:#958aa5;margin-top:2px;}
+  .mawang-skill-nodes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:7px;}
+  .mawang-skill-card{padding:8px;border-radius:9px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.025);position:relative;}
+  .mawang-skill-card.capstone{grid-column:1/-1;border-color:rgba(224,182,74,.25);background:linear-gradient(180deg,rgba(88,58,16,.18),rgba(255,255,255,.02));}
+  .mawang-skill-card.locked{opacity:.56;}
+  .mawang-skill-name{font-size:10px;font-weight:800;color:#eee3f3;}
+  .mawang-skill-rank{position:absolute;right:7px;top:7px;color:#e0b64a;font-size:8px;}
+  .mawang-skill-desc{font-size:8px;line-height:1.4;color:#9f93ab;margin:4px 0 7px;min-height:33px;}
+  .mawang-skill-foot{display:flex;gap:4px;align-items:center;justify-content:space-between;}
+  .mawang-skill-prereq{font-size:7.5px;color:#806f92;line-height:1.25;}
+  .mawang-skill-btn{border:1px solid rgba(224,182,74,.28);background:rgba(224,182,74,.08);color:#f2d88f;border-radius:7px;padding:5px 7px;font-size:8px;cursor:pointer;white-space:nowrap;}
+  .mawang-skill-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+  .mawang-equip-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+  .mawang-equip-card{padding:9px;border-radius:10px;border:1px solid rgba(183,155,255,.14);background:rgba(255,255,255,.025);}
+  .mawang-equip-card.weapon{border-color:rgba(224,73,95,.28);}.mawang-equip-card.armor{border-color:rgba(102,164,255,.2);}.mawang-equip-card.accessory{border-color:rgba(183,155,255,.23);}.mawang-equip-card.boots{border-color:rgba(101,214,178,.18);}.mawang-equip-card.gloves{border-color:rgba(224,182,74,.25);}
+  .mawang-equip-title{display:flex;justify-content:space-between;align-items:center;font-size:10px;font-weight:800;color:#eee3f3;}
+  .mawang-equip-lv{color:#e0b64a;font-size:9px;}
+  .mawang-equip-effect{margin-top:6px;font-size:8px;color:#9f93ab;line-height:1.45;min-height:34px;}
+  .mawang-equip-next{margin-top:5px;font-size:8px;color:#bbb0c4;}
+  .mawang-equip-next b{color:#8de0b5;}
+  .mawang-equip-btn{width:100%;margin-top:7px;border:1px solid rgba(224,182,74,.28);background:rgba(224,182,74,.08);color:#f2d88f;border-radius:7px;padding:6px 8px;font-size:8.5px;cursor:pointer;}
+  .mawang-equip-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .mawang-inline-note{padding:8px 9px;border-radius:9px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.05);font-size:8px;color:#958aa5;line-height:1.45;}
+
+  @media(max-width:600px){
+    .mawang-summary{grid-template-columns:78px 1fr;padding:8px;}
+    .mawang-portrait{width:78px;height:94px;}
+    .mawang-stat-grid{gap:5px;}
+    .mawang-skill-nodes{grid-template-columns:1fr;}
+    .mawang-skill-card.capstone{grid-column:auto;}
+    .mawang-equip-grid{grid-template-columns:1fr;}
+  }
+
+/* ---- block 1427-1514 ---- */
+/* v38.8 release UX: readability, hierarchy, onboarding. Existing game logic is untouched. */
+@media (max-width:600px){
+  :root{--ux-touch:46px;}
+  #app{padding:6px 7px 8px;}
+  header{position:relative;z-index:4;}
+  h1.title{font-size:18px;line-height:1.2;letter-spacing:-.2px;}
+  .subtitle{font-size:9.5px;line-height:1.3;margin-bottom:5px;}
+
+  /* HUD: fewer tiny labels, stronger numbers. */
+  .statbar{gap:4px;}
+  .stat{padding:6px 6px;min-height:46px;border-radius:9px;}
+  .stat .label{font-size:8.5px;line-height:1.15;margin-bottom:3px;}
+  .stat .value{font-size:13px;line-height:1.15;font-weight:900;}
+  .stat .sub{font-size:8px;line-height:1.15;}
+  .stat.phase .value{font-size:12px;}
+  .stat.phase{min-width:0;}
+
+  /* The board is the primary interaction surface. */
+  #boardWrap{margin-top:5px;}
+  #board-frame{padding:5px;border-radius:12px;}
+  #stageBadge{max-width:calc(100% - 54px);}
+  #stageBadge .sb-text{font-size:10px;}
+  #stageBadge .sb-sub{font-size:8.5px;}
+  #zoomBtn{width:40px;height:40px;min-width:40px;font-size:19px;}
+
+  /* Selection/action panel: title first, hint second, controls third. */
+  #panelWrap{margin-top:5px;border-radius:11px;}
+  .panel-box{padding:9px 9px 10px;}
+  .panel-box h3{font-size:13px;line-height:1.25;margin:0 0 5px;}
+  .panel-hint{font-size:10.5px;line-height:1.42;}
+  .action-btn{min-height:44px;padding:9px 10px;font-size:11.5px;border-radius:9px;}
+  .shop-item{min-height:104px;flex-basis:88px;width:88px;padding:8px 6px 7px;border-radius:11px;}
+  .shop-item.wall-builder{flex-basis:116px;width:116px;}
+  .shop-item .si-icon{width:48px;height:48px;flex-basis:48px;}
+  .shop-item .si-emoji{font-size:26px;}
+  .shop-item .si-info{font-size:9.5px;line-height:1.25;}
+  .shop-item .si-info b{font-size:11px;line-height:1.2;}
+  .shop-item .si-cost{font-size:9.5px;}
+  .monster-mini img.mm-icon{width:38px;height:38px;}
+  .monster-mini .mm-stats{font-size:10px;line-height:1.3;}
+
+  /* Toolbar hierarchy: 1~3 = play tools, 4~5 = systems, 6~7 = utility. */
+  #toolbar{gap:5px;margin-top:6px;padding:5px 4px 4px;border-top:1px solid rgba(183,155,255,.16);}
+  #toolbar button{min-width:46px;min-height:46px;padding:6px 6px;border-radius:9px;font-size:15px;gap:2px;}
+  #toolbar button .tlabel{font-size:8.5px;line-height:1.05;font-weight:800;}
+  #toolbar button:nth-child(-n+3){flex:1.25 1 0;border-color:rgba(183,155,255,.30);}
+  #toolbar button:nth-child(4),#toolbar button:nth-child(5){flex:1 1 0;}
+  #toolbar button:nth-child(6),#toolbar button:nth-child(7){flex:0 0 46px;min-width:46px;}
+  #toolbar button:nth-child(6) .tlabel,#toolbar button:nth-child(7) .tlabel{display:none;}
+  #toolbar button:nth-child(3){margin-right:3px;}
+  #toolbar button:nth-child(4){margin-left:3px;}
+  #toolbar button:nth-child(4),#toolbar button:nth-child(6){border-left-color:rgba(224,182,74,.20);}
+  #toolbar button.active{box-shadow:0 0 0 2px rgba(224,182,74,.45),0 4px 12px rgba(0,0,0,.25);}
+
+  /* Keep important state readable even when the screen is short. */
+  #logToggle{min-height:34px;font-size:10.5px;}
+  #log{font-size:10.5px;line-height:1.35;min-height:60px;}
+}
+
+@media (max-width:360px){
+  h1.title{font-size:17px;}
+  .stat{padding:5px 5px;min-height:43px;}
+  .stat .label{font-size:8px;}
+  .stat .value{font-size:12px;}
+  #toolbar{gap:3px;padding-left:2px;padding-right:2px;}
+  #toolbar button{min-width:43px;min-height:44px;padding:5px 4px;}
+  #toolbar button:nth-child(6),#toolbar button:nth-child(7){flex-basis:43px;min-width:43px;}
+  .shop-item{flex-basis:82px;width:82px;}
+}
+
+/* First-play helper. It is deliberately lightweight so experienced players can dismiss it. */
+#firstPlayCoach{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:75;width:min(92vw,430px);padding:10px 11px 9px;background:linear-gradient(180deg,rgba(38,28,65,.98),rgba(18,13,31,.98));border:1px solid rgba(224,182,74,.45);border-radius:12px;box-shadow:0 14px 35px rgba(0,0,0,.55),0 0 22px rgba(139,107,242,.15);display:none;backdrop-filter:blur(8px);}
+#firstPlayCoach.show{display:block;animation:coachIn .22s ease-out;}
+@keyframes coachIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+#firstPlayCoach .fpc-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+#firstPlayCoach .fpc-step{font-size:9px;font-weight:900;color:#ffe08a;background:rgba(224,182,74,.13);border:1px solid rgba(224,182,74,.25);padding:3px 6px;border-radius:999px;}
+#firstPlayCoach .fpc-title{font-size:12.5px;font-weight:900;color:#fff;flex:1;}
+#firstPlayCoach .fpc-close{border:0;background:transparent;color:#aaa1bc;font-size:16px;padding:2px 5px;min-width:30px;min-height:30px;}
+#firstPlayCoach .fpc-desc{font-size:10.5px;line-height:1.42;color:#c9c1d8;margin-bottom:7px;}
+#firstPlayCoach .fpc-actions{display:flex;gap:6px;}
+#firstPlayCoach button{min-height:38px;border-radius:8px;border:1px solid rgba(183,155,255,.25);background:#201735;color:#eee;font-family:inherit;font-weight:800;padding:7px 10px;font-size:10px;}
+#firstPlayCoach #fpcNext{flex:1;background:linear-gradient(180deg,#6f4bd6,#5232a9);border-color:rgba(183,155,255,.5);}
+#firstPlayCoach .fpc-progress{display:flex;gap:4px;margin-top:7px;}
+#firstPlayCoach .fpc-dot{height:3px;flex:1;border-radius:3px;background:#32284b;}
+#firstPlayCoach .fpc-dot.on{background:#e0b64a;}
+@media (max-width:600px){
+  #firstPlayCoach{bottom:calc(8px + env(safe-area-inset-bottom));}
+}
+
+/* ---- block 1519-1588 ---- */
+/* ===== v38.9 mobile UX structural rework ===== */
+@media (max-width:600px){
+  #app{padding:6px 6px 7px;}
+  header{position:relative;z-index:5;}
+  h1.title{font-size:17px;margin-bottom:2px;}
+  .subtitle{display:none;}
+  .statbar{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:4px;}
+  .stat{min-width:0;padding:6px 7px;border-radius:9px;min-height:48px;}
+  .stat .label{font-size:8px;margin-bottom:3px;}
+  .stat .value{font-size:12px;}
+  .stat .sub{font-size:8px;}
+  .stat.phase{grid-column:span 1;}
+  #phaseBtn:not(.locked){border-width:1.5px;box-shadow:0 0 0 2px rgba(139,107,242,.16),0 3px 14px rgba(109,75,214,.38);}
+
+  /* Primary play controls: only actions used while playing stay exposed. */
+  #toolbar{order:0;margin-top:5px;padding:5px 0 4px;border-top:1px solid rgba(183,155,255,.18);border-bottom:1px solid rgba(183,155,255,.10);display:flex;gap:5px;overflow:visible;position:relative;z-index:12;}
+  #toolbar .ux-primary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;flex:1;min-width:0;}
+  #toolbar .ux-primary button{min-width:0;width:100%;height:48px;padding:5px 3px;border-radius:9px;background:linear-gradient(180deg,#251b3f,#171127);border-color:#3d2e60;}
+  #toolbar .ux-primary button .tlabel{font-size:8px;color:#c0b6d7;}
+  #toolbar .ux-primary button .ux-label{font-size:8px;color:#81769b;line-height:1;}
+  #toolbar .ux-primary button.active{background:linear-gradient(180deg,#6848ad,#3b276a);border-color:#c3a9ff;box-shadow:0 0 0 1px rgba(183,155,255,.18),0 0 12px rgba(139,107,242,.24);}
+  #toolbar .ux-primary button[data-tool="dig"]{border-color:#70552b;background:linear-gradient(180deg,#332818,#1c150d);}
+  #toolbar .ux-primary button[data-tool="dig"].active{background:linear-gradient(180deg,#71551e,#3d2b10);border-color:#f0cb68;}
+  #toolbar .ux-more-toggle{flex:0 0 42px;width:42px;height:48px;border-radius:9px;border:1px solid #443563;background:#19132b;color:#eae6f7;font-family:inherit;font-size:17px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+  #toolbar .ux-more-toggle small{font-size:7px;color:#9c91b6;line-height:1;}
+  #toolbar .ux-more-toggle.open{border-color:#b79bff;background:#2b1d4a;}
+  #toolbar .ux-secondary{position:absolute;right:0;bottom:57px;width:min(230px,78vw);padding:7px;display:grid;grid-template-columns:repeat(2,1fr);gap:5px;background:rgba(20,14,34,.98);border:1px solid #4a396d;border-radius:12px;box-shadow:0 16px 34px rgba(0,0,0,.55),0 0 20px rgba(139,107,242,.14);z-index:30;}
+  #toolbar .ux-secondary.hidden{display:none;}
+  #toolbar .ux-secondary button{min-width:0;height:43px;padding:4px;border-radius:8px;background:#211834;border:1px solid #3b2d58;color:#eae6f7;font-family:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;}
+  #toolbar .ux-secondary button .tlabel{font-size:7.5px;color:#aaa0c0;}
+  #toolbar .ux-secondary button.active{border-color:#b79bff;background:#4b3278;}
+  #toolbar .ux-secondary button.speed-toggle.active{background:#5b438d;}
+
+  #boardWrap{order:1;margin-top:5px;}
+  #board-frame{border-radius:13px;padding:5px;}
+  #stageBadge{left:9px;top:8px;padding:4px 7px;}
+  #stageBadge .sb-text{font-size:8.5px;}
+  #stageBadge .sb-sub{font-size:7px;}
+
+  /* Panel becomes an action sheet rather than a generic information box. */
+  #panelWrap{order:2;margin-top:5px;flex:0 0 auto;max-height:27vh;min-height:112px;overflow:hidden;border:1px solid rgba(183,155,255,.14);border-radius:12px;background:rgba(20,14,34,.72);}
+  .panel-box{padding:8px 9px;min-height:112px;}
+  .panel-box h3{font-size:13px;margin:0 0 3px;color:#fff;}
+  .panel-hint{font-size:9.5px;line-height:1.4;color:#aaa0c0;}
+  .panel-box .shop-list{padding-bottom:2px;}
+  .shop-item{min-height:72px;}
+
+  #logWrap{order:3;margin-top:4px;flex:0 0 auto;max-height:12vh;overflow:hidden;}
+  #log{font-size:8.5px;line-height:1.35;}
+
+  /* Action labels injected by v39. */
+  .ux-panel-kicker{display:inline-flex;align-items:center;gap:4px;margin-bottom:4px;padding:2px 6px;border-radius:999px;background:rgba(139,107,242,.12);border:1px solid rgba(183,155,255,.18);font-size:7.5px;color:#b9ace0;font-weight:900;}
+  .ux-panel-action{margin-top:5px;padding:6px 7px;border-radius:8px;background:rgba(224,182,74,.06);border:1px dashed rgba(224,182,74,.22);font-size:8.5px;color:#cdbf9d;line-height:1.35;}
+
+  /* First-play guide is now a compact bottom instruction card. */
+  #firstPlayCoach{left:6px;right:6px;bottom:8px;top:auto;width:auto;max-width:none;padding:9px 10px;border-radius:12px;background:rgba(15,10,27,.96);border:1px solid rgba(183,155,255,.45);box-shadow:0 10px 35px rgba(0,0,0,.62),0 0 22px rgba(139,107,242,.16);z-index:90;}
+  #firstPlayCoach .fpc-title{font-size:12px;}
+  #firstPlayCoach .fpc-desc{font-size:9px;line-height:1.4;}
+  #firstPlayCoach .fpc-actions{margin-top:6px;display:flex;gap:5px;}
+  #firstPlayCoach .fpc-actions button{min-height:32px;font-size:9px;padding:6px 8px;}
+  #firstPlayCoach .fpc-actions #fpcNext{flex:1;}
+  #firstPlayCoach .fpc-progress{margin-top:6px;}
+  .ux-focus{position:relative;z-index:91!important;box-shadow:0 0 0 2px #e0b64a,0 0 18px rgba(224,182,74,.55)!important;animation:uxFocusPulse 1.05s ease-in-out infinite!important;}
+  @keyframes uxFocusPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.18)}}
+}
+@media (max-width:360px){
+  #toolbar .ux-primary button{height:45px;}
+  #toolbar .ux-more-toggle{height:45px;}
+  #panelWrap{max-height:25vh;}
+}
+
+/* ---- block 1593-1626 ---- */
+/* v38.9 mobile: gameplay controls belong at the bottom of the play area. */
+@media (max-width:600px){
+  /* Header -> dungeon -> action panel -> utility/log -> gameplay toolbar */
+  #toolbar{
+    order:4 !important;
+    flex:0 0 auto !important;
+    width:100%;
+    margin-top:5px !important;
+    margin-bottom:0 !important;
+    padding-top:5px !important;
+    padding-bottom:calc(5px + env(safe-area-inset-bottom)) !important;
+    background:linear-gradient(180deg,rgba(12,8,22,.72),rgba(8,5,15,.96));
+    border-top:1px solid rgba(183,155,255,.22) !important;
+    border-bottom:0 !important;
+  }
+
+  /* The board keeps the available middle space instead of pushing the toolbar upward. */
+  #boardWrap{order:1 !important; min-height:0; flex:1 1 auto !important;}
+  #panelWrap{order:2 !important;}
+  #logWrap{order:3 !important;}
+
+  /* The onboarding card sits just above the bottom controls so it never covers them. */
+  #firstPlayCoach{
+    bottom:calc(65px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Keep the secondary menu opening upward from the bottom toolbar. */
+  #toolbar .ux-secondary{
+    bottom:calc(100% + 6px) !important;
+  }
+}
+@media (max-width:360px){
+  #firstPlayCoach{bottom:calc(61px + env(safe-area-inset-bottom)) !important;}
+}
+
+/* ---- block 1636-1760 ---- */
+@media (max-width:600px){
+  /*
+    실제 DOM 구조:
+    #toolbar
+      ├─ .ux-primary
+      │    ├─ 건설
+      │    ├─ 몬스터
+      │    ├─ 장애물
+      │    └─ 명령
+      ├─ .ux-more-toggle (기타)
+      └─ .ux-secondary
+  */
+
+  /* toolbar 자체는 가로 flex로 유지 */
+  #toolbar{
+    display:flex !important;
+    width:100% !important;
+    gap:2px !important;
+    padding-left:0 !important;
+    padding-right:0 !important;
+    overflow:visible !important;
+    align-items:stretch !important;
+  }
+
+  /* 핵심 4개가 화면 폭 대부분을 차지 */
+  #toolbar .ux-primary{
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:2px !important;
+    flex:1 1 auto !important;
+    width:auto !important;
+    min-width:0 !important;
+  }
+
+  #toolbar .ux-primary button{
+    width:100% !important;
+    min-width:0 !important;
+    height:48px !important;
+    min-height:48px !important;
+    padding:4px 2px !important;
+    border-radius:8px !important;
+    font-size:14px !important;
+    font-weight:900 !important;
+    line-height:1.05 !important;
+    white-space:nowrap !important;
+  }
+
+  #toolbar .ux-primary button > span:first-child{
+    font-size:22px !important;
+    line-height:1 !important;
+  }
+
+  #toolbar .ux-primary button .tlabel{
+    font-size:9px !important;
+    font-weight:900 !important;
+    line-height:1.1 !important;
+  }
+
+  #toolbar .ux-primary button .ux-label{
+    font-size:7px !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+  }
+
+  /* 기타는 최소 폭으로 축소 */
+  #toolbar .ux-more-toggle{
+    flex:0 0 34px !important;
+    width:34px !important;
+    min-width:34px !important;
+    height:48px !important;
+    min-height:48px !important;
+    padding:3px 1px !important;
+    border-radius:8px !important;
+    font-size:15px !important;
+    gap:0 !important;
+  }
+
+  #toolbar .ux-more-toggle small{
+    font-size:6.5px !important;
+    line-height:1 !important;
+  }
+
+  /* 기타 메뉴는 기존처럼 위로 열림 */
+  #toolbar .ux-secondary{
+    bottom:calc(100% + 6px) !important;
+    right:0 !important;
+  }
+}
+
+@media (max-width:360px){
+  #toolbar{
+    gap:2px !important;
+  }
+
+  #toolbar .ux-primary{
+    gap:2px !important;
+  }
+
+  #toolbar .ux-primary button{
+    height:46px !important;
+    min-height:46px !important;
+    font-size:13px !important;
+  }
+
+  #toolbar .ux-primary button > span:first-child{
+    font-size:20px !important;
+  }
+
+  #toolbar .ux-primary button .tlabel{
+    font-size:8px !important;
+  }
+
+  #toolbar .ux-primary button .ux-label{
+    font-size:6.5px !important;
+  }
+
+  #toolbar .ux-more-toggle{
+    flex-basis:31px !important;
+    width:31px !important;
+    min-width:31px !important;
+    height:46px !important;
+    min-height:46px !important;
+    font-size:14px !important;
+  }
+}
+
+/* ---- block 1765-1881 ---- */
+/* v6: mobile bottom toolbar is one fixed row:
+   [몬스터] [장애물] [명령] [배속] [기타] */
+@media (max-width:600px){
+  #toolbar{
+    display:flex !important;
+    flex-wrap:nowrap !important;
+    width:100% !important;
+    min-width:0 !important;
+    gap:3px !important;
+    align-items:stretch !important;
+    overflow:visible !important;
+  }
+
+  #toolbar .ux-primary{
+    display:grid !important;
+    grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+    flex:1 1 auto !important;
+    width:auto !important;
+    min-width:0 !important;
+    gap:3px !important;
+  }
+
+  #toolbar .ux-primary button{
+    width:100% !important;
+    min-width:0 !important;
+    height:50px !important;
+    min-height:50px !important;
+    max-height:50px !important;
+    padding:4px 2px !important;
+    border-radius:9px !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 기존 speedBtn을 하단 고정 배속 버튼으로 사용 */
+  #toolbar .ux-bottom-speed{
+    display:flex !important;
+    flex:0 0 48px !important;
+    width:48px !important;
+    min-width:48px !important;
+    max-width:48px !important;
+    height:50px !important;
+    min-height:50px !important;
+    max-height:50px !important;
+    padding:3px 1px !important;
+    margin:0 !important;
+    border-radius:9px !important;
+    box-sizing:border-box !important;
+    flex-direction:column !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:1px !important;
+  }
+
+  #toolbar .ux-bottom-speed span:first-child{
+    font-size:18px !important;
+    line-height:1 !important;
+  }
+
+  #toolbar .ux-bottom-speed .tlabel{
+    font-size:8px !important;
+    line-height:1 !important;
+  }
+
+  #toolbar .ux-more-toggle{
+    flex:0 0 40px !important;
+    width:40px !important;
+    min-width:40px !important;
+    max-width:40px !important;
+    height:50px !important;
+    min-height:50px !important;
+    max-height:50px !important;
+    margin:0 !important;
+    padding:3px 1px !important;
+    box-sizing:border-box !important;
+    border-radius:9px !important;
+    font-size:17px !important;
+  }
+
+  #toolbar .ux-more-toggle small{
+    font-size:8px !important;
+    line-height:1 !important;
+  }
+
+  /* 혹시 다른 기존 규칙이 재노출해도 speed는 반드시 하단 위치만 사용 */
+  #toolbar .ux-secondary .speed-toggle,
+  #toolbar .ux-secondary #speedBtn{
+    display:none !important;
+  }
+}
+
+@media (max-width:360px){
+  #toolbar{gap:2px !important;}
+  #toolbar .ux-primary{gap:2px !important;}
+  #toolbar .ux-primary button{
+    height:47px !important;
+    min-height:47px !important;
+    max-height:47px !important;
+  }
+  #toolbar .ux-bottom-speed{
+    flex-basis:42px !important;
+    width:42px !important;
+    min-width:42px !important;
+    max-width:42px !important;
+    height:47px !important;
+    min-height:47px !important;
+    max-height:47px !important;
+  }
+  #toolbar .ux-more-toggle{
+    flex-basis:34px !important;
+    width:34px !important;
+    min-width:34px !important;
+    max-width:34px !important;
+    height:47px !important;
+    min-height:47px !important;
+    max-height:47px !important;
+  }
+}
+
+/* ---- block 11956-11971 ---- */
+/* v7: 좌측 상단 '핵 HP' 체력바를 세로로 더 두껍게 */
+.statbar > .stat:first-child .barwrap{
+  height:10px !important;
+  min-height:10px !important;
+  border-radius:7px !important;
+}
+.statbar > .stat:first-child .barfill.hp{
+  height:100% !important;
+  border-radius:6px !important;
+}
+@media (max-width:600px){
+  .statbar > .stat:first-child .barwrap{
+    height:10px !important;
+    min-height:10px !important;
+  }
+}
