@@ -252,7 +252,14 @@
     if(r.width===0 && r.height===0) return; // 아직 레이아웃 전
     const gap=10;
     const topPx=Math.max(8, Math.round(r.top+gap));
-    coach.style.setProperty('top', topPx+'px', 'important');
+    const newTop=topPx+'px';
+    // v40.4: 값이 실제로 바뀌었을 때만 스타일을 다시 씁니다.
+    // 0.35초마다 무조건 style을 다시 쓰면(레이아웃이 그대로여도) 불필요한 리페인트가
+    // 계속 발생하는데, 일부 환경에서 이게 보드 위 토큰(몬스터/마왕) 렌더링과
+    // 충돌해 화면에 안 보이는 문제가 있었습니다. 값이 같으면 아예 건드리지 않습니다.
+    if(coach.dataset.posTop===newTop) return;
+    coach.dataset.posTop=newTop;
+    coach.style.setProperty('top', newTop, 'important');
     coach.style.setProperty('bottom', 'auto', 'important');
   }
 

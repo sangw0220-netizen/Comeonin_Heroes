@@ -799,8 +799,6 @@ function rangedProjectileKind(owner,typeId,special){
 }
 const HERO_FACING_INVERT={mage:true, assassin:true, gunslinger:false, summoner:false};
 const MONSTER_FACING_INVERT={dragon:true, golem:true, ice_golem:true, rock_colossus:true, lich_lord:true, dark_sorcerer:true};
-// v44: 특정 몬스터만 기본 크기에서 배율을 조정하고 싶을 때 사용합니다. (1보다 작으면 축소)
-const MONSTER_SIZE_MUL={goblin_archer:0.8};
 
 
 /* ---------------- dungeon structure / room & corridor ---------------- */
@@ -976,7 +974,7 @@ function syncTokens(){
   for(const m of state.monsters){
     const key='m'+m.id; seen.add(key);
     const el=ensureToken(key, m.typeId, 'monster');
-    const size=px*(0.95+m.tier*0.16)*TOKEN_VIEW_SCALE*(MONSTER_SIZE_MUL[m.typeId]||1); // v44: 몬스터별 크기 보정
+    const size=px*(0.95+m.tier*0.16)*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
     updateFacing(el, m.r, m.c, !!MONSTER_FACING_INVERT[m.typeId]);
@@ -1008,7 +1006,7 @@ function syncTokens(){
   if(state.mawang && !state.mawang.dead && state.corePlaced!==false && state.phase!=='placeCore'){
     const m=state.mawang; const key='mawang'; seen.add(key);
     const el=ensureToken(key,'__mawang__','mawang-token');
-    const size=px*1.52*0.7*TOKEN_VIEW_SCALE; // v43: 마왕 크기를 기존 대비 30% 축소
+    const size=px*1.52*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
     // 마왕 원본 스프라이트는 오른쪽을 바라보고 있으므로, 이동 방향과 시선을 일치시킵니다.
