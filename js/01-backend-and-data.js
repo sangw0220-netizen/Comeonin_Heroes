@@ -754,6 +754,19 @@ SPRITE_DATA.nightstalker="assets/images/img_067_59d4ae8fe7.png";
 SPRITE_DATA.bone_priest="assets/images/img_068_faaf5713f8.png";
 SPRITE_DATA.fallen_seraph="assets/images/img_069_3cc7d9ef14.png";
 SPRITE_DATA.cursed_shaman="assets/images/img_070_4518f5c2ba.png";
+// v60: 신규 몬스터 12종 (시트 A)
+SPRITE_DATA.lizardman="assets/images/monster_lizardman.png";
+SPRITE_DATA.minotaur="assets/images/monster_minotaur.png";
+SPRITE_DATA.spiked_turtle="assets/images/monster_spiked_turtle.png";
+SPRITE_DATA.bomb_goblin="assets/images/monster_bomb_goblin.png";
+SPRITE_DATA.vine_archer="assets/images/monster_vine_archer.png";
+SPRITE_DATA.wisp="assets/images/monster_wisp.png";
+SPRITE_DATA.frost_witch="assets/images/monster_frost_witch.png";
+SPRITE_DATA.lightning_mage="assets/images/monster_lightning_mage.png";
+SPRITE_DATA.goblin_shaman="assets/images/monster_goblin_shaman.png";
+SPRITE_DATA.swamp_hag="assets/images/monster_swamp_hag.png";
+SPRITE_DATA.thief_rat="assets/images/monster_thief_rat.png";
+SPRITE_DATA.frenzied_bear="assets/images/monster_frenzied_bear.png";
 // v51: 왕국 정예 영웅 12종 (중반~후반 웨이브 전용)
 SPRITE_DATA.horseman="assets/images/hero_horseman.png";
 SPRITE_DATA.pikeman="assets/images/hero_pikeman.png";
@@ -824,6 +837,28 @@ const MONSTER_TYPES=[
   {id:'bone_priest',     grade:'B', name:'뼈사제', desc:'뼈로 이루어진 사제. 죽은 자들을 불러내 전투에 가담시킨다. 주변의 적을 약화시키는 저주를 건다.', cost:90, hp:120, atk:6, def:2, range:2, special:'lifesteal', role:'healer'},
   {id:'fallen_seraph',   grade:'S', name:'타락한 세라핌', desc:'타락한 천사의 형태. 빛이 아닌 어둠의 힘으로 적을 공격한다. 주변의 아군 몬스터에게 공격력과 방어력을 증가시킨다.', cost:250, hp:300, atk:20, def:5, range:2, special:'lifesteal', role:'healer', cardOnly:true},
   {id:'cursed_shaman',   grade:'A', name:'저주받은 무녀', desc:'영혼을 저주하는 무녀. 부적과 의식을 통해 적을 괴롭힌다. 저주에 걸린 적은 지속적인 피해를 입는다.', cost:230, hp:190, atk:20, def:2, range:2, special:'curse', role:'debuff', cardOnly:true},
+
+  // ── v60 · 신규 몬스터 12종 (역할군 보강). 기본 해금 5종 + 카드 해금 7종 ──
+  // ▸ 전사
+  {id:'lizardman',      grade:'B', name:'리자드맨 전사', desc:'비늘 갑옷과 창으로 무장한 도마뱀 전사. 균형 잡힌 근접전을 펼치며 창끝에 출혈을 남기고, 성장하면 무리의 사기를 끌어올린다.', cost:88,  hp:128, atk:14, def:3, range:1, role:'warrior', cardOnly:true},
+  {id:'minotaur',       grade:'A', name:'미노타우로스',  desc:'거대한 도끼를 휘두르는 미궁의 수호자. 뿔로 들이받고 돌진해 용사들을 기절시킨다.', cost:175, hp:240, atk:22, def:5, range:1, role:'warrior', cardOnly:true},
+  // ▸ 탱커
+  {id:'spiked_turtle',  grade:'C', name:'가시거북',      desc:'가시 돋친 등껍질로 버티는 작은 수호자. 껍질 속에 웅크려 피해를 줄이고, 진흙을 뿜어 용사의 발을 늦춘다.', cost:52,  hp:104, atk:5,  def:5, range:1, special:'tank', role:'tank', cardOnly:true},
+  // ▸ 원거리 딜러
+  {id:'bomb_goblin',    grade:'B', name:'폭탄 고블린',   desc:'화염병과 폭탄을 던지는 광기의 고블린. 폭발이 번져 뭉쳐 있는 용사들을 한꺼번에 태운다.', cost:100, hp:70,  atk:14, def:0, range:3, special:'splash', role:'ranged'},
+  {id:'vine_archer',    grade:'A', name:'덩굴 사수',     desc:'덩굴로 엮은 활을 든 숲의 사수. 덩굴 화살과 가시 그물로 용사를 속박한다.', cost:178, hp:124, atk:19, def:2, range:4, special:'ranged', role:'ranged', cardOnly:true},
+  // ▸ 마법 딜러
+  {id:'wisp',           grade:'C', name:'도깨비불',      desc:'푸른 불꽃으로 떠다니는 장난꾸러기 도깨비. 작지만 불꽃 파편이 번져 주변의 용사까지 태운다.', cost:44,  hp:42,  atk:9,  def:0, range:2, special:'splash', role:'mage'},
+  {id:'frost_witch',    grade:'B', name:'서리 마녀',     desc:'얼음 지팡이로 용사의 발을 얼리는 마녀. 서리와 눈보라로 움직임을 늦추고 절대영도로 얼어붙게 한다.', cost:108, hp:102, atk:15, def:1, range:3, special:'frost', role:'mage', cardOnly:true},
+  {id:'lightning_mage', grade:'A', name:'번개 술사',     desc:'전류가 튀는 지팡이를 든 술사. 연쇄 번개로 용사들을 지지고 잠시 마비시킨다.', cost:172, hp:138, atk:21, def:2, range:3, role:'mage', cardOnly:true},
+  // ▸ 힐러
+  {id:'goblin_shaman',  grade:'B', name:'고블린 샤먼',   desc:'북과 뼈 지팡이를 든 부족 주술사. 치유 부적으로 주변 아군을 회복시키고, 성장하면 북소리로 사기를 북돋는다.', cost:95,  hp:110, atk:7,  def:2, range:2, role:'healer'},
+  // ▸ 디버프
+  {id:'swamp_hag',      grade:'B', name:'늪 마귀',       desc:'늪지의 진흙과 이끼를 두른 마녀. 발밑을 수렁으로 만들어 용사의 발을 늦추고 묶는다.', cost:102, hp:112, atk:12, def:2, range:3, role:'debuff'},
+  // ▸ 암살자
+  {id:'thief_rat',      grade:'C', name:'도둑 쥐',       desc:'두건을 쓴 재빠른 쥐 도적. 약해진 용사의 뒤를 노려 단검으로 끝장낸다.', cost:46,  hp:48,  atk:11, def:0, range:1, special:'execute', role:'assassin'},
+  // ▸ 버서커
+  {id:'frenzied_bear',  grade:'S', name:'광폭 곰',       desc:'분노로 눈이 붉게 물든 거대한 곰. 체력이 낮아질수록 미쳐 날뛰며, 포효로 용사들을 기절시킨다.', cost:215, hp:380, atk:26, def:5, range:1, special:'rage', role:'berserker', cardOnly:true},
 ];
 
 
@@ -1000,6 +1035,68 @@ const MONSTER_SKILLS={
     1:{name:'저주 부적',icon:'🏮',kind:'curse',cooldown:8,cast:0.8,range:3,mult:1.9,debuff:'atk'},
     5:{name:'악령 강령',icon:'👻',kind:'fear',cooldown:12,cast:1.1,range:4,aoe:1.4,mult:2.4,debuff:'atk',fear:0.25},
     10:{name:'죽음의 의식',icon:'💀',kind:'curse',cooldown:18,cast:1.6,range:5,aoe:2.0,mult:3.8,debuff:'atk',fear:0.4}
+  },
+
+  // ── v60 · 신규 몬스터 스킬 (출혈·기절·둔화·속박·화상·방어막·아군 강화·회복·처형·격분 등 구현된 효과만 사용) ──
+  lizardman:{
+    1:{name:'창날 찌르기',icon:'🔱',kind:'steel',cooldown:8,cast:0.7,range:2,mult:2.1,bleed:2},
+    5:{name:'비늘 방어',icon:'🛡️',kind:'steel',cooldown:12,cast:0.9,range:2,mult:2.4,selfShield:0.25},
+    10:{name:'리자드 군세',icon:'🦎',kind:'steel',cooldown:16,cast:1.3,range:3,aoe:1.3,mult:3.1,buffAtk:0.15}
+  },
+  minotaur:{
+    1:{name:'뿔 들이받기',icon:'🐂',kind:'earth',cooldown:9,cast:0.7,range:2,mult:2.3,stun:0.6},
+    5:{name:'분쇄 돌진',icon:'💢',kind:'earth',cooldown:12,cast:1.0,range:3,aoe:1.2,mult:2.8,stun:0.8},
+    10:{name:'미궁의 왕',icon:'👑',kind:'earth',cooldown:17,cast:1.5,range:4,aoe:1.8,mult:3.9,stun:1.0}
+  },
+  spiked_turtle:{
+    1:{name:'껍질 웅크리기',icon:'🐢',kind:'earth',cooldown:10,cast:0.8,range:2,mult:1.6,selfShield:0.30},
+    5:{name:'진흙 뿜기',icon:'🟤',kind:'earth',cooldown:11,cast:0.9,range:3,mult:1.8,slow:true},
+    10:{name:'거북 진영',icon:'🛡️',kind:'earth',cooldown:16,cast:1.3,range:3,aoe:1.3,mult:2.2,buffDef:0.20,selfShield:0.30}
+  },
+  bomb_goblin:{
+    1:{name:'화염병',icon:'🍾',kind:'fire',cooldown:9,cast:0.8,range:4,aoe:1.1,mult:1.9,burn:3},
+    5:{name:'연쇄 폭탄',icon:'💣',kind:'fire',cooldown:12,cast:1.0,range:4,aoe:1.2,mult:2.4,burn:3},
+    10:{name:'대폭발',icon:'💥',kind:'fire',cooldown:17,cast:1.5,range:5,aoe:1.7,mult:3.5,burn:4}
+  },
+  vine_archer:{
+    1:{name:'속박의 화살',icon:'🏹',kind:'nature',cooldown:9,cast:0.8,range:5,mult:2.1,root:0.8},
+    5:{name:'가시 그물',icon:'🕸️',kind:'nature',cooldown:12,cast:1.1,range:5,aoe:1.2,mult:2.4,slow:true},
+    10:{name:'대지의 속박',icon:'🌿',kind:'nature',cooldown:17,cast:1.5,range:6,aoe:1.6,mult:3.3,root:1.4}
+  },
+  wisp:{
+    1:{name:'마력탄',icon:'🔵',kind:'arcane',cooldown:8,cast:0.8,range:3,mult:1.9},
+    5:{name:'불꽃 분열',icon:'✨',kind:'fire',cooldown:11,cast:1.0,range:3,aoe:1.0,mult:2.3},
+    10:{name:'도깨비 축제',icon:'🎆',kind:'fire',cooldown:16,cast:1.4,range:4,aoe:1.5,mult:3.2,burn:3}
+  },
+  frost_witch:{
+    1:{name:'서리 화살',icon:'❄️',kind:'ice',cooldown:8,cast:0.8,range:4,mult:2.1,slow:true},
+    5:{name:'눈보라',icon:'🌨️',kind:'ice',cooldown:12,cast:1.1,range:4,aoe:1.4,mult:2.6,slow:true},
+    10:{name:'절대영도',icon:'🧊',kind:'ice',cooldown:18,cast:1.6,range:5,aoe:2.0,mult:3.7,stun:0.8}
+  },
+  lightning_mage:{
+    1:{name:'스파크',icon:'⚡',kind:'storm',cooldown:8,cast:0.7,range:4,mult:2.0,stun:0.3},
+    5:{name:'연쇄 번개',icon:'🌩️',kind:'storm',cooldown:12,cast:1.0,range:4,aoe:1.5,mult:2.6},
+    10:{name:'뇌우',icon:'⛈️',kind:'storm',cooldown:18,cast:1.6,range:5,aoe:2.2,mult:3.8,stun:0.5}
+  },
+  goblin_shaman:{
+    1:{name:'뼈 지팡이 강타',icon:'🦴',kind:'steel',cooldown:9,cast:0.8,range:2,mult:1.6},
+    5:{name:'치유 부적',icon:'✚',kind:'heal',cooldown:12,cast:1.1,range:4,aoe:1.3,mult:0,healAll:0.12},
+    10:{name:'부족의 축복',icon:'🥁',kind:'heal',cooldown:18,cast:1.6,range:4,aoe:1.8,mult:0,healAll:0.20,buffAtk:0.20}
+  },
+  swamp_hag:{
+    1:{name:'진흙 던지기',icon:'🟫',kind:'poison',cooldown:8,cast:0.8,range:4,mult:1.8,slow:true},
+    5:{name:'늪 지대',icon:'🌫️',kind:'poison',cooldown:12,cast:1.1,range:4,aoe:1.3,mult:2.3,slow:true},
+    10:{name:'수렁',icon:'🕳️',kind:'poison',cooldown:17,cast:1.5,range:5,aoe:2.0,mult:3.2,root:1.2}
+  },
+  thief_rat:{
+    1:{name:'뒤통수',icon:'🗡️',kind:'steel',cooldown:8,cast:0.6,range:1,mult:2.3,execute:true},
+    5:{name:'연속 찌르기',icon:'🗡️',kind:'steel',cooldown:11,cast:0.8,range:2,mult:2.7,bleed:2,execute:true},
+    10:{name:'쥐떼 습격',icon:'🐀',kind:'steel',cooldown:16,cast:1.2,range:3,aoe:1.2,mult:3.3,execute:true}
+  },
+  frenzied_bear:{
+    1:{name:'발톱 할퀴기',icon:'🐾',kind:'rage',cooldown:8,cast:0.7,range:2,mult:2.3,bleed:2},
+    5:{name:'광폭화',icon:'🔥',kind:'rage',cooldown:12,cast:0.9,range:2,mult:2.8,berserk:0.3},
+    10:{name:'곰의 포효',icon:'🐻',kind:'rage',cooldown:17,cast:1.4,range:3,aoe:1.8,mult:3.8,stun:0.6,berserk:0.3}
   }
 };
 function getMonsterSkill(m){

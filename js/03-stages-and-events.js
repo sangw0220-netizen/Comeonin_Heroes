@@ -1877,7 +1877,7 @@ function processMonsterTick(m,dt){
       const meleeFxReady=now-(m.lastMeleeFxAt||0)>=280;
       if(isRangedMonsterUnit(m)){
         // v48: 원거리 몬스터(궁수/마법사/정령 등)도 용사가 붙어도 투사체를 발사합니다.
-        state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:'#b76bf2',owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
+        state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:monsterProjectileColor(m.typeId),owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
         if(meleeFxReady){
           m.lastMeleeFxAt=now;
           state.fxEvents.push({type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'});
@@ -1888,7 +1888,7 @@ function processMonsterTick(m,dt){
       }else{
         state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg});
       }
-    }else state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:'#b76bf2',owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
+    }else state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:monsterProjectileColor(m.typeId),owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
       if((m.range||1)>1 || m.special==='lifesteal' || m.special==='frost' || m.special==='splash') state.fxEvents.push({type:'spell',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,spell:(m.special==='frost'?'ice':m.special==='lifesteal'?'dark':m.special==='splash'?'fire':m.special==='curse'?'dark':'arcane')});
       if((m.range||1)>1 || m.special==='lifesteal' || m.special==='frost' || m.special==='splash') Sound.magic(m.special==='frost'?'ice':m.special==='lifesteal'?'dark':m.special==='splash'?'fire':m.special==='curse'?'dark':'arcane');
     state.fxEvents.push({type:'spark',r:h.r,c:h.c,color:'#ff6873'},{type:'spark',r:m.r,c:m.c,color:'#ffd166'},{type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff6873'});

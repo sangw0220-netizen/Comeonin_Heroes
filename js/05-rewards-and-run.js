@@ -792,7 +792,15 @@ function renderMapCells(){
 
 let tokenEls={};
 const RANGED_COLOR={archer:'#3f9e5c', mage:'#5aa9e6', gunslinger:'#e0a44a', ice_mage:'#78dfff', spirit_caller:'#68e5ff', curse_caster:'#b76bf2', alchemist:'#b6ff5c', bard:'#f0c36a', royal_longbow:'#e8c860', battle_mage:'#7aa8ff', rune_guardian:'#b98cff', imperial_magus:'#ffe08a'};
+// v60: 신규 원거리/마법 몬스터의 투사체 종류와 테마색 (기존 몬스터는 종전대로 보라색)
+const MONSTER_PROJECTILE_STYLE={
+  vine_archer:{kind:'arrow',color:'#8bd45c'}, bomb_goblin:{kind:'magic',color:'#ff8c42'}, wisp:{kind:'magic',color:'#5aa9ff'},
+  frost_witch:{kind:'ice',color:'#78dfff'}, lightning_mage:{kind:'magic',color:'#ffd84a'}, swamp_hag:{kind:'magic',color:'#9acb4a'},
+  goblin_shaman:{kind:'magic',color:'#f0c36a'}
+};
+function monsterProjectileColor(typeId){ const st=MONSTER_PROJECTILE_STYLE[typeId]; return st?st.color:'#b76bf2'; }
 function rangedProjectileKind(owner,typeId,special){
+  if(owner!=='hero' && MONSTER_PROJECTILE_STYLE[typeId]) return MONSTER_PROJECTILE_STYLE[typeId].kind;
   if(owner==='hero'){
     if(['archer','hunter','royal_longbow'].includes(typeId)) return 'arrow';
     if(typeId==='gunslinger') return 'bullet';
@@ -812,9 +820,11 @@ const HERO_XL_SPRITE=['swordsaint','dragonslayer','sun_lancer','griffon_knight',
 const HERO_FACING_INVERT={mage:true, assassin:true, gunslinger:false, summoner:false};
 const MONSTER_FACING_INVERT={dragon:true, golem:true, ice_golem:true, rock_colossus:true, lich_lord:true, dark_sorcerer:true, goblin_archer:true,
   // v52: 사용자가 실제로 반대 방향으로 뒤집혀 보인다고 확인해준 8종
-  slime:true, goblin:true, spider:true, orc:true, fire:true, angry_orc:true, shadow_goblin:true, bone_priest:true};
+  slime:true, goblin:true, spider:true, orc:true, fire:true, angry_orc:true, shadow_goblin:true, bone_priest:true,
+  // v60: 신규 몬스터 12종은 원본 그림이 오른쪽을 바라봅니다
+  lizardman:true, minotaur:true, spiked_turtle:true, bomb_goblin:true, vine_archer:true, wisp:true, frost_witch:true, lightning_mage:true, goblin_shaman:true, swamp_hag:true, thief_rat:true, frenzied_bear:true};
 // v44: 특정 몬스터만 기본 크기에서 배율을 조정하고 싶을 때 사용합니다. (1보다 작으면 축소)
-const MONSTER_SIZE_MUL={goblin_archer:0.8};
+const MONSTER_SIZE_MUL={goblin_archer:0.8, wisp:0.8, thief_rat:0.85, minotaur:1.08, frenzied_bear:1.1}; // v60: 작은/큰 신규 몬스터 보정
 
 
 /* ---------------- dungeon structure / room & corridor ---------------- */

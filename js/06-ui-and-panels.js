@@ -1402,7 +1402,7 @@ function villageAttackerTick(m, dt, isMawang){
         state.fxEvents.push({type:'punch', key:(isMawang?'mawang':'m'+m.id), dr:dR, dc:dC, mode:'attacker'});
         state.fxEvents.push({type:'battleHit', r:target.r, c:target.c, color:'#ff6873', strong:dmg>target.maxHp*0.12, damage:dmg});
       } else {
-        state.fxEvents.push({type:'projectile', fromR:m.r, fromC:m.c, toR:target.r, toC:target.c, color:'#b76bf2', owner:'monster', typeId:m.typeId, special:m.special, kind:rangedProjectileKind('monster', m.typeId, m.special)});
+        state.fxEvents.push({type:'projectile', fromR:m.r, fromC:m.c, toR:target.r, toC:target.c, color:monsterProjectileColor(m.typeId), owner:'monster', typeId:m.typeId, special:m.special, kind:rangedProjectileKind('monster', m.typeId, m.special)});
       }
       state.fxEvents.push({type:'damageNumber', r:target.r, c:target.c, amount:dmg, color:'#ff6873'});
       if(target.hp<=0){ if(isMawang) target.killerMawang=true; else target.killerMonsterId=m.id; }
