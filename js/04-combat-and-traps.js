@@ -56,6 +56,16 @@ function evacuateHeroFromCollapsedBridge(h){
     }
   }
 }
+/* v61 · 장애물 발동 애니메이션 신호.
+   침공 중 지도 칸은 "변경 신호(_mapDirty)"나 벽 파기 중일 때만 다시 그려지기 때문에, triggerFxUntil 만 설정하면
+   발동 프레임/펄스가 화면에 반영되지 않았습니다(기존 신규 장애물의 발동 연출도 마찬가지).
+   시작 시점과 종료 시점에 지도 갱신을 요청해서 재생/복귀가 정확히 반영되게 합니다. */
+function markObstacleTrigger(tile,ms){
+  if(!tile) return 0;
+  const until=performance.now()+ms; tile.triggerFxUntil=until;
+  if(typeof state!=='undefined' && state){ state._mapDirty=true; setTimeout(()=>{ if(state) state._mapDirty=true; },ms+40); }
+  return until;
+}
 function activateObstacle(h,tile,trigger='contact',chained=false){
   if(!h||h.hp<=0||!tile?.obstacle) return false;
   const root=obstacleRootPos(h.r,h.c) || obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || {r:h.r,c:h.c};
@@ -83,6 +93,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
   const ambushMul=1+(isAmbush?trapAmbushBonus():0);
   const affected=state.heroes.filter(x=>x.hp>0&&Math.abs(x.r-h.r)+Math.abs(x.c-h.c)<=range);
   for(const x of affected) x.lastTrapHitAt=now;
+  if(OBSTACLE_TRIGGER_FX_MS[ob.id]) markObstacleTrigger(rootTile,OBSTACLE_TRIGGER_FX_MS[ob.id]); // v61: 발동형 프레임 애니메이션 재생 신호
   state.fxEvents.push({type:'obstacleImpact',r:root.r+0.5,c:root.c+0.5,ob:ob.id,strong:lv>=5,label:lv>=10?'LV.10!':'LV.'+lv,key:'h'+h.id,footprint:2});
 
   if(ob.id==='spike'){
@@ -258,7 +269,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'💨 밀려남!',color:'#9fe3ff'});
       sayHero(h,pickHeroDialogue('trapGust'),'trapHit',1300,true);
     }
-    rootTile.triggerFxUntil=now+500; // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
+    markObstacleTrigger(rootTile,500); // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
     Sound.trap('gust');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'gust',text:'💨',footprint:2});
     return true;
@@ -283,7 +294,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
         sayHero(x,pickHeroDialogue('trapMagnet'),'trapHit',1300,true);
       }
     }
-    rootTile.triggerFxUntil=now+400; // v47: 발동 애니메이션(확 당겨지는 느낌) 재생 시간
+    markObstacleTrigger(rootTile,400); // v47: 발동 애니메이션(확 당겨지는 느낌) 재생 시간
     Sound.trap('magnet');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'magnet',text:'🧲',footprint:2});
     return true;
@@ -295,7 +306,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'⛓ 포박!',color:'#ff8fa3'});
       sayHero(x,pickHeroDialogue('trapStunCage'),'trapHit',1400,true);
     }
-    rootTile.triggerFxUntil=now+STUN_CAGE_FX_MS;
+    markObstacleTrigger(rootTile,STUN_CAGE_FX_MS);
     Sound.trap('stun_cage');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'stun_cage',text:'⛓',footprint:2});
     return true;
@@ -303,7 +314,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
   if(ob.id==='rockfall'){
     // 이미 예고 중이면 다시 무장하지 않습니다. 지연 폭발은 state.pendingRockfalls에서 처리합니다.
     if(!rootTile.rockfallArmed){
-      rootTile.rockfallArmed=true;
+      rootTile.rockfallArmed=true; state._mapDirty=true; // v61: 경고 프레임 반복 재생/경고 표시를 화면에 반영
       if(!state.pendingRockfalls) state.pendingRockfalls=[];
       state.pendingRockfalls.push({r:root.r,c:root.c,range,lv,detonateAt:now+ROCKFALL_DELAY_MS,tile:rootTile});
       state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'⚠ 낙석 경고!',color:'#ffb15c'});
@@ -331,7 +342,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       }
       state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'🌉 붕괴!',color:'#ff8f5c'});
     } else {
-      rootTile.triggerFxUntil=now+300; // v47: 붕괴 전 매 타격마다 살짝 흔들리는 연출
+      markObstacleTrigger(rootTile,300); // v47: 붕괴 전 매 타격마다 살짝 흔들리는 연출
     }
     Sound.trap('collapse_bridge');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'collapse_bridge',text:'🌉',footprint:2});
@@ -994,6 +1005,7 @@ function processHeroTick(h,dt){
         const damagePerMs=rootTile.obstacleMaxHp/Math.max(1,need*1000);
         const dealt=Math.min(beforeHp,damagePerMs*dt*1000);
         rootTile.obstacleHp=Math.max(0,beforeHp-dealt);
+        if(OBSTACLE_TRIGGER_FX_MS[ob]) markObstacleTrigger(rootTile,OBSTACLE_TRIGGER_FX_MS[ob]); // v61: 부서지는 중 흔들림 애니메이션
         syncObstacleFootprint(root.r,root.c);
         if(dealt>=0.01 && Math.random()<0.10) state.fxEvents.push({type:'damageNumber',r:root.r,c:root.c,amount:dealt,color:'#ff9b3d'});
       }
@@ -1221,7 +1233,7 @@ function processPendingRockfalls(){
     }
     state.fxEvents.push({type:'obstacleBurst',r:p.r+0.5,c:p.c+0.5,ob:'rockfall',text:'🪨',footprint:2});
     Sound.trap('rockfall');
-    if(p.tile){ p.tile.rockfallArmed=false; p.tile.triggerFxUntil=now+ROCKFALL_FX_MS; }
+    if(p.tile){ p.tile.rockfallArmed=false; markObstacleTrigger(p.tile,ROCKFALL_FX_MS); }
   }
   state.pendingRockfalls=remain;
 }

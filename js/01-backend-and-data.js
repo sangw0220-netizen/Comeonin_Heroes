@@ -550,6 +550,43 @@ const OBSTACLE_TYPES=[
   {id:'collapse_bridge',name:'붕락교',icon:'🌉',kind:'defense',cost:90,range:0,color:'rgba(200,180,140,.55)',desc:'다리 형태의 장애물로, 일정 횟수 이상 밟히면 완전히 무너져 그 통로를 영구히 막아버립니다.',short:'붕락교',sprite:OBSTACLE_SPRITES.collapse_bridge,spriteAlt:OBSTACLE_SPRITES.collapse_bridge_alt}
 ];
 
+/* ==========================================================================
+   v61 · 장애물 프레임 애니메이션 (스프라이트 시트)
+   sheet  : 프레임을 가로로 이어 붙인 PNG (정사각형 프레임 × frames 장)
+   mode   : 'loop'    = 평상시 계속 반복 재생
+            'trigger' = 평소엔 첫 프레임에 정지, 발동(밟힘/피격) 때 한 번 재생 (root 타일의 triggerFxUntil 사용)
+   seq    : 재생할 프레임 번호 순서(0부터). 생략하면 0..frames-1
+   durs   : seq 각 프레임을 보여주는 시간(ms). 길이는 seq와 같아야 합니다.
+   hold   : (trigger) 재생이 끝난 뒤 마지막 프레임을 유지(발동 시간이 끝나 클래스가 빠질 때까지)
+   armed  : (trigger) 경고 상태(rockfallArmed) 동안 반복 재생할 {seq,durs}
+   signal : 'custom' 이면 밟는 즉시가 아니라 해당 장애물 고유 코드가 발동 신호를 직접 보냅니다(붕락지대: 실제 낙석 순간)
+   scale  : 애니메이션 레이어 배율(기본 1). 시트의 타일이 캔버스를 꽉 채우면 1, 여백이 있으면 그만큼 키워 원본 크기에 맞춥니다.
+   시트가 로드되기 전/실패 시에는 기존 정지 그림(sprite)이 그대로 보입니다.
+   ========================================================================== */
+const OBSTACLE_ANIMS={
+  flame:    {sheet:'assets/images/obstacle_anim_flame.png',    frames:5, mode:'loop',    durs:[150,140,150,140,150]},          // 불꽃 일렁임
+  poison:   {sheet:'assets/images/obstacle_anim_poison.png',   frames:5, mode:'loop',    durs:[420,320,320,340,420]},          // 거품 발생 → 터짐
+  lightning:{sheet:'assets/images/obstacle_anim_lightning.png',frames:5, mode:'loop',    durs:[1100,90,130,110,900]},          // 대부분 어둡다가 순간 번쩍
+  pit:      {sheet:'assets/images/obstacle_anim_pit.png',      frames:6, mode:'loop',    durs:[260,240,240,240,240,260]},      // 소용돌이 회전
+  frost:    {sheet:'assets/images/obstacle_anim_frost.png',    frames:5, mode:'loop',    durs:[520,420,420,420,520]},          // 빛 이동/결정 반짝임
+  statue:   {sheet:'assets/images/obstacle_anim_statue.png',   frames:5, mode:'loop',    durs:[520,360,520,360,520]},          // 룬 빛 맥동
+  curse:    {sheet:'assets/images/obstacle_anim_curse.png',    frames:6, mode:'loop',    durs:[360,360,360,360,360,480]},      // 저주 기운 상승/소멸
+  web:      {sheet:'assets/images/obstacle_anim_web.png',      frames:4, mode:'loop',    durs:[900,240,240,720]},              // 거미줄 흔들림
+  spike:    {sheet:'assets/images/obstacle_anim_spike.png',    frames:4, mode:'trigger', seq:[1,2,3], durs:[90,300,180]},        // 솟기 시작 → 완전히 솟음 → 내려감
+  barricade:{sheet:'assets/images/obstacle_anim_barricade.png',frames:4, mode:'trigger', seq:[1,2,3], durs:[70,110,120]},        // 충격(밀림) → 최대 밀림 → 복귀
+  // ── 원본 그림(전체 화면 타일)을 그대로 두고 움직이는 부분만 얹은 시트: 타일이 캔버스를 꽉 채웁니다 ──
+  gust:     {sheet:'assets/images/obstacle_anim_gust.png',     frames:6, mode:'loop',    durs:[115,115,115,115,115,115]},      // 소용돌이 회전 + 바람 줄기/먼지
+  magnet:   {sheet:'assets/images/obstacle_anim_magnet.png',   frames:6, mode:'loop',    durs:[140,140,140,140,140,140]},      // 고리 빛 파동 + 코어 맥동 + 빨려드는 입자
+  stun_cage:{sheet:'assets/images/obstacle_anim_stun_cage.png',frames:6, mode:'trigger', seq:[1,2,3,4,5], durs:[70,80,90,110,STUN_CAGE_FX_MS-350], hold:true},   // 철창이 솟아올라 닫힘 (총 STUN_CAGE_FX_MS)
+  rockfall: {sheet:'assets/images/obstacle_anim_rockfall.png', frames:6, mode:'trigger', signal:'custom', seq:[3,4,5], durs:[110,180,ROCKFALL_FX_MS-290], hold:true,
+             armed:{seq:[1,2],durs:[280,280]}}                                                                               // 경고 중 1↔2 반복, 낙석 순간 3→4→5 (총 ROCKFALL_FX_MS)
+};
+function obstacleAnimSeq(a){ return a.seq||Array.from({length:a.frames},(_,i)=>i); }
+function obstacleAnimTotalMs(a){ return a.durs.reduce((s,x)=>s+x,0); }
+// 발동형 애니메이션이 끝날 때까지 root 타일의 triggerFxUntil 을 유지할 시간(ms)
+const OBSTACLE_TRIGGER_FX_MS={};
+for(const _id of Object.keys(OBSTACLE_ANIMS)){ const _a=OBSTACLE_ANIMS[_id]; if(_a.mode==='trigger' && _a.signal!=='custom') OBSTACLE_TRIGGER_FX_MS[_id]=obstacleAnimTotalMs(_a); }
+
 /* v38.6.3 · 마을 습격 준비 단계 장애물 이미지 보호
    장애물 스프라이트는 HTML 내부에 포함된 원본 data:image를 그대로 사용합니다.
    준비 카운트다운 중 반복되는 renderUI 때문에 이미지 src를 매번 재설정하지 않고,

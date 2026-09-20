@@ -1017,3 +1017,34 @@
 }
 @keyframes hwFlash{ 0%{opacity:1; transform:scale(.8);} 100%{opacity:0; transform:scale(1.2);} }
 @keyframes hwBurstFade{ 0%{opacity:1;} 100%{opacity:0;} }
+
+
+/* ==================================================================
+   v61: 장애물 프레임 애니메이션 레이어 (.obstacle-anim)
+   - 기존 .obstacle-icon 과 같은 위치·크기(2×2 칸)·레벨 확대(--ob-level-scale)를 따릅니다.
+   - 시트 프레임은 정사각형이라 background-size 로 프레임 한 장이 칸 전체에 딱 맞습니다.
+   - 애니메이션 준비가 끝난 장애물(.ob-animated)은 정지 그림을 숨깁니다(로드 실패 시엔 정지 그림 유지).
+   - 프레임을 넘기는 @keyframes 와 background-image 는 OBSTACLE_ANIMS 로부터 JS가 자동 생성합니다.
+   ================================================================== */
+.obstacle-anim{
+  position:absolute; left:0; top:0; width:200%; height:200%;
+  pointer-events:none; z-index:4;
+  background-repeat:no-repeat;
+  transform:scale(var(--ob-level-scale,1)); transform-origin:50% 50%;
+  transition:transform .2s ease;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.78)) saturate(1.06);
+}
+.cell.ob-animated .obstacle-icon,
+.cell.ob-animated .obstacle-icon.trap-pulse{ opacity:0; visibility:hidden; animation:none !important; }   /* 기존 v46/v47 정지 그림 연출(흡인 맥동 등)이 겹치지 않도록 강제로 끔 */
+@media (max-width:600px){
+  #map .cell.has-obstacle .obstacle-anim{ transform:scale(calc(var(--ob-level-scale,1) * 1.04)); }
+}
+
+/* v61b: 프레임 애니메이션 레이어 배율(--ob-anim-scale)과 발동 시 번쩍임(.ob-trig) */
+.obstacle-anim{ transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1))); }
+@media (max-width:600px){
+  #map .cell.has-obstacle .obstacle-anim{ transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1) * 1.04)); }
+}
+.cell.ob-animated .obstacle-anim.ob-trig{
+  filter:brightness(1.4) saturate(1.25) drop-shadow(0 2px 2px rgba(0,0,0,.78));
+}

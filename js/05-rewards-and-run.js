@@ -680,6 +680,40 @@ function dungeonTileClass(r,c,t){
   return cls;
 }
 
+/* v61 · 장애물 프레임 애니메이션: 시트를 steps 방식으로 넘기는 CSS 를 OBSTACLE_ANIMS 로부터 생성해 주입합니다. */
+const obstacleAnimReady={};
+function installObstacleAnimStyles(){
+  let css='';
+  for(const [id,a] of Object.entries(OBSTACLE_ANIMS)){
+    const seq=obstacleAnimSeq(a), total=obstacleAnimTotalMs(a), N=a.frames;
+    const pos=k=>(N>1?(k/(N-1))*100:0).toFixed(4)+'% 0';
+    let kf='', acc=0;
+    seq.forEach((k,i)=>{ kf+=`${((acc/total)*100).toFixed(3)}%{background-position:${pos(k)};}`; acc+=a.durs[i]; });
+    kf+=`100%{background-position:${a.mode==='trigger'?(a.hold?pos(seq[seq.length-1]):pos(0)):pos(seq[0])};}`;
+    css+=`@keyframes obAnim_${id}{${kf}}\n`;
+    if(a.scale&&a.scale!==1) css+=`.cell.ob-animated.ob-${id} .obstacle-anim{--ob-anim-scale:${a.scale};}\n`;
+    if(a.armed){   // 경고 상태에서 반복 재생하는 별도 키프레임
+      const aq=a.armed.seq, at=a.armed.durs.reduce((s,x)=>s+x,0); let akf='', aacc=0;
+      aq.forEach((k,i)=>{ akf+=`${((aacc/at)*100).toFixed(3)}%{background-position:${pos(k)};}`; aacc+=a.armed.durs[i]; });
+      akf+=`100%{background-position:${pos(aq[0])};}`;
+      css+=`@keyframes obAnimArmed_${id}{${akf}}\n`;
+      css+=`.cell.ob-animated.ob-${id} .obstacle-anim.ob-armed:not(.ob-play){animation:obAnimArmed_${id} ${at}ms step-end infinite;}\n`;
+    }
+    const base=`.cell.ob-animated.ob-${id} .obstacle-anim{background-image:url("${a.sheet}");background-size:${N*100}% 100%;background-position:${pos(0)};}`;
+    css+=base+'\n';
+    if(a.mode==='loop') css+=`.cell.ob-animated.ob-${id} .obstacle-anim{animation:obAnim_${id} ${total}ms step-end infinite;}\n`;
+    else css+=`.cell.ob-animated.ob-${id} .obstacle-anim.ob-play{animation:obAnim_${id} ${total}ms step-end 1 forwards;}\n`;
+  }
+  let st=document.getElementById('obAnimStyles');
+  if(!st){ st=document.createElement('style'); st.id='obAnimStyles'; document.head.appendChild(st); }
+  st.textContent=css;
+  // 시트가 실제로 로드된 장애물만 애니메이션 레이어로 전환합니다(실패하면 기존 정지 그림 유지).
+  for(const [id,a] of Object.entries(OBSTACLE_ANIMS)){
+    const im=new Image(); im.onload=()=>{ obstacleAnimReady[id]=true; }; im.onerror=()=>{ obstacleAnimReady[id]=false; }; im.src=a.sheet;
+  }
+}
+installObstacleAnimStyles();
+
 function renderMapCells(){
   if(!cellEls.length) return;
   const digTargets={};
@@ -706,6 +740,7 @@ function renderMapCells(){
       if(t.obstacle){
         ob=OBSTACLE_TYPES.find(o=>o.id===t.obstacle);
         cls+=' has-obstacle obstacle-'+(ob?ob.kind:'')+(ob?' ob-'+(t.wasBridge?'collapse_bridge':ob.id):'');
+        if(ob && !t.wasBridge && OBSTACLE_ANIMS[ob.id] && obstacleAnimReady[ob.id]) cls+=' ob-animated'; // v61: 프레임 애니메이션 사용
         if(ob&&ob.id==='rockfall'&&t.rockfallArmed) cls+=' armed';
         if(ob&&ob.id==='collapse_bridge'&&t.bridgeHits) cls+=' cracked-'+Math.min(3,t.bridgeHits);
         if(t.wasBridge && t.justCollapsedUntil && performance.now()<t.justCollapsedUntil) cls+=' just-collapsed';
@@ -747,6 +782,24 @@ function renderMapCells(){
             : {alt:!!(t.triggerFxUntil && performance.now()<t.triggerFxUntil)};
           applyObstacleSpriteImage(obImg,ob,_spriteOpts);
           obImg.classList.toggle('trap-pulse', !!_spriteOpts.alt);
+          // v61: 프레임 애니메이션 레이어 (평상시 반복형은 CSS가 계속 재생, 발동형은 발동 순간마다 처음부터 한 번 재생)
+          const _anim=OBSTACLE_ANIMS[ob.id];
+          if(_anim && obstacleAnimReady[ob.id] && !t.wasBridge){
+            let animEl=el.querySelector('.obstacle-anim');
+            if(!animEl){ animEl=document.createElement('div'); animEl.className='obstacle-anim'; el.appendChild(animEl); }
+            if(_anim.mode==='trigger'){
+              const until=t.triggerFxUntil||0, active=performance.now()<until;
+              if(active && animEl.dataset.stamp!==String(until)){
+                animEl.dataset.stamp=String(until);
+                animEl.classList.remove('ob-play'); void animEl.offsetWidth; animEl.classList.add('ob-play');
+              } else if(!active && animEl.classList.contains('ob-play')){ animEl.classList.remove('ob-play'); }
+              // 경고 상태(붕락지대 등)에서는 경고 프레임을 반복 재생
+              if(_anim.armed) animEl.classList.toggle('ob-armed', !!t.rockfallArmed && !animEl.classList.contains('ob-play'));
+            } else {
+              // 반복형: 발동 신호가 켜져 있는 동안 잠깐 밝게 번쩍임 (돌풍진/흡인진이 작동하는 순간)
+              animEl.classList.toggle('ob-trig', performance.now()<(t.triggerFxUntil||0));
+            }
+          } else { const oldAnim=el.querySelector('.obstacle-anim'); if(oldAnim) oldAnim.remove(); }
           const lv=obstacleLevel(obstacleRootTile(r,c)||t);
           el.dataset.obLevel='Lv.'+lv;
           // 아이콘 확대폭을 키우고(최대 +45%), 레벨 구간(1~4/5~9/10)에 따라 발광·펄스 강도가 달라지는 클래스를 부여합니다.
@@ -761,6 +814,7 @@ function renderMapCells(){
           el.classList.remove('obstacle-damaged');
         } else {
           if(obImg) obImg.remove();
+          const _oa=el.querySelector('.obstacle-anim'); if(_oa) _oa.remove();
           const lvBadge=el.querySelector('.ob-lv-badge');
           if(lvBadge) lvBadge.remove();
           // 장애물 체력바 DOM은 더 이상 생성하지 않습니다.
@@ -772,6 +826,7 @@ function renderMapCells(){
         el.style.removeProperty('--ob-color');
         const obImg=el.querySelector('.obstacle-icon');
         if(obImg) obImg.remove();
+        const _oa2=el.querySelector('.obstacle-anim'); if(_oa2) _oa2.remove();
         const obLabel=el.querySelector('.ob-label');
         if(obLabel) obLabel.remove();
         const obBadge=el.querySelector('.ob-kind-badge');
