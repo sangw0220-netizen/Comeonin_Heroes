@@ -1334,6 +1334,34 @@ const Sound = (()=>{
           tone(148,.28,'sine',.028,.58,.055);
           noise(.10,.026,420,0,2600);
         }
+      } else if(id==='gust'){
+        if(cooldown('trap_gust',110)){
+          noise(.22,.05,2200,0,8500);
+          tone(340,.16,'sine',.03,.6,.02,'sfx','highpass',300);
+        }
+      } else if(id==='magnet'){
+        if(cooldown('trap_magnet',90)){
+          tone(210,.14,'sawtooth',.03,.5);
+          tone(105,.2,'triangle',.024,.6,.04);
+        }
+      } else if(id==='stun_cage'){
+        if(cooldown('trap_stun_cage',160)){
+          thump(.12,90);
+          tone(150,.1,'square',.05,.6);
+          noise(.05,.03,900,0,5000);
+        }
+      } else if(id==='rockfall'){
+        if(cooldown('trap_rockfall',200)){
+          noise(.28,.08,140,0,2200);
+          tone(58,.3,'sine',.07,.4);
+          thump(.18,60);
+        }
+      } else if(id==='collapse_bridge'){
+        if(cooldown('trap_collapse_bridge',250)){
+          thump(.22,55);
+          noise(.24,.07,160,0,2000);
+          tone(48,.34,'triangle',.05,.42,.06);
+        }
       } else {
         noise(.16,.09,300,0,5000);tone(72,.20,'square',.06,.42);
       }

@@ -886,3 +886,134 @@
 @media (max-height:720px){
   #panelWrap{max-height:40vh !important;}
 }
+
+
+/* ==================================================================
+   v53: 일부 영웅 이미지 +30% 확대
+   기본 이미지 크기 100% → 130% (가운데 기준으로 커지도록 음수 마진 = -(130-100)/2 = -15%)
+   base.css 의 hero-large-sprite(162.4%)를 이미 쓰는 영웅(흑기사)은 그 위에 ×1.3 → 211.12% (마진 -55.56%)
+   토큰 칸 자체의 크기·이동·충돌 판정은 바뀌지 않고, 그림만 커집니다.
+   ================================================================== */
+.token.hero.hero-xl-sprite .tokimg{
+  width:130%;
+  height:130%;
+  margin:-15% 0 0 -15%;
+}
+.token.hero.hero-large-sprite.hero-xl-sprite .tokimg{
+  width:211.12%;
+  height:211.12%;
+  margin:-55.56% 0 0 -55.56%;
+}
+
+
+/* ==================================================================
+   v58: 마법사 마법진 이펙트
+   - .mc-target : 표적 아래 착탄 범위 마법진 (시전이 진행될수록 --p 가 0→1 로 커지고 밝아짐)
+   - .mc-foot   : 시전자 발밑의 작은 마법진
+   - 종료 시 .mc-burst(폭발하듯 퍼지며 사라짐) / .mc-fade(서서히 사라짐)
+   토큰(z-index 21)보다 아래, 바닥 위에 깔립니다. 색은 --mc-color(마법 속성)를 따릅니다.
+   ================================================================== */
+.magic-circle{
+  position:absolute; z-index:10; pointer-events:none;
+  color:var(--mc-color,#a98bff);
+  transform:translate(-50%,-50%) scale(calc(.55 + var(--p,0)*.45));
+  opacity:calc(.35 + var(--p,0)*.65);
+  transition:left .2s linear, top .2s linear, width .2s linear, height .2s linear, transform .12s linear, opacity .12s linear;
+  filter:drop-shadow(0 0 4px currentColor);
+}
+.magic-circle svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+.magic-circle .mc-ring{animation:mcSpin 9s linear infinite;}
+.magic-circle .mc-star{animation:mcSpin 6s linear infinite reverse;}
+.magic-circle .mc-glow{
+  position:absolute; inset:6%; border-radius:50%;
+  background:radial-gradient(circle, currentColor 0%, transparent 66%);
+  opacity:calc(var(--p,0)*.42);
+}
+.magic-circle .mc-icon{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-size:calc(var(--mc-size,60px)*.2); line-height:1; opacity:.9;
+  text-shadow:0 0 8px currentColor, 0 0 16px currentColor;
+}
+/* 발밑 마법진은 더 작고 은은하게 */
+.magic-circle.mc-foot{opacity:calc(.3 + var(--p,0)*.4); filter:drop-shadow(0 0 3px currentColor);}
+.magic-circle.mc-foot .mc-glow{opacity:calc(var(--p,0)*.25);}
+.magic-circle.mc-foot .mc-ring{animation-duration:6s;}
+.magic-circle.mc-foot .mc-star{animation-duration:4s;}
+/* 종료 연출 */
+.magic-circle.mc-burst{animation:mcBurst .55s ease-out forwards; transition:none;}
+.magic-circle.mc-fade{animation:mcFade .4s ease-out forwards; transition:none;}
+@keyframes mcSpin{to{transform:rotate(360deg);}}
+@keyframes mcBurst{
+  0%  {transform:translate(-50%,-50%) scale(1);    opacity:1;  filter:drop-shadow(0 0 8px currentColor) brightness(1.7);}
+  100%{transform:translate(-50%,-50%) scale(1.32); opacity:0;  filter:drop-shadow(0 0 18px currentColor) brightness(2.2);}
+}
+@keyframes mcFade{
+  0%  {opacity:.55;}
+  100%{opacity:0; transform:translate(-50%,-50%) scale(.8);}
+}
+
+
+/* ==================================================================
+   v59: 저주/흑마법 = 보라색 마법진(어두운 광채) / 힐러 = 성스러운 황금색 물결
+   ================================================================== */
+/* ── 저주·흑마법: 짙은 보라 + 어두운 중심 광채 ── */
+.magic-circle.mc-dark{ filter:drop-shadow(0 0 5px #8a3ee0) drop-shadow(0 0 2px #2a0a4d); }
+.magic-circle.mc-dark .mc-glow{
+  background:radial-gradient(circle, rgba(20,4,40,.95) 0%, rgba(110,40,190,.6) 42%, transparent 68%);
+  opacity:calc(var(--p,0)*.62);
+}
+.magic-circle.mc-dark .mc-icon{ text-shadow:0 0 8px #b46cf0, 0 0 16px #6a1fc0; }
+.magic-circle.mc-dark.mc-foot .mc-glow{ opacity:calc(var(--p,0)*.4); }
+
+/* ── 힐러: 황금색 물결 (마법진 없음) ── */
+.holy-wave{
+  position:absolute; z-index:10; pointer-events:none;
+  transform:translate(-50%,-50%);
+  opacity:calc(.45 + var(--p,0)*.55);
+  transition:left .2s linear, top .2s linear, width .2s linear, height .2s linear, opacity .12s linear;
+}
+.holy-wave .hw-glow{
+  position:absolute; inset:14%; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,232,150,.85) 0%, rgba(255,200,80,.38) 38%, transparent 70%);
+  opacity:calc(.25 + var(--p,0)*.55);
+  filter:blur(1px);
+}
+.holy-wave .hw-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border:2px solid rgba(255,220,120,.95);
+  box-shadow:0 0 12px rgba(255,200,80,.75), inset 0 0 14px rgba(255,226,140,.4);
+  background:radial-gradient(circle, transparent 58%, rgba(255,222,130,.22) 78%, transparent 100%);
+  transform:scale(.12); opacity:0;
+  animation:hwRipple 1.5s ease-out infinite;
+}
+.holy-wave .hw-ring.r2{ animation-delay:.5s; }
+.holy-wave .hw-ring.r3{ animation-delay:1s; }
+.holy-wave .hw-spark{
+  position:absolute; left:var(--x); top:var(--y);
+  width:4px; height:4px; margin:-2px 0 0 -2px; border-radius:50%;
+  background:#fff4c2; box-shadow:0 0 7px #ffd166, 0 0 12px rgba(255,200,80,.8);
+  opacity:0; animation:hwSpark 1.7s ease-in infinite; animation-delay:var(--d,0s);
+}
+@keyframes hwRipple{
+  0%  {transform:scale(.12); opacity:0;}
+  16% {opacity:.95;}
+  100%{transform:scale(1);   opacity:0;}
+}
+@keyframes hwSpark{
+  0%  {transform:translateY(4px) scale(.6); opacity:0;}
+  25% {opacity:1;}
+  100%{transform:translateY(-22px) scale(1.15); opacity:0;}
+}
+/* 시전 종료: 큰 파동이 빠르게 퍼지며 사라짐 */
+.holy-wave.hw-burst{ transition:none; animation:hwBurstFade .8s ease-out forwards; }
+.holy-wave.hw-burst .hw-glow{ animation:hwFlash .5s ease-out forwards; }
+.holy-wave.hw-burst .hw-ring{ animation:hwBurstRing .7s cubic-bezier(.2,.7,.25,1) forwards; border-width:3px; }
+.holy-wave.hw-burst .hw-ring.r2{ animation-delay:.1s; }
+.holy-wave.hw-burst .hw-ring.r3{ animation-delay:.2s; }
+.holy-wave.hw-burst .hw-spark{ animation-duration:.9s; }
+@keyframes hwBurstRing{
+  0%  {transform:scale(.25); opacity:1;}
+  100%{transform:scale(1.12); opacity:0;}
+}
+@keyframes hwFlash{ 0%{opacity:1; transform:scale(.8);} 100%{opacity:0; transform:scale(1.2);} }
+@keyframes hwBurstFade{ 0%{opacity:1;} 100%{opacity:0;} }

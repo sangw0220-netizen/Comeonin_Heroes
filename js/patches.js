@@ -8,6 +8,7 @@
   const altar=document.getElementById('altarBtn');
   const speed=document.getElementById('speedBtn');
   const sound=document.getElementById('soundBtn');
+  const debug=document.getElementById('debugBtn'); // v52: 이걸 다시 넣지 않아서 ?test=1 디버그 버튼이 사라져 있었습니다.
   if(!toolBtns.length) return;
 
   // 모바일 하단 핵심 메뉴:
@@ -42,7 +43,9 @@
   secondary.className='ux-secondary hidden';
 
   // 기타에는 배속을 넣지 않는다. 배속은 하단 고정 버튼으로 분리한다.
-  [build,altar,sound].forEach(b=>{ if(b) secondary.appendChild(b); });
+  // (debug 버튼은 평소엔 display:none 이고, ?test=1 → "디버그 모드로 시작"을 눌렀을 때만 나타납니다.)
+  [build,altar,sound,debug].forEach(b=>{ if(b) secondary.appendChild(b); });
+  if(debug) debug.addEventListener('click',function(){ secondary.classList.add('hidden'); more.classList.remove('open'); more.setAttribute('aria-expanded','false'); });
 
   more.addEventListener('click',function(e){
     e.preventDefault();

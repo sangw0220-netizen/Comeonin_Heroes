@@ -551,6 +551,12 @@
   .speech-bubble.question{font-size:15px;min-width:28px;padding:3px 7px;color:var(--violet-bright);border-color:rgba(183,155,255,.9);}
   .speech-bubble.skill{font-size:10px;min-width:56px;padding:4px 7px;color:#fff2a8;border-color:rgba(255,218,112,.95);box-shadow:0 0 12px rgba(255,210,100,.35);}
   .speech-bubble.death{font-size:9px;color:#ff9aa6;border-color:rgba(224,73,95,.9);}
+  .speech-bubble.flee{color:#ffd0d6;background:rgba(46,10,16,.95);border-color:rgba(224,73,95,.95);box-shadow:0 3px 10px rgba(0,0,0,.42),0 0 10px rgba(224,73,95,.35);animation:fleeBubbleShake .32s ease-in-out;}
+  .speech-bubble.flee::after{background:rgba(46,10,16,.95);border-color:rgba(224,73,95,.95);}
+  @keyframes fleeBubbleShake{0%,100%{transform:translate(-50%,-100%) scale(1);}25%{transform:translate(calc(-50% - 2px),-100%) scale(1);}75%{transform:translate(calc(-50% + 2px),-100%) scale(1);}}
+  .speech-bubble.trapHit{font-size:9.5px;color:#ffe3b0;background:rgba(48,28,8,.95);border-color:rgba(255,170,60,.95);box-shadow:0 3px 10px rgba(0,0,0,.42),0 0 10px rgba(255,170,60,.4);animation:trapHitBubblePop .3s cubic-bezier(.34,1.56,.64,1);}
+  .speech-bubble.trapHit::after{background:rgba(48,28,8,.95);border-color:rgba(255,170,60,.95);}
+  @keyframes trapHitBubblePop{0%{transform:translate(-50%,-100%) scale(.6);opacity:.4;}60%{transform:translate(-50%,-100%) scale(1.12);}100%{transform:translate(-50%,-100%) scale(1);}}
   .speech-bubble.levelup{font-size:10px;color:#e0b64a;border-color:rgba(224,182,74,.95);}
   .obstacle-icon{transform:scale(var(--ob-level-scale,1));transform-origin:50% 50%;transition:transform .2s ease;position:absolute;left:0;top:0;width:200%;height:200%;object-fit:contain;pointer-events:none;z-index:4;filter:drop-shadow(0 2px 2px rgba(0,0,0,.78)) saturate(1.06);}
   .cell.has-obstacle::after{content:none !important;}

@@ -705,7 +705,10 @@ function renderMapCells(){
       else cls+=' floor';
       if(t.obstacle){
         ob=OBSTACLE_TYPES.find(o=>o.id===t.obstacle);
-        cls+=' has-obstacle obstacle-'+(ob?ob.kind:'');
+        cls+=' has-obstacle obstacle-'+(ob?ob.kind:'')+(ob?' ob-'+(t.wasBridge?'collapse_bridge':ob.id):'');
+        if(ob&&ob.id==='rockfall'&&t.rockfallArmed) cls+=' armed';
+        if(ob&&ob.id==='collapse_bridge'&&t.bridgeHits) cls+=' cracked-'+Math.min(3,t.bridgeHits);
+        if(t.wasBridge && t.justCollapsedUntil && performance.now()<t.justCollapsedUntil) cls+=' just-collapsed';
         if(isObstacleRoot(r,c)) cls+=' obstacle-root';
       }
       if(state && state.phase==='placeCore'){
@@ -737,7 +740,13 @@ function renderMapCells(){
         let obImg=el.querySelector('.obstacle-icon');
         if(root){
           if(!obImg){ obImg=document.createElement('img'); obImg.className='obstacle-icon'; el.appendChild(obImg); }
-          applyObstacleSpriteImage(obImg,ob);
+          // v46: 대기/발동 2프레임 장애물은 t.triggerFxUntil 동안만 발동 프레임(spriteAlt)을 보여주고,
+          // 붕락교처럼 영구히 모습이 바뀌는 경우는 t.wasBridge일 때 고정 스프라이트로 덮어씁니다.
+          const _spriteOpts=t.wasBridge
+            ? {srcOverride:OBSTACLE_SPRITES.collapse_bridge_alt}
+            : {alt:!!(t.triggerFxUntil && performance.now()<t.triggerFxUntil)};
+          applyObstacleSpriteImage(obImg,ob,_spriteOpts);
+          obImg.classList.toggle('trap-pulse', !!_spriteOpts.alt);
           const lv=obstacleLevel(obstacleRootTile(r,c)||t);
           el.dataset.obLevel='Lv.'+lv;
           // 아이콘 확대폭을 키우고(최대 +45%), 레벨 구간(1~4/5~9/10)에 따라 발광·펄스 강도가 달라지는 클래스를 부여합니다.
@@ -782,10 +791,10 @@ function renderMapCells(){
 }
 
 let tokenEls={};
-const RANGED_COLOR={archer:'#3f9e5c', mage:'#5aa9e6', gunslinger:'#e0a44a', ice_mage:'#78dfff', spirit_caller:'#68e5ff', curse_caster:'#b76bf2', alchemist:'#b6ff5c', bard:'#f0c36a'};
+const RANGED_COLOR={archer:'#3f9e5c', mage:'#5aa9e6', gunslinger:'#e0a44a', ice_mage:'#78dfff', spirit_caller:'#68e5ff', curse_caster:'#b76bf2', alchemist:'#b6ff5c', bard:'#f0c36a', royal_longbow:'#e8c860', battle_mage:'#7aa8ff', rune_guardian:'#b98cff', imperial_magus:'#ffe08a'};
 function rangedProjectileKind(owner,typeId,special){
   if(owner==='hero'){
-    if(['archer','hunter'].includes(typeId)) return 'arrow';
+    if(['archer','hunter','royal_longbow'].includes(typeId)) return 'arrow';
     if(typeId==='gunslinger') return 'bullet';
     if(['ice_mage'].includes(typeId)) return 'ice';
     if(['curse_caster'].includes(typeId)) return 'dark';
@@ -797,8 +806,13 @@ function rangedProjectileKind(owner,typeId,special){
   if(special==='curse' || special==='lifesteal') return 'dark';
   return 'magic';
 }
+// v53: 캐릭터 이미지를 현재보다 30% 더 크게 보여줄 영웅들 (토큰 영역/이동/충돌 판정은 그대로, 그림만 확대)
+//      크기를 더 바꾸고 싶으면 이 목록에 id를 넣고 빼거나, patches.css 맨 아래의 130%/211.12% 값을 조정하세요.
+const HERO_XL_SPRITE=['swordsaint','dragonslayer','sun_lancer','griffon_knight','dark_knight','horseman','pikeman','dragon_rider','rune_guardian','royal_longbow','battle_mage','royal_guard','royal_lance','royal_elite'];
 const HERO_FACING_INVERT={mage:true, assassin:true, gunslinger:false, summoner:false};
-const MONSTER_FACING_INVERT={dragon:true, golem:true, ice_golem:true, rock_colossus:true, lich_lord:true, dark_sorcerer:true};
+const MONSTER_FACING_INVERT={dragon:true, golem:true, ice_golem:true, rock_colossus:true, lich_lord:true, dark_sorcerer:true, goblin_archer:true,
+  // v52: 사용자가 실제로 반대 방향으로 뒤집혀 보인다고 확인해준 8종
+  slime:true, goblin:true, spider:true, orc:true, fire:true, angry_orc:true, shadow_goblin:true, bone_priest:true};
 // v44: 특정 몬스터만 기본 크기에서 배율을 조정하고 싶을 때 사용합니다. (1보다 작으면 축소)
 const MONSTER_SIZE_MUL={goblin_archer:0.8};
 
@@ -891,6 +905,7 @@ function syncTokens(){
       if(extraClass==='hero' && ['druid','alchemist','martial_artist','dual_wielder','dark_knight','ironclad','lancer'].includes(typeId)){
         el.classList.add('hero-large-sprite');
       }
+      if(extraClass==='hero' && HERO_XL_SPRITE.includes(typeId)) el.classList.add('hero-xl-sprite'); // v53
       const wrap=document.createElement('div'); wrap.className='spriteWrap';
       const facing=document.createElement('div'); facing.className='facing';
       const img=document.createElement('img'); img.className='tokimg'; img.src=(typeId==='__mawang__'?window.MAWANG_SPRITE_DATA:SPRITE_DATA[typeId]);
@@ -1054,6 +1069,7 @@ function syncTokens(){
       bubble.classList.toggle('question',h.bubbleKind==='question');
       bubble.classList.toggle('skill',h.bubbleKind==='skill');
       bubble.classList.toggle('flee',h.bubbleKind==='flee');
+      bubble.classList.toggle('trapHit',h.bubbleKind==='trapHit');
       if(visible && bubble.textContent!==h.bubbleText) bubble.textContent=h.bubbleText;
     }
     updateStatusVisual(el,h);
@@ -1084,7 +1100,117 @@ function syncTokens(){
     });
   }
 
+  try{ syncMagicCircles(); }catch(err){ console.error('[magic circle]',err); }
   processFxEvents();
+}
+
+/* ==========================================================================
+   v58 · 마법사 마법진 이펙트
+   마법사(HERO_TYPES.caster)가 마법을 시전하는 동안
+   - 표적 아래 바닥에 "착탄 범위와 같은 크기"의 마법진이 새겨지고, 시전이 진행될수록 커지며 밝아집니다.
+     (위치는 실제 폭발 중심과 같은 규칙 spellCastCenter 로 정해져서 표적을 따라갑니다)
+   - 시전자 발밑에도 작은 마법진이 돕니다.
+   - 시전이 끝나면 표적 마법진이 폭발하듯 퍼지며 사라집니다.
+   색은 마법 속성(skillStyle)을 따릅니다.
+   ========================================================================== */
+let magicCircleEls={};
+function mcRingSvg(){
+  let ticks='',runes='';
+  for(let i=0;i<24;i++){ const a=i*15*Math.PI/180, r2=(i%2?95:98); ticks+=`<line x1="${(100+Math.cos(a)*90).toFixed(1)}" y1="${(100+Math.sin(a)*90).toFixed(1)}" x2="${(100+Math.cos(a)*r2).toFixed(1)}" y2="${(100+Math.sin(a)*r2).toFixed(1)}" stroke="currentColor" stroke-width="${i%2?1.2:2}"/>`; }
+  for(let i=0;i<12;i++){ const a=(i*30+15)*Math.PI/180, x=100+Math.cos(a)*78, y=100+Math.sin(a)*78; runes+=`<rect x="${(x-2.8).toFixed(1)}" y="${(y-2.8).toFixed(1)}" width="5.6" height="5.6" transform="rotate(45 ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }
+  return `<circle cx="100" cy="100" r="97" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" stroke-width="1.1" stroke-dasharray="2 5" opacity=".85"/>${ticks}<g fill="currentColor" opacity=".9">${runes}</g>`;
+}
+function mcStarSvg(){
+  const tri=(rot)=>{ const pts=[0,1,2].map(k=>{ const a=(rot+k*120-90)*Math.PI/180; return (100+Math.cos(a)*66).toFixed(1)+','+(100+Math.sin(a)*66).toFixed(1); }).join(' '); return `<polygon points="${pts}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`; };
+  return `<circle cx="100" cy="100" r="66" fill="none" stroke="currentColor" stroke-width="1.4" opacity=".85"/>${tri(0)}${tri(60)}<circle cx="100" cy="100" r="33" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="100" cy="100" r="5.5" fill="currentColor"/>`;
+}
+function buildMagicCircle(kind,cls,icon){
+  const st=skillStyle(kind);
+  const dark=MC_DARK_KINDS.indexOf(kind)>=0;
+  const el=document.createElement('div');
+  // v59: 저주/흑마법은 더 짙은 보라색 + 어두운 광채(mc-dark)
+  el.className='magic-circle '+cls+(dark?' mc-dark':'');
+  el.style.setProperty('--mc-color',mcColor(kind));
+  el.innerHTML=`<div class="mc-glow"></div><svg class="mc-ring" viewBox="0 0 200 200" aria-hidden="true">${mcRingSvg()}</svg><svg class="mc-star" viewBox="0 0 200 200" aria-hidden="true">${mcStarSvg()}</svg>`
+    +(cls.indexOf('mc-target')>=0?`<span class="mc-icon">${icon||st.glyph}</span>`:'');
+  return el;
+}
+// v59 · 힐러의 성스러운 황금색 물결 (마법진 대신): 바닥에서 파문이 퍼져 나가고 빛 입자가 떠오릅니다.
+function buildHolyWave(){
+  const el=document.createElement('div');
+  el.className='holy-wave';
+  let sparks='';
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2+.35, rad=.14+((i*29)%11)/45;
+    sparks+=`<i class="hw-spark" style="--x:${(50+Math.cos(a)*rad*100).toFixed(1)}%;--y:${(50+Math.sin(a)*rad*100).toFixed(1)}%;--d:${(i*.21).toFixed(2)}s"></i>`;
+  }
+  el.innerHTML=`<div class="hw-glow"></div><i class="hw-ring r1"></i><i class="hw-ring r2"></i><i class="hw-ring r3"></i>${sparks}`;
+  return el;
+}
+function placeMagicCircle(el,r,c,sizeCells,p){
+  const px=currentCellPx, size=sizeCells*px;
+  el.style.left=(c*px+px/2)+'px'; el.style.top=(r*px+px/2)+'px';
+  el.style.width=size+'px'; el.style.height=size+'px';
+  el.style.setProperty('--mc-size',size+'px'); el.style.setProperty('--p',p.toFixed(3));
+}
+function mcEnsure(key,builder){
+  let el=magicCircleEls[key];
+  if(!el||!el.isConnected){ el=builder(); els.tokenLayer.appendChild(el); magicCircleEls[key]=el; }
+  return el;
+}
+// 몬스터 스킬의 착탄 중심: 표적 용사가 살아 있고 보이면 그 현재 위치, 아니면 시전 시작 때 본 위치
+function monsterSpellCenter(m){
+  const s=m.castingSkill, tg=m.skillTarget||{r:m.r,c:m.c};
+  const th=state.heroes.find(x=>x.id===s.targetId&&x.hp>0&&!losBlocked(m.r,m.c,x.r,x.c));
+  return th?{r:th.r,c:th.c}:{r:tg.r,c:tg.c};
+}
+function syncMagicCircles(){
+  if(!state||!els.tokenLayer) return;
+  const active=new Set();
+  const progress=c=>Math.max(0,Math.min(1,(c.elapsed||0)/Math.max(.1,c.cast)));
+  // ── 영웅 ──
+  for(const h of state.heroes){
+    const c=h.castingSkill; if(!c||!c.uid||h.hp<=0) continue;
+    const p=progress(c);
+    if(mcIsHealSkill(c)){
+      // 힐러: 마법진 없이 성스러운 황금색 물결
+      const R=c.aoe||(c.ext&&c.ext.allyAoe)||2, k='W'+c.uid; active.add(k);
+      placeMagicCircle(mcEnsure(k,buildHolyWave),h.r,h.c,Math.min(7,2*R+.8),p);
+      continue;
+    }
+    const ht=heroTypeOf(h); if(!ht||!ht.caster) continue;
+    const kF='F'+c.uid; active.add(kF);
+    placeMagicCircle(mcEnsure(kF,()=>buildMagicCircle(c.kind,'mc-foot',c.icon)),h.r,h.c,1.9,p);
+    if(c.area){
+      const kT='T'+c.uid; active.add(kT);
+      const ctr=spellCastCenter(h,h.skillTarget);
+      placeMagicCircle(mcEnsure(kT,()=>buildMagicCircle(c.kind,'mc-target',c.icon)),ctr.r,ctr.c,spellCircleCells(c.area),p);
+    }
+  }
+  // ── 몬스터: 저주/흑마법 = 보라색 마법진, 회복 = 황금색 물결 ──
+  for(const m of state.monsters){
+    const c=m.castingSkill; if(!c||!c.uid||m.hp<=0) continue;
+    const p=progress(c);
+    if(mcIsHealSkill(c)){
+      const R=c.healAll?4:(c.aoe||2), k='W'+c.uid; active.add(k);
+      placeMagicCircle(mcEnsure(k,buildHolyWave),m.r,m.c,Math.min(7,2*R+.8),p);
+    } else if(mcIsDarkSkill(c)){
+      const kF='F'+c.uid; active.add(kF);
+      placeMagicCircle(mcEnsure(kF,()=>buildMagicCircle(c.kind,'mc-foot',c.icon)),m.r,m.c,1.7,p);
+      const kT='T'+c.uid; active.add(kT);
+      const ctr=monsterSpellCenter(m);
+      // 몬스터 스킬의 범위는 맨해튼 반경이므로 지름 = 2×반경+1 (범위 없는 단일 대상은 작은 마법진)
+      placeMagicCircle(mcEnsure(kT,()=>buildMagicCircle(c.kind,'mc-target',c.icon)),ctr.r,ctr.c,c.aoe?Math.min(6.4,2*c.aoe+1):1.7,p);
+    }
+  }
+  // 끝난(또는 중단된) 시전 정리: 표적 마법진/황금 물결은 퍼지며 사라지고, 발밑 마법진은 서서히 사라짐
+  for(const k of Object.keys(magicCircleEls)){
+    if(active.has(k)) continue;
+    const el=magicCircleEls[k]; delete magicCircleEls[k];
+    if(!el.isConnected) continue;
+    el.classList.add(k.charAt(0)==='W'?'hw-burst':(k.charAt(0)==='T'?'mc-burst':'mc-fade'));
+    setTimeout(()=>el.remove(),800);
+  }
 }
 
 function processFxEvents(){
@@ -1267,7 +1393,7 @@ function processFxEvents(){
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
       const st=skillStyle(ev.spell);
       wrap.style.color=st.color;
-      for(let i=0;i<2;i++){const ring=document.createElement('div');ring.className='cast-ring r'+(i+1);ring.style.width=(px*(1.5+i*.65))+'px';ring.style.height=(px*(1.5+i*.65))+'px';wrap.appendChild(ring);}
+      if(ev.ring!==false){ for(let i=0;i<2;i++){const ring=document.createElement('div');ring.className='cast-ring r'+(i+1);ring.style.width=(px*(1.5+i*.65))+'px';ring.style.height=(px*(1.5+i*.65))+'px';wrap.appendChild(ring);} } // v58: 마법사는 마법진으로 대체
       const core=document.createElement('div');core.className='cast-core';core.textContent=ev.icon||st.glyph;wrap.appendChild(core);
       for(let i=0;i<8;i++){const sh=document.createElement('i');sh.className='shard';sh.style.setProperty('--a',(i*45)+'deg');wrap.appendChild(sh);}
       els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),Math.max(1200,ev.duration+120));

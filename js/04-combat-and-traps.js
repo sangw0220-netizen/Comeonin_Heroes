@@ -28,6 +28,34 @@ function chainTriggerNearbyTraps(h,cr,cc,budget){
 function chainTriggerEnabled(){
   return !!(state.archetypeActive && state.archetypeActive.chainBlast) || trapChainLevel()>=2;
 }
+// v48: 다리가 무너지는 순간, 그 2x2 칸 위에 서 있는 용사를 가장 가까운 안전한 칸으로 밀어냅니다.
+// 이게 없으면 용사가 방금 벽(barricade)으로 변한 칸 위에 그대로 남는데, barricade의 둔화 효과가
+// 매 틱 다시 걸리면서 움직일 차례 자체를 영영 못 얻는 상태(=멈춰버림)에 빠질 수 있습니다.
+function evacuateHeroFromCollapsedBridge(h){
+  if(!h) return;
+  const startKey=h.r+'_'+h.c;
+  const visited=new Set([startKey]);
+  const queue=[[h.r,h.c,0]];
+  let head=0;
+  while(head<queue.length){
+    const [r,c,d]=queue[head++];
+    if(d>0){
+      const t=state.grid[r]?.[c];
+      if(t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade' && !monsterAt(r,c)){
+        h.prevR=h.r; h.prevC=h.c; h.r=r; h.c=c; h.lastMoveAt=performance.now();
+        h.barricadeSlowUntil=0; // 방금 벗어났으니 굳어있던 둔화 효과도 함께 풀어줍니다.
+        return;
+      }
+    }
+    if(d>=6) continue; // 6칸 넘게 뒤져야 한다면 이 던전 구조 자체가 막혀 있다는 뜻이라 중단합니다.
+    for(const [nr,nc] of neighbors4(r,c)){
+      const key=nr+'_'+nc;
+      if(visited.has(key)) continue;
+      visited.add(key);
+      queue.push([nr,nc,d+1]);
+    }
+  }
+}
 function activateObstacle(h,tile,trigger='contact',chained=false){
   if(!h||h.hp<=0||!tile?.obstacle) return false;
   const root=obstacleRootPos(h.r,h.c) || obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || {r:h.r,c:h.c};
@@ -45,7 +73,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
   const lv=obstacleLevel(rootTile), range=obstacleRange(ob.id,rootTile), now=performance.now();
   const key=root.r+'_'+root.c+'_'+ob.id+'_'+lv;
   if(!chained && h.obstacleContactKey===key && now<(h.obstacleContactUntil||0)) return false;
-  if(!chained){ h.obstacleContactKey=key; h.obstacleContactUntil=now+(ob.id==='poison'?650:ob.id==='web'?700:ob.id==='flame'?1000:ob.id==='lightning'?1300:900); }
+  if(!chained){ h.obstacleContactKey=key; h.obstacleContactUntil=now+(ob.id==='poison'?650:ob.id==='web'?700:ob.id==='flame'?1000:ob.id==='lightning'?1300:ob.id==='magnet'?500:ob.id==='gust'?1100:ob.id==='stun_cage'?1600:900); }
   // v35 함정 연구소 "은폐술" Lv.5(기습 함정): 용사가 어떤 함정 종류를 처음 만나는 순간 그 함정의 효과가 강화됩니다.
   let isAmbush=false;
   if(!chained){
@@ -70,6 +98,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       if(executeBonus && x.hp<=x.maxHp*.2) dmg=Math.round(dmg*(1+executeBonus));
       x.hp-=dmg; if(lv>=5)x.obstacleBleedUntil=now+(lv>=10?4000:2200)+bleedBonusMs;
       state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:dmg,color:'#ff6873'});
+      sayHero(x,pickHeroDialogue('trapSpike'),'trapHit',1200,true);
     }
     Sound.trap('spike'); state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'spike',text:'✦',footprint:2});
     if(chainTriggerEnabled() && !chained) chainTriggerNearbyTraps(h,h.r,h.c);
@@ -90,6 +119,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       x.flameBurnDps=FLAME_BURN_DPS*lerpLv(lv,1,4)*globalMul;
       if(rlv>=5) x.obstacleFlameLv5=true; // 지옥불: 이 화상으로 사망하면 processHeroTick에서 소규모 폭발 처리
       state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:dmg,color:'#ff9b3d'});
+      sayHero(x,pickHeroDialogue('trapFlame'),'trapHit',1200,true);
     }
     Sound.trap('flame'); state.fxEvents.push({type:'obstacleSpecial',r:root.r+0.5,c:root.c+0.5,ob:'flame',footprint:2});
     if(chainTriggerEnabled() && !chained) chainTriggerNearbyTraps(h,h.r,h.c);
@@ -110,6 +140,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       if(shockVulnBonus) x.obstacleShockVulnUntil=now+2000;
       state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:dmg,color:'#8fe7ff'});
       state.fxEvents.push({type:'obstacleBurst',r:x.r,c:x.c,ob:'lightning',text:'⚡'});
+      sayHero(x,pickHeroDialogue('trapLightning'),'trapHit',1200,true);
     });
     if(rlv>=5 && targets.length>=3) state.trapLightningResonanceUntil=now+6000; // 낙뢰 공명: 다음 낙뢰 피해 +25%
     Sound.trap('lightning');
@@ -120,12 +151,14 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
     if(!chained){ if(!h.metTrapTypes) h.metTrapTypes=new Set(); }
     Sound.trap('poison');
     state.fxEvents.push({type:'obstacleSpecial',r:root.r+0.5,c:root.c+0.5,ob:'poison',footprint:2});
+    sayHero(h,pickHeroDialogue('trapPoison'),'trapHit',1200,true);
     const rlv=trapResearchLevel('poison');
     if(rlv>=4){ for(const x of affected){ x.hp-=Math.round(6*ambushMul); state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'-6',color:'#78f06b'}); } } // 농축 맹독: 첫 접촉 고정 피해
     return true;
   }
   if(ob.id==='barricade'){
     for(const x of affected){x.barricadeSlowUntil=now+700;x.barricadeSlowMul=lerpLv(lv,.82,.55);}
+    if(!chained) sayHero(h,pickHeroDialogue('trapBarricade'),'trapHit',1200,true);
     Sound.trap('barricade');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'barricade',text:'🛡',footprint:2});
     return true;
@@ -138,6 +171,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       x.hp-=Math.round(PIT_DAMAGE*lerpLv(lv,1,4)*dmgResearchMul*trapAmplifyMul()*ambushMul);
       x.obstaclePitLv5=rlv>=5; x.obstaclePitSlowAfter=rlv>=3;
       state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'⛓ 속박!',color:'#b993ff'});
+      sayHero(x,pickHeroDialogue('trapPit'),'trapHit',1200,true);
     }
     Sound.trap('pit');
     state.fxEvents.push({type:'obstacleSpecial',r:root.r+0.5,c:root.c+0.5,ob:'pit',footprint:2});
@@ -161,6 +195,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
         x.stunTicks=Math.max(x.stunTicks||0,25);
         state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'🧊완전 동결!',color:'#66d9ff'});
       } else state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:lv>=10?'❄ 절대빙결!':'❄ 둔화',color:'#66d9ff'});
+      sayHero(x,pickHeroDialogue('trapFrost'),'trapHit',1200,true);
     }
     Sound.trap('frost');state.fxEvents.push({type:'obstacleSpecial',r:root.r+0.5,c:root.c+0.5,ob:'frost',footprint:2});return true;
   }
@@ -179,6 +214,7 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
         x.stunTicks=Math.max(x.stunTicks||0,25);
         state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'🧊완전 동결!',color:'#eee8f4'});
       } else state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:lv>=10?'🕸 속박!':'🕸 느려짐',color:'#eee8f4'});
+      sayHero(x,pickHeroDialogue('trapWeb'),'trapHit',1200,true);
     }
     Sound.trap('web');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'web',text:'🕸',footprint:2});return true;
@@ -194,9 +230,112 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
       if(rlv>=4) x.obstacleCurseDefPenalty=0.05;
       if(rlv>=5) x.obstacleCurseLv5=true; // 죽음의 낙인: 저주 상태+체력25%이하면 받는 피해 +15%(다른 피해 계산부에서 참조)
         state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'☠ 저주!',color:'#43e78b'});
+        sayHero(x,pickHeroDialogue('trapCurse'),'trapHit',1200,true);
     }
     Sound.trap('curse');
     state.fxEvents.push({type:'obstacleAuraPulse',r:root.r+0.5,c:root.c+0.5,ob:'curse',lv,footprint:2});return true;
+  }
+  // v46: 신규 장애물 1차 5종
+  if(ob.id==='gust'){
+    // 밟은 방향의 반대쪽으로 밀쳐냅니다. 뒤에 다른 함정·구덩이를 깔아두면 그쪽으로 처넣을 수 있습니다.
+    let kr=-Math.sign(h.lastStepR||0), kc=-Math.sign(h.lastStepC||0);
+    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R)||0; kc=Math.sign(h.c-CORE_C)||0; if(!kr&&!kc) kc=1; }
+    const dist=GUST_KNOCK_TILES+(lv>=5?1:0);
+    let cr=h.r, cc=h.c, moved=0;
+    for(let i=0;i<dist;i++){
+      const nr=cr+kr, nc=cc+kc;
+      if(!inBounds(nr,nc)) break;
+      const nt=state.grid[nr][nc];
+      if(!nt || (nt.type!=='floor'&&nt.type!=='core') || nt.obstacle==='barricade' || monsterAt(nr,nc) || isHeroAt(nr,nc)) break;
+      cr=nr; cc=nc; moved++;
+      if(nt.obstacle && nt.obstacle!==ob.id && isObstacleRoot(nr,nc)){
+        // 밀려난 칸에 다른 함정이 있으면 그 함정도 함께 발동시킵니다(구덩이로 처넣기 콤보 등).
+        activateObstacle({...h,r:nr,c:nc},nt,'chain',true);
+      }
+    }
+    if(moved>0){
+      h.prevR=h.r; h.prevC=h.c; h.lastMoveAt=now; h.r=cr; h.c=cc;
+      state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'💨 밀려남!',color:'#9fe3ff'});
+      sayHero(h,pickHeroDialogue('trapGust'),'trapHit',1300,true);
+    }
+    rootTile.triggerFxUntil=now+500; // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
+    Sound.trap('gust');
+    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'gust',text:'💨',footprint:2});
+    return true;
+  }
+  if(ob.id==='magnet'){
+    // 접촉할 때마다 범위 안 용사들을 진의 중심 쪽으로 한 칸씩 끌어당깁니다(계속 밟혀 있으면 서서히 끌려옵니다).
+    const pullTiles=MAGNET_PULL_TILES+(lv>=10?1:0);
+    for(const x of affected){
+      let cr=x.r, cc=x.c;
+      for(let i=0;i<pullTiles;i++){
+        const dr=Math.sign(root.r-cr), dc=Math.sign(root.c-cc);
+        if(!dr && !dc) break;
+        const nr=cr+dr, nc=cc+dc;
+        const nt=state.grid[nr]?.[nc];
+        if(!nt || (nt.type!=='floor'&&nt.type!=='core') || nt.obstacle==='barricade') break;
+        if((nr!==x.r||nc!==x.c) && (monsterAt(nr,nc) || (isHeroAt(nr,nc)&&!(nr===x.r&&nc===x.c)))) break;
+        cr=nr; cc=nc;
+      }
+      if(cr!==x.r || cc!==x.c){
+        x.prevR=x.r; x.prevC=x.c; x.lastMoveAt=now; x.r=cr; x.c=cc;
+        state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'🧲',color:'#c9a0ff'});
+        sayHero(x,pickHeroDialogue('trapMagnet'),'trapHit',1300,true);
+      }
+    }
+    rootTile.triggerFxUntil=now+400; // v47: 발동 애니메이션(확 당겨지는 느낌) 재생 시간
+    Sound.trap('magnet');
+    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'magnet',text:'🧲',footprint:2});
+    return true;
+  }
+  if(ob.id==='stun_cage'){
+    const dur=STUN_CAGE_MS+(lv>=10?900:lv>=5?400:0);
+    for(const x of affected){
+      x.cageStunUntil=Math.max(x.cageStunUntil||0,now+dur);
+      state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'⛓ 포박!',color:'#ff8fa3'});
+      sayHero(x,pickHeroDialogue('trapStunCage'),'trapHit',1400,true);
+    }
+    rootTile.triggerFxUntil=now+STUN_CAGE_FX_MS;
+    Sound.trap('stun_cage');
+    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'stun_cage',text:'⛓',footprint:2});
+    return true;
+  }
+  if(ob.id==='rockfall'){
+    // 이미 예고 중이면 다시 무장하지 않습니다. 지연 폭발은 state.pendingRockfalls에서 처리합니다.
+    if(!rootTile.rockfallArmed){
+      rootTile.rockfallArmed=true;
+      if(!state.pendingRockfalls) state.pendingRockfalls=[];
+      state.pendingRockfalls.push({r:root.r,c:root.c,range,lv,detonateAt:now+ROCKFALL_DELAY_MS,tile:rootTile});
+      state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'⚠ 낙석 경고!',color:'#ffb15c'});
+      Sound.trap('rockfall');
+    }
+    return true;
+  }
+  if(ob.id==='collapse_bridge'){
+    if(rootTile.bridgeCollapsed) return false; // 이미 무너진 뒤에는 일반 barricade로 동작합니다.
+    const need=BRIDGE_HITS_TO_COLLAPSE+(lv>=10?2:lv>=5?1:0);
+    rootTile.bridgeHits=(rootTile.bridgeHits||0)+1;
+    state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:`🌉 ${rootTile.bridgeHits}/${need}`,color:'#e0c9a0'});
+    if(rootTile.bridgeHits>=need){
+      const footprintCells=obstacleFootprintCells(root.r,root.c).cells;
+      rootTile.obstacle='barricade'; rootTile.wasBridge=true; rootTile.bridgeCollapsed=true; rootTile.justCollapsedUntil=now+500;
+      syncObstacleFootprint(root.r,root.c);
+      for(const [rr,cc] of footprintCells){
+        const ct=state.grid[rr]?.[cc]; if(ct){ ct.wasBridge=true; ct.bridgeCollapsed=true; ct.justCollapsedUntil=rootTile.justCollapsedUntil; }
+      }
+      for(const x of affected){ x.hp-=BRIDGE_COLLAPSE_DMG; state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:BRIDGE_COLLAPSE_DMG,color:'#e0c9a0'}); sayHero(x,pickHeroDialogue('trapBridgeCollapse'),'trapHit',1500,true); }
+      // v48: 무너진 칸 위에 서 있던 용사는(밟아서 무너뜨린 당사자 포함) 전부 안전한 칸으로 대피시킵니다.
+      // 그대로 두면 벽으로 변한 칸에 갇혀 영영 못 움직이는 문제가 생깁니다.
+      for(const x of state.heroes){
+        if(x.hp>0 && footprintCells.some(([rr,cc])=>rr===x.r&&cc===x.c)) evacuateHeroFromCollapsedBridge(x);
+      }
+      state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'🌉 붕괴!',color:'#ff8f5c'});
+    } else {
+      rootTile.triggerFxUntil=now+300; // v47: 붕괴 전 매 타격마다 살짝 흔들리는 연출
+    }
+    Sound.trap('collapse_bridge');
+    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'collapse_bridge',text:'🌉',footprint:2});
+    return true;
   }
   return false;
 }
@@ -217,7 +356,7 @@ function findThreateningMonster(h){
   const range=heroMonsterSightRange(h);
   for(const m of state.monsters){
     const d=Math.abs(m.r-h.r)+Math.abs(m.c-h.c);
-    if(d<=range && d<bestD){ best=m; bestD=d; }
+    if(d<=range && d<bestD && !losBlocked(h.r,h.c,m.r,m.c)){ best=m; bestD=d; } // v57: 시야가 가려진 몬스터는 감지하지 못함
   }
   return {monster:best,dist:bestD};
 }
@@ -322,6 +461,11 @@ function heroDungeonResponseProfile(h){
   else if(h.typeId==='ice_mage'||h.typeId==='spirit_caller'||h.typeId==='curse_caster'){ profile.detectBonus=.08; profile.avoidBias=1.16; profile.breakBias=1.0; profile.role='backline'; }
   else if(h.typeId==='lancer'||h.typeId==='martial_artist'||h.typeId==='dual_wielder'||h.typeId==='dark_knight'){ profile.detectBonus=.02; profile.avoidBias=.95; profile.breakBias=.90; profile.role='assault'; }
   else if(h.typeId==='ironclad'){ profile.detectBonus=.08; profile.avoidBias=.82; profile.breakBias=.82; profile.role='fortress'; }
+  // v51: 왕국 정예 영웅
+  else if(['horseman','pikeman','griffon_knight','sun_lancer','royal_lance','dragon_rider'].includes(h.typeId)){ profile.detectBonus=.04; profile.avoidBias=.92; profile.breakBias=.85; profile.role='assault'; }
+  else if(h.typeId==='royal_elite'||h.typeId==='royal_guard'){ profile.detectBonus=.06; profile.avoidBias=.85; profile.breakBias=.80; profile.role='fortress'; }
+  else if(h.typeId==='battle_mage'||h.typeId==='royal_longbow'){ profile.detectBonus=.10; profile.avoidBias=1.20; profile.breakBias=1.0; profile.role='backline'; }
+  else if(h.typeId==='rune_guardian'||h.typeId==='imperial_magus'){ profile.detectBonus=.08; profile.avoidBias=1.12; profile.breakBias=1.0; profile.role='support'; }
   return profile;
 }
 function chooseHeroObstacleRouteStep(h){
@@ -329,7 +473,137 @@ function chooseHeroObstacleRouteStep(h){
   const profile=heroDungeonResponseProfile(h);
   return {profile, step:null};
 }
+/* ==========================================================================
+   v48 · 원거리 유닛 전투 연출 보정
+   [문제] 근접 몬스터가 바로 옆 칸까지 붙으면(dist<=1) 궁수/마법사도 근접 연출(런지+타격)만 나오고
+          화살/마법 투사체가 사라졌습니다. 또한 용사가 마왕을 공격할 때는 숫자+스파크뿐이었습니다.
+   [수정] 원거리 유닛은 거리와 상관없이 항상 투사체를 쏘고, 마왕 공격에도 투사체/런지/타격 연출을 붙입니다.
+   ========================================================================== */
+/* ==========================================================================
+   v49 · 벽 파괴 중복 방지
+   [문제] 한 용사가 벽을 파는 중에 다른 용사가 같은 벽을 또 파기 시작해서, 벽 위 빨간 게이지가
+          두 용사의 진행도로 번갈아 덮어써지며 중복돼 보였습니다.
+   [수정] 이미 다른 용사가 파고 있는 벽(또는 같은 바리케이드)은 새로 파지 않고 뒤에서 대기합니다.
+          앞선 용사가 완료/중단(도주·전투·사망)하면 다음 틱에 자연스럽게 이어받습니다.
+   ========================================================================== */
+function heroDigTargetKey(kind,r,c){
+  // 바리케이드 같은 다칸 장애물은 어느 칸을 노리든 같은 대상으로 취급합니다(루트 기준).
+  if(kind==='obstacle'){ const root=obstacleRootPos(r,c)||{r,c}; return 'o'+root.r+'_'+root.c; }
+  return 'c'+r+'_'+c;
+}
+function findHeroDiggingSameTarget(h,kind,r,c){
+  const key=heroDigTargetKey(kind,r,c);
+  for(const o of state.heroes){
+    if(o===h || o.hp<=0 || !o.digging || o.digTargetR==null) continue;
+    // 넉백 등으로 대상에서 멀어진 용사는 실제로 파고 있다고 볼 수 없으므로 대기 대상에서 제외합니다.
+    if(Math.abs(o.r-o.digTargetR)+Math.abs(o.c-o.digTargetC)>2) continue;
+    if(heroDigTargetKey(o.digKind,o.digTargetR,o.digTargetC)===key) return o;
+  }
+  return null;
+}
+function heroWaitBehindDigger(h){
+  h.waitingBehindDigger=true;
+  h.dungeonIntent='앞선 용사가 벽을 파는 중 · 대기';
+  h.stuckTicks=0; h.showedQuestion=false;
+  const now=performance.now();
+  if(now-(h.waitBubbleAt||0)>4000){ h.waitBubbleAt=now; sayHero(h,'…','normal',1200,false); }
+}
+
+function isRangedHeroUnit(h){
+  if(!h || (h.range||1)<=1) return false;
+  const ht=heroTypeOf(h);
+  // 창기병(melee)·철벽기사(tank)는 사거리가 2지만 창/방패로 싸우는 근접형이라 제외합니다.
+  return !(ht && (ht.role==='melee' || ht.role==='tank'));
+}
+/* ==========================================================================
+   v53 · 용사의 전투 대상 우선순위 (마왕 vs 몬스터)
+   [문제] 마왕이 시야(사거리+4칸) 안에 들어오면, 바로 앞에 몬스터가 있어도 무시하고
+          마왕에게 걸어가거나 마왕만 공격했습니다(마왕 처리 블록이 몬스터 전투 블록보다 앞에서 return).
+   [수정] 공격 사거리 안에 몬스터가 있으면 몬스터를 먼저 상대합니다.
+          - 마왕이 아직 사거리 밖이면 → 눈앞의 몬스터 먼저
+          - 마왕도 사거리 안이면 → 더 가까운 쪽(같으면 몬스터)
+   ========================================================================== */
+function heroPrefersMonsterOverMawang(h,mawangDist){
+  const f=findMonsterForHero(h);
+  if(!f.monster) return false;
+  if(mawangDist>(h.range||1)) return true;
+  return f.dist<=mawangDist;
+}
+
+/* ==========================================================================
+   v55 · 탱커 넉백 — "진열을 무너뜨리는" 방패 타격
+   HERO_TYPES 의 knockbackChance(확률) 를 가진 영웅(방패병·팔라딘·철벽기사·왕국 수호대)이
+   몬스터를 일반 공격할 때마다 해당 확률로 몬스터를 영웅 반대 방향으로 밀쳐냅니다.
+   - 뒤가 벽/장애물/다른 몬스터·영웅/핵 자리면 밀리지 않습니다.
+   - 밀려난 몬스터는 잠깐 경직(HERO_KNOCKBACK_STAGGER 초)되어 바로 되돌아오지 못합니다.
+   - 같은 몬스터가 연달아 밀려 무한 저글링되지 않도록 몬스터별 재적용 대기시간을 둡니다.
+   ========================================================================== */
+const HERO_KNOCKBACK_TILES=1;
+const HERO_KNOCKBACK_STAGGER=0.5;
+const HERO_KNOCKBACK_MONSTER_CD_MS=1200;
+function tryHeroKnockback(h,m,now){
+  const ht=heroTypeOf(h); const p=ht&&ht.knockbackChance;
+  if(!p||!m||m.hp<=0) return false;
+  if(m.knockbackCdUntil&&now<m.knockbackCdUntil) return false;
+  if(Math.random()>=p) return false;
+  const dr=m.r-h.r, dc=m.c-h.c; if(dr===0&&dc===0) return false;
+  // 대각선 위치에서도 한 축으로만 밀어냅니다(세로 우선).
+  let pr=0,pc=0; if(Math.abs(dr)>=Math.abs(dc)) pr=Math.sign(dr); else pc=Math.sign(dc);
+  const r0=m.r,c0=m.c;
+  for(let k=0;k<HERO_KNOCKBACK_TILES;k++){
+    const rr=m.r+pr, cc=m.c+pc; const t=state.grid[rr]?.[cc];
+    if(!t || t.type!=='floor' || t.obstacle || (rr===CORE_R&&cc===CORE_C) || monsterAt(rr,cc) || state.heroes.some(x=>x.hp>0&&x.r===rr&&x.c===cc)) break;
+    m.r=rr; m.c=cc;
+  }
+  if(m.r===r0&&m.c===c0) return false;
+  m.knockbackCdUntil=now+HERO_KNOCKBACK_MONSTER_CD_MS;
+  m.moveCooldown=Math.max(m.moveCooldown||0,HERO_KNOCKBACK_STAGGER);
+  state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'밀려남!',color:'#7fc8ff'},{type:'spark',r:r0,c:c0,color:'#7fc8ff'});
+  return true;
+}
+
+/* ==========================================================================
+   v56 · 관통 공격 — 뭉쳐 있는 몬스터를 한 번에 꿰뚫는 일반 공격
+   HERO_TYPES 의 pierceTiles(칸 수)를 가진 영웅(용기사·검성·흑기사·드래곤 슬레이어·창기병·왕국 랜스 기사단)이
+   몬스터를 일반 공격하면, 주 대상 뒤 같은 방향으로 최대 pierceTiles 칸까지 늘어선 몬스터에게도
+   pierceDmgMul(기본 75%) 만큼의 피해를 줍니다.
+   - 벽/바리케이드 뒤로는 관통하지 않습니다.
+   - 관통 대상에는 공격력 기반 기본 피해만 적용됩니다(검성 최대HP%, 드래곤 슬레이어 대형 보너스 등 고유 추가피해는 주 대상 전용).
+   ========================================================================== */
+function tryHeroPierce(h,m,baseHit,now){
+  const ht=heroTypeOf(h); const tiles=ht&&ht.pierceTiles;
+  if(!tiles||!m) return 0;
+  const mul=ht.pierceDmgMul||0.75;
+  const dr=Math.sign(m.r-h.r), dc=Math.sign(m.c-h.c); if(dr===0&&dc===0) return 0;
+  let hits=0, kills=0;
+  for(let k=1;k<=tiles;k++){
+    const rr=m.r+dr*k, cc=m.c+dc*k;
+    if(!inBounds(rr,cc) || !isPassableForLOS(rr,cc)) break;
+    for(const o of state.monsters){
+      if(o===m||o.hp<=0||o.r!==rr||o.c!==cc) continue;
+      const defBuff=(o.skillDefBuffUntil&&now<o.skillDefBuffUntil)?(o.skillDefBuffMul||1):1;
+      let dmg=Math.max(1,Math.round(baseHit*mul)-(o.def+(o.mawangDefBonus||0))*defBuff);
+      if(o.skillShieldUntil&&now<o.skillShieldUntil) dmg=Math.max(1,Math.round(dmg*(o.skillShieldMul||1)));
+      dmg=Math.max(1,applyStatueSanctuary(o,dmg));
+      o.hp-=dmg; hits++;
+      state.fxEvents.push({type:'battleHit',r:o.r,c:o.c,color:'#ffd166',strong:false,damage:dmg},{type:'damageNumber',r:o.r,c:o.c,amount:dmg,color:'#ffd166'});
+      if(o.hp<=0){ h.heroKills=(h.heroKills||0)+1; kills++; }
+    }
+  }
+  if(kills && h.heroKills>=4 && (h.level||1)<99) heroLevelUp(h);
+  return hits;
+}
+
+// v51: 방어 버프(guard)로 줄어든 받는 피해 배율 (반격 피해에도 적용)
+function heroGuardMul(h){ return (h.guardUntil&&performance.now()<h.guardUntil)?(1-Math.min(.8,h.guardReduction||0)):1; }
+function isRangedMonsterUnit(m){ return !!m && (m.range||1)>1; }
+function heroProjectileFx(h,tr,tc){
+  return {type:'projectile',fromR:h.r,fromC:h.c,toR:tr,toC:tc,color:RANGED_COLOR[h.typeId]||'#e0e0e0',owner:'hero',typeId:h.typeId,kind:rangedProjectileKind('hero',h.typeId)};
+}
+
 function processHeroTick(h,dt){
+  // v49: 대기 표시는 매 틱 초기화합니다. 계속 대기 중이면 아래 로직에서 다시 켜지고, 끝났다면 정상 문구로 돌아갑니다.
+  if(h.waitingBehindDigger){ h.waitingBehindDigger=false; h.dungeonIntent='핵으로 전진'; }
   if(h.hp<h.maxHp){ h.hp=Math.min(h.maxHp, h.hp + HERO_REGEN_PER_LEVEL*(h.level||1)*dt); }
   const now=performance.now();
 
@@ -398,6 +672,11 @@ function processHeroTick(h,dt){
         if(nt && nt.obstacle==='spike'){ activateObstacle(h,nt,'chain',true); break; }
       }
     }
+    return;
+  }
+  // v46: 포박의 철창 — 구덩이와 동일한 패턴의 완전 구속입니다.
+  if(h.cageStunUntil&&now<h.cageStunUntil){
+    if(now-(h.cageFxAt||0)>500){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'stun_cage',text:'⛓'});h.cageFxAt=now;}
     return;
   }
   if(h.barricadeSlowUntil&&now<h.barricadeSlowUntil){ if(now-(h.barricadeFxAt||0)>450){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'barricade',text:'🛡'});h.barricadeFxAt=now;} return; }
@@ -480,8 +759,11 @@ function processHeroTick(h,dt){
   if(mw && mw.hp>0 && !mw.dead){
     const md=Math.abs(mw.r-h.r)+Math.abs(mw.c-h.c);
     const mawangSight=(h.range||1)+4;
-    if(md<=mawangSight){
-      if(md<=1){
+    if(md<=mawangSight && !heroPrefersMonsterOverMawang(h,md)){ // v53: 사거리 안의 몬스터가 있으면 먼저 상대
+      const atkRange=h.range||1;
+      if(md<=atkRange && !losBlocked(h.r,h.c,mw.r,mw.c)){ // v57: 벽에 가려진 마왕은 사거리 안이어도 공격하지 않고 접근합니다
+        // v54: 마법사 계열은 마왕에게도 시전형 범위 마법을 씁니다.
+        if(isCasterHero(h)){ startCasterSpell(h,{r:mw.r,c:mw.c,isMawang:true},curseMul); return; }
         const nowMw=performance.now();
         const atkDelay=1.0*(1+mawangSkillRate('authority',.04));
         if(nowMw-(h.lastMawangAttackAt||0)>=atkDelay*1000){
@@ -489,6 +771,15 @@ function processHeroTick(h,dt){
           const mwStats=mawangCurrentStats();
           const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1))-mwStats.def);
           mw.hp-=dmg;
+          // v48: 마왕을 공격할 때도 몬스터 공격과 같은 연출(원거리=투사체, 근접=런지+타격)을 보여줍니다.
+          const mwDR=Math.sign(mw.r-h.r), mwDC=Math.sign(mw.c-h.c);
+          if(isRangedHeroUnit(h)){
+            state.fxEvents.push(heroProjectileFx(h,mw.r,mw.c),{type:'punch',key:'mawang',dr:mwDR,dc:mwDC,mode:'defender'});
+            Sound.heroRanged(); if(h.typeId==='mage') Sound.magic('arcane');
+          }else{
+            state.fxEvents.push({type:'punch',key:'h'+h.id,dr:mwDR,dc:mwDC,mode:'attacker'},{type:'punch',key:'mawang',dr:mwDR,dc:mwDC,mode:'defender'},{type:'battleHit',r:mw.r,c:mw.c,color:'#ff5868',strong:dmg>Math.max(12,mw.maxHp*.12),damage:dmg});
+            Sound.heroAttack();
+          }
           state.fxEvents.push({type:'damageNumber',r:mw.r,c:mw.c,amount:dmg,color:'#ff9b6e'});
           state.fxEvents.push({type:'spark',r:mw.r,c:mw.c,color:'#ffd166'});
           if(mw.hp<=0){ killMawang(mw); }
@@ -513,6 +804,8 @@ function processHeroTick(h,dt){
     const heroType=heroTypeOf(h);
     const skillDefBuff=(m.skillDefBuffUntil&&performance.now()<m.skillDefBuffUntil)?(m.skillDefBuffMul||1):1;
     const allyAtkBuffMul=(h.attackBuffUntil&&now<h.attackBuffUntil)?(h.attackBuffMul||1):1;
+    // v54: 마법사 계열은 즉발 타격 대신 "시전 → 범위 폭발"로 공격합니다. (시전 중에는 위쪽 castingSkill 처리에서 대기)
+    if(isCasterHero(h)){ startCasterSpell(h,m,curseMul*allyAtkBuffMul); return; }
     let dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*curseMul*allyAtkBuffMul)-(m.def+(m.mawangDefBonus||0))*skillDefBuff);
     if(state.archetypeActive && state.archetypeActive.mazeArchitect && dungeonZoneAt(h.r,h.c)==='deadend'){
       dmg=Math.max(1,Math.round(dmg*0.7));
@@ -539,7 +832,7 @@ function processHeroTick(h,dt){
       hits.forEach(d=>state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:d,color:dist<=1?'#ff5868':'#cbd4e1'}));
       if(m.hp<=0) h.heroKills=(h.heroKills||0)+1;
       if((h.range||1)>1) Sound.heroRanged(); else Sound.heroAttack();
-      if(dist<=1){ const dR=Math.sign(m.r-h.r),dC=Math.sign(m.c-h.c); const dmgBack=Math.max(1,m.atk-(h.def||0)); h.hp-=dmgBack;
+      if(dist<=1){ const dR=Math.sign(m.r-h.r),dC=Math.sign(m.c-h.c); const dmgBack=Math.max(1,Math.round((m.atk-(h.def||0))*heroGuardMul(h))); h.hp-=dmgBack;
         const meleeFxReady=now-(h.lastMeleeFxAt||0)>=280;
         if(meleeFxReady){
           h.lastMeleeFxAt=now;
@@ -591,16 +884,35 @@ function processHeroTick(h,dt){
     }
     if(m.hp<=0){ h.heroKills=(h.heroKills||0)+1; if(h.heroKills>=4&&h.level<99) heroLevelUp(h); }
     state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:dist<=1?'#ff5868':'#ffd166'},{type:'spark',r:m.r,c:m.c,color:dist<=1?'#ff5868':'#ffd166'});
-    if(dist<=1){ const dR=Math.sign(m.r-h.r),dC=Math.sign(m.c-h.c); const dmgBack=Math.max(1,m.atk-(h.def||0)); h.hp-=dmgBack; m.lastAttackAt=now; if(h.hp<=0)h.killerMonsterId=m.id;
+    if(dist<=1){ const dR=Math.sign(m.r-h.r),dC=Math.sign(m.c-h.c); const dmgBack=Math.max(1,Math.round((m.atk-(h.def||0))*heroGuardMul(h))); h.hp-=dmgBack; m.lastAttackAt=now; if(h.hp<=0)h.killerMonsterId=m.id;
       const meleeFxReady=now-(h.lastMeleeFxAt||0)>=280;
-      if(meleeFxReady){
+      if(isRangedHeroUnit(h)){
+        // v48: 원거리 용사는 적이 바로 옆에 붙어도 화살/마법을 그대로 발사합니다.
+        state.fxEvents.push(heroProjectileFx(h,m.r,m.c));
+        if(h.typeId==='mage') Sound.magic('arcane');
+        if(meleeFxReady){
+          h.lastMeleeFxAt=now;
+          state.fxEvents.push({type:'punch',key:'m'+m.id,dr:dR,dc:dC,mode:'defender'},{type:'spark',r:h.r,c:h.c,color:'#ff6873'},{type:'damageNumber',r:h.r,c:h.c,amount:dmgBack,color:'#ff6873'});
+        }
+      }else if(meleeFxReady){
         h.lastMeleeFxAt=now;
         state.fxEvents.push({type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'attacker'},{type:'punch',key:'m'+m.id,dr:dR,dc:dC,mode:'defender'},{type:'battleHit',r:m.r,c:m.c,color:'#ff5868',strong:dmg>Math.max(8,m.maxHp*.10),damage:dmg},{type:'spark',r:h.r,c:h.c,color:'#ff6873'},{type:'damageNumber',r:h.r,c:h.c,amount:dmgBack,color:'#ff6873'});
       }else{
         state.fxEvents.push({type:'battleHit',r:m.r,c:m.c,color:'#ff5868',strong:dmg>Math.max(8,m.maxHp*.10),damage:dmg});
       }
     }
+    else if(!isRangedHeroUnit(h)){
+      // v51: 창/랜스처럼 사거리가 2인 근접형 영웅은 마법탄 대신 찌르기 연출(런지+타격)을 씁니다.
+      const dR2=Math.sign(m.r-h.r), dC2=Math.sign(m.c-h.c);
+      if(now-(h.lastMeleeFxAt||0)>=280){
+        h.lastMeleeFxAt=now;
+        state.fxEvents.push({type:'punch',key:'h'+h.id,dr:dR2,dc:dC2,mode:'attacker'},{type:'punch',key:'m'+m.id,dr:dR2,dc:dC2,mode:'defender'});
+      }
+      state.fxEvents.push({type:'battleHit',r:m.r,c:m.c,color:'#ff5868',strong:dmg>Math.max(8,m.maxHp*.10),damage:dmg});
+    }
     else { state.fxEvents.push({type:'projectile',fromR:h.r,fromC:h.c,toR:m.r,toC:m.c,color:RANGED_COLOR[h.typeId]||'#e0e0e0',owner:'hero',typeId:h.typeId,kind:rangedProjectileKind('hero',h.typeId)}); if(h.typeId==='mage') Sound.magic('arcane'); }
+    tryHeroPierce(h,m,Math.round(h.atk*(h.partySynergy||1)*curseMul*allyAtkBuffMul),now); // v56: 관통
+    tryHeroKnockback(h,m,now); // v55: 탱커 넉백
     return;
   }
 
@@ -673,6 +985,8 @@ function processHeroTick(h,dt){
       const rootTile=obstacleRootTile(h.digTargetR,h.digTargetC);
       const ob=rootTile?.obstacle;
       if(!ob){ h.digging=false; h.digProgress=0; h.digKind=null; return; }
+      // v49: 아래에서 root를 쓰는데 선언이 없어 ReferenceError가 매 틱 발생하고 바리케이드가 절대 부서지지 않던 버그 수정
+      const root=obstacleRootPos(h.digTargetR,h.digTargetC) || {r:h.digTargetR,c:h.digTargetC};
       need=obstacleBreakTime(ob,h,rootTile);
       // 장애물 파괴 진행도를 실제 내구도에도 반영하여 HP 바가 실질적인 상태를 보여주도록 합니다.
       if(rootTile && rootTile.obstacleMaxHp>0){
@@ -818,6 +1132,8 @@ function processHeroTick(h,dt){
     h.dungeonIntent=responseProfile.role==='scout'?'안전한 경로 탐색':'핵으로 전진';
   }
   if(tile.type==='rock'){
+    // v49: 다른 용사가 이미 이 벽을 파는 중이면 시작하지 않고 뒤에서 기다립니다.
+    if(findHeroDiggingSameTarget(h,'rock',tr,tc)){ heroWaitBehindDigger(h); return; }
     h.digging=true;h.digKind=tile.obstacle?'wallObstacle':'rock';h.digTargetR=tr;h.digTargetC=tc;h.digProgress=0;return;
   }
   if(tile.obstacle){
@@ -828,6 +1144,8 @@ function processHeroTick(h,dt){
       // 돌기둥은 실제로 길을 막으므로 발견하면 파괴합니다.
       // 나머지 장애물은 '발견 = 경고'로만 처리하고 먼저 밟게 하여 장애물 효과가 반드시 체감되도록 합니다.
       if(obId==='barricade'){
+        // v49: 같은 바리케이드를 이미 다른 용사가 부수는 중이면 대기합니다.
+        if(findHeroDiggingSameTarget(h,'obstacle',tr,tc)){ heroWaitBehindDigger(h); return; }
         h.digging=true;h.digKind='obstacle';h.digTargetR=tr;h.digTargetC=tc;h.digProgress=0;h.showedQuestion=false;
         sayHero(h,'?','question',1300,true);
         addLog(`${HERO_TYPES.find(x=>x.id===h.typeId)?.name||'용사'}가 바리케이드를 발견하고 파괴를 시작합니다.`);
@@ -883,6 +1201,30 @@ function processStatue(r,c,tile,dt){
   }
 }
 
+// v46: 붕락지대의 지연 폭발을 처리합니다. 예고 후 일정 시간이 지나면
+// 그 순간 범위 안에 있는(용사가 미리 피했을 수도 있는) 용사들에게 낙석 피해를 줍니다.
+function processPendingRockfalls(){
+  if(!state.pendingRockfalls || !state.pendingRockfalls.length) return;
+  const now=performance.now();
+  const remain=[];
+  for(const p of state.pendingRockfalls){
+    if(now<p.detonateAt){ remain.push(p); continue; }
+    const ob=OBSTACLE_TYPES.find(o=>o.id==='rockfall');
+    const globalMul=trapAmplifyMul()*trapMasteryAttackDmgMul()*mawangObstacleMultiplier();
+    const base=ROCKFALL_DMG*lerpLv(p.lv,1,4)*globalMul;
+    const hit=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(p.r,p.c,x.r,x.c)<=p.range);
+    for(const x of hit){
+      const dmg=Math.max(1,Math.round(base));
+      x.hp-=dmg; x.lastTrapHitAt=now;
+      state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:dmg,color:'#ffb15c'});
+      sayHero(x,pickHeroDialogue('trapRockfall'),'trapHit',1400,true);
+    }
+    state.fxEvents.push({type:'obstacleBurst',r:p.r+0.5,c:p.c+0.5,ob:'rockfall',text:'🪨',footprint:2});
+    Sound.trap('rockfall');
+    if(p.tile){ p.tile.rockfallArmed=false; p.tile.triggerFxUntil=now+ROCKFALL_FX_MS; }
+  }
+  state.pendingRockfalls=remain;
+}
 function processObstacleVisualsAndZones(dt){
   const now=performance.now();
   for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
@@ -902,8 +1244,11 @@ function processObstacleVisualsAndZones(dt){
           if(near){ near.poisonSpreadUntil=now+3000; near.poisonSpreadDps=dps*0.6; state.fxEvents.push({type:'floatText',r:near.r,c:near.c,text:'☠전염!',color:'#78f06b'}); }
         }
       }
-      else if(ob==='flame'||ob==='lightning'||ob==='pit'||ob==='spike'){ activateObstacle(h,tile,'stay'); }
-      else if(ob==='barricade'){h.barricadeSlowUntil=now+450;h.barricadeSlowMul=lerpLv(lv,.82,.55);}
+      else if(ob==='flame'||ob==='lightning'||ob==='pit'||ob==='spike'||ob==='magnet'){ activateObstacle(h,tile,'stay'); }
+      else if(ob==='barricade'){
+        h.barricadeSlowUntil=now+450;h.barricadeSlowMul=lerpLv(lv,.82,.55);
+        if(now-(h.barricadeReactAt||0)>1500){ h.barricadeReactAt=now; sayHero(h,pickHeroDialogue('trapBarricade'),'trapHit',1200,true); }
+      }
       else if(ob==='frost'){h.frostSlowUntil=now+900;h.frostSlowMul=lerpLv(lv,.68,.35);h.stunTicks=Math.max(h.stunTicks||0,Math.round(lerpLv(lv,0,6)*0.17));}
       else if(ob==='web'){h.webSlowUntil=now+(lv>=10?3200:lv>=5?2100:1200);h.webSlowMul=lv>=10?.32:lv>=5?.5:.68;if(lv>=10)h.webRootUntil=Math.max(h.webRootUntil||0,now+700);if(now-(h.webFxAt||0)>650){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'web',text:'🕸'});h.webFxAt=now;}}
       else if(ob==='curse'){h.obstacleCurseUntil=now+lerpLv(lv,1200,2400);h.obstacleCurseMul=lerpLv(lv,.82,.55);if(lv>=10)h.obstacleHealMul=.5;if(now-(h.obstacleCurseFxAt||0)>900){state.fxEvents.push({type:'obstacleAuraPulse',r:h.r,c:h.c,ob:'curse',lv});h.obstacleCurseFxAt=now;}}
@@ -1152,6 +1497,7 @@ function simulateStep(dt){
     state._auraDirty=false;
   }
   processObstacleVisualsAndZones(dt);
+  processPendingRockfalls();
   for(const p of state.auraPositions.statue){
     processStatue(p.r,p.c,state.grid[p.r][p.c],dt);
   }
@@ -1406,7 +1752,7 @@ function finishWave(){
   if(state.wave%5===0) reviveMawangOnWaveClear();
   showWaveBanner(`웨이브 ${state.wave} 클리어!`);
   addLog(`<span class="hl-gold">웨이브 ${state.wave} 클리어!</span> 골드 <span class="hl-gold">+${waveBonus}G</span> · 핵 회복 <span class="hl-gold">+${coreHeal}</span>`);
-  if(state.wave%10===0) { Sound.expand(); expandDungeon(); }
+  if(state.wave%10===0) { /* v49: 던전 크기를 15x15로 고정 — 더 이상 10웨이브마다 커지지 않습니다. */ }
   els.waveTransition.querySelector('.wt-title').textContent=`웨이브 ${state.wave} 클리어!`;
   const subEl=els.waveTransition.querySelector('.wt-sub'); if(subEl){ subEl.textContent=state.stageEvent?`${state.stageEvent.icon} ${state.stageEvent.name} 종료`:'던전이 잠시 숨을 고릅니다…'; }
   els.waveTransition.classList.add('show');

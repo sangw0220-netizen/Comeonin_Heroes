@@ -178,6 +178,32 @@
   </div>
 </div>
 
+<!-- v52: 디버그 패널 (?test=1 → "디버그 모드로 시작" 후 툴바 ☰ 기타 → 🐞 디버그) -->
+<div id="debugOverlay" class="hidden" aria-modal="true" role="dialog">
+  <div class="modal debug-modal">
+    <h2 class="display">🐞 디버그 패널</h2>
+    <p class="debug-desc">웨이브·골드 제한 없이 용사와 몬스터를 즉시 소환합니다.<br>이 모드의 기록은 랭킹·영혼에 반영되지 않습니다.</p>
+    <div class="debug-row">
+      <label>용사 레벨 <input type="number" id="debugHeroLevel" min="1" max="99" value="5"></label>
+      <label class="debug-check"><input type="checkbox" id="debugAsBoss"> 보스로 소환</label>
+    </div>
+    <div class="debug-section">
+      <h3>🛡️ 용사 소환 <span class="debug-count" id="debugHeroCount"></span></h3>
+      <div class="debug-grid" id="debugHeroGrid"></div>
+    </div>
+    <div class="debug-section">
+      <h3>👾 몬스터 소환 <span class="debug-count" id="debugMonsterCount"></span></h3>
+      <div class="debug-grid" id="debugMonsterGrid"></div>
+    </div>
+    <div class="debug-row">
+      <button class="cta secondary debug-gold" id="debugAddGold" style="width:auto;padding:8px 14px;">💰 +1,000G</button>
+      <button class="cta secondary" id="debugClearHeroes" style="width:auto;padding:8px 14px;">용사 전체 제거</button>
+      <button class="cta secondary" id="debugClearMonsters" style="width:auto;padding:8px 14px;">몬스터 전체 제거</button>
+    </div>
+    <button class="cta" id="debugCloseBtn">닫기</button>
+  </div>
+</div>
+
 <div id="waveBanner"></div>
 <div id="defeatTransition"><div class="dt-box"><div class="dt-icon">💀</div><div class="dt-title">던전 패배</div><div class="dt-sub">마력의 핵이 무너졌습니다…</div></div></div>
 <div id="waveTransition"><div class="wt-box"><div class="wt-icon">🏆</div><div class="wt-title">웨이브 클리어!</div><div class="wt-sub">던전이 잠시 숨을 고릅니다…</div></div></div>

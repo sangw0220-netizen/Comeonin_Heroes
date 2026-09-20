@@ -201,6 +201,7 @@ function renderPanelInner(){
     const hpPct=Math.max(0,Math.min(100,hp/maxHp*100));
     const stateText=h.fleeing?'후퇴 중':h.castingSkill?`시전 중 · ${h.castingSkill.name}`:h.coreFound?'핵 공격 중':'탐색 중';
     const skillText=skill?`${skill.icon} ${skill.name} · ${skill.cast.toFixed(1)}초 시전 · 재사용 ${skill.cooldown}초`:'아직 고유 스킬 미해금';
+    const skillPanel=heroSkillsPanelHtml(h); // v54: 템플릿이 ${skillPanel}을 쓰는데 정의가 없어 영웅 정보 패널이 ReferenceError로 그려지지 않던 버그 수정
     els.panelBox.innerHTML=`
       <h3>🛡️ 영웅 정보</h3>
       <div class="monster-mini">
@@ -214,6 +215,9 @@ function renderPanelInner(){
       </div>
       <div class="barwrap" style="margin:5px 0 7px;"><div class="barfill hp" style="width:${hpPct}%"></div></div>
       <div class="panel-hint">🎯 사거리 ${ht.range||1} · 처치 ${h.heroKills||0}명 · 보상 ${h.reward}G</div>
+      ${isCasterHero(h)?`<div class="panel-hint" style="margin-top:4px;">${CASTER_BASIC_SPELLS[h.typeId].icon} 기본 마법 <b>${CASTER_BASIC_SPELLS[h.typeId].name}</b> · 시전 ${CASTER_BASIC_SPELLS[h.typeId].cast.toFixed(1)}초 · 범위 ${spellAreaLabel(CASTER_BASIC_SPELLS[h.typeId].cast)}</div>`:''}
+      ${ht.pierceTiles?`<div class="panel-hint" style="margin-top:4px;">🔱 <b>관통</b> — 대상 뒤 ${ht.pierceTiles}칸까지 늘어선 몬스터에게도 피해의 ${Math.round((ht.pierceDmgMul||.75)*100)}%</div>`:''}
+      ${ht.knockbackChance?`<div class="panel-hint" style="margin-top:4px;">🛡️ 공격 시 <b>${Math.round(ht.knockbackChance*100)}%</b> 확률로 몬스터를 뒤로 밀쳐냅니다</div>`:''}
       ${skillPanel}
       ${h.castingSkill?`<div class="panel-hint" style="margin-top:6px;color:var(--gold);">${h.castingSkill.icon} ${h.castingSkill.name} 캐스팅 중…</div>`:''}
     `;
@@ -538,9 +542,9 @@ const VILLAGE_SPRITES={
 /* v38.7 · 마을 맵 크기는 습격 단계에 따라 달라집니다.
    첫 습격(10웨이브)은 좁은 마을에서 시작해, 단계가 오를수록 넓어집니다.
    startVillageRaid()에서 generateVillageMap() 직전에 villageGridSize()로 갱신합니다. */
-let VILLAGE_GRID = 16;                   // 현재 마을 맵 크기 (16~22)
-const VILLAGE_GRID_MIN = 16;             // 첫 습격(10웨이브) 맵 크기
-const VILLAGE_GRID_MAX = 22;             // 후반 습격 최대 맵 크기
+let VILLAGE_GRID = 15;                   // 현재 마을 맵 크기 (v49: 15로 고정)
+const VILLAGE_GRID_MIN = 15;             // 첫 습격(10웨이브) 맵 크기
+const VILLAGE_GRID_MAX = 15;             // v49: 후반 습격도 더 이상 커지지 않고 15로 고정
 const VILLAGE_CASTLE_SIZE = 4;           // 성은 4x4
 const VILLAGE_BUILD_SIZE = 2;            // 마을 건물은 2x2
 const VILLAGE_TICK_ATTACK = 0.55;        // 구조물/블럭 공격 간격(초)
@@ -876,7 +880,7 @@ function refreshDungeonObstacleImages(){
       img.className='obstacle-icon';
       el.appendChild(img);
     }
-    applyObstacleSpriteImage(img,ob);
+    applyObstacleSpriteImage(img,ob, t.wasBridge?{srcOverride:OBSTACLE_SPRITES.collapse_bridge_alt}:undefined);
     img.style.display='block';
   }
 }
@@ -915,7 +919,7 @@ function _restoreDungeonObstacleVisuals(){
         img.className='obstacle-icon';
         el.appendChild(img);
       }
-      applyObstacleSpriteImage(img,ob);
+      applyObstacleSpriteImage(img,ob, t.wasBridge?{srcOverride:OBSTACLE_SPRITES.collapse_bridge_alt}:undefined);
       const lv=obstacleLevel(obstacleRootTile(r,c)||t);
       el.dataset.icon=ob.icon;
       el.style.setProperty('--ob-color',ob.color||'rgba(200,200,210,.5)');
@@ -1393,7 +1397,7 @@ function villageAttackerTick(m, dt, isMawang){
       if(isMawang){ if(crit) Sound.critical && Sound.critical(); else Sound.mawangAttack && Sound.mawangAttack(); }
       else if((m.range||1)>1) Sound.monsterRanged && Sound.monsterRanged();
       else Sound.monsterAttack && Sound.monsterAttack();
-      if(bestD<=1){
+      if(bestD<=1 && (isMawang || !isRangedMonsterUnit(m))){ // v48: 원거리 몬스터는 붙어도 투사체
         const dR=Math.sign(target.r-m.r), dC=Math.sign(target.c-m.c);
         state.fxEvents.push({type:'punch', key:(isMawang?'mawang':'m'+m.id), dr:dR, dc:dC, mode:'attacker'});
         state.fxEvents.push({type:'battleHit', r:target.r, c:target.c, color:'#ff6873', strong:dmg>target.maxHp*0.12, damage:dmg});
@@ -1493,7 +1497,7 @@ function villageHeroTick(h, dt){
       // v38.6: 마을 습격 용사 공격 사운드 추가
       if((h.range||1)>1) Sound.heroRanged && Sound.heroRanged();
       else Sound.heroAttack && Sound.heroAttack();
-      if(bestD<=1){
+      if(bestD<=1 && !isRangedHeroUnit(h)){ // v48: 원거리 용사는 붙어도 투사체
         const dR=Math.sign(target.r-h.r), dC=Math.sign(target.c-h.c);
         state.fxEvents.push({type:'punch', key:'h'+h.id, dr:dR, dc:dC, mode:'attacker'});
         state.fxEvents.push({type:'battleHit', r:target.r, c:target.c, color:'#ffd166', strong:false, damage:dmg});

@@ -374,7 +374,8 @@ function digPlayerWall(r,c){
   return true;
 }
 const OBSTACLE_DETECT_CHANCE={spike:.62,flame:.56,lightning:.72,poison:.48,barricade:1,pit:.70,statue:.88,frost:.68,web:.74,curse:.78};
-const OBSTACLE_BREAK_TIME={spike:2.2,flame:2.8,lightning:2.4,poison:2.6,barricade:4.8,pit:2.8,statue:4.4,frost:2.4,web:2.0,curse:3.8};
+const OBSTACLE_BREAK_TIME={spike:2.2,flame:2.8,lightning:2.4,poison:2.6,barricade:4.8,pit:2.8,statue:4.4,frost:2.4,web:2.0,curse:3.8,
+  gust:2.2,magnet:2.4,stun_cage:3.6,rockfall:2.6,collapse_bridge:5.2};
 function obstacleDetectChance(h,obId){
   let chance=OBSTACLE_DETECT_CHANCE[obId]??0.65;
   if(h.typeId==='shadowrogue') chance=Math.max(0.28,chance-0.18);
@@ -1142,7 +1143,7 @@ function pickPartyEdgeSpawnCells(count){
 
 /* ---------------- v18.1+ 용사 조합 / 웨이브 패턴 / 정예 시스템 ---------------- */
 const HERO_ENCOUNTER_PATTERNS=[
-  {id:'balanced', name:'왕국 정찰대', minWave:1, types:['swordsman','archer'], speedMul:1.0},
+  {id:'balanced', name:'왕국 정찰대', minWave:1, types:['swordsman','archer','miner'], speedMul:1.0},
   {id:'arcane', name:'마법 원정대', minWave:3, types:['mage','priest','archer'], speedMul:.96},
   {id:'holy', name:'성기사 원정대', minWave:5, types:['shieldbearer','paladin','priest'], speedMul:1.05},
   {id:'assault', name:'돌격대', minWave:6, types:['berserker','swordsman','assassin'], speedMul:.90},
@@ -1151,12 +1152,18 @@ const HERO_ENCOUNTER_PATTERNS=[
   {id:'nature', name:'자연의 순례단', minWave:8, types:['druid','miko','priest','archer'], speedMul:1.02},
   {id:'support', name:'왕국 지원대', minWave:9, types:['bard','alchemist','priest','hunter'], speedMul:1.00},
   {id:'frost', name:'빙결 원정대', minWave:10, types:['ice_mage','spirit_caller','mage','archmage'], speedMul:.96},
-  {id:'cavalry', name:'기동 돌격대', minWave:11, types:['lancer','martial_artist','dual_wielder','berserker'], speedMul:.92},
+  {id:'cavalry', name:'기동 돌격대', minWave:11, types:['lancer','martial_artist','dual_wielder','berserker','dragoon'], speedMul:.92},
   {id:'curse', name:'저주 추격대', minWave:13, types:['curse_caster','dark_knight','archmage','assassin'], speedMul:.90},
   {id:'ironwall', name:'철벽 방위대', minWave:15, types:['ironclad','shieldbearer','priest','dark_knight'], speedMul:1.06},
   {id:'elite_guard', name:'왕실 친위대', minWave:10, types:['shieldbearer','swordsaint','paladin','priest'], speedMul:1.10},
   {id:'dragonhunt', name:'용 사냥 원정대', minWave:15, types:['dragonslayer','hunter','swordsaint','archer'], speedMul:.94},
   {id:'endgame', name:'최종 원정군', minWave:20, types:['dragonslayer','swordsaint','archmage','vampire','shieldbearer'], speedMul:1.08},
+  // v51: 왕국 정예 영웅 원정대
+  {id:'royal_cavalry', name:'왕국 기병대',   minWave:21, types:['horseman','pikeman','royal_lance','griffon_knight'], speedMul:.94},
+  {id:'royal_phalanx', name:'왕국 방진',     minWave:26, types:['royal_elite','royal_guard','pikeman','imperial_magus'], speedMul:1.04},
+  {id:'royal_arcane',  name:'황실 마도단',   minWave:36, types:['battle_mage','rune_guardian','imperial_magus','royal_longbow'], speedMul:.96},
+  {id:'sun_crusade',   name:'태양 성전군',   minWave:46, types:['sun_lancer','royal_guard','imperial_magus','royal_elite'], speedMul:1.00},
+  {id:'sky_dragon',    name:'천공 용기사단', minWave:66, types:['dragon_rider','griffon_knight','royal_lance','battle_mage','dragoon'], speedMul:.92},
 ];
 const ELITE_ENCOUNTER_NAMES=['철벽의 방패기사','핏빛 광전사','심연의 대현자','그림자 추적자','왕실 사냥꾼','용사단 부단장'];
 const BOSS_PROFILES={
@@ -1187,18 +1194,78 @@ function bossCountForWave(wave){
   if(wave===50) return 3;
   return 4;
 }
+/* ==========================================================================
+   v50 · 웨이브 구간별 용사 등장 풀
+   기존에는 영웅마다 정해진 unlockAt(해금 웨이브) 이후로는 계속 누적해서 등장했습니다.
+   이제 아래 표에 적힌 구간마다 "그 구간에 등장하는 용사"를 정확히 지정합니다(누적 아님).
+   - 표에 없는 웨이브(100 초과)는 마지막 구간 풀을 그대로 사용합니다.
+   - 보스(BOSS_PROFILES)는 웨이브 풀과 무관하게 지정된 보스가 그대로 등장하고, 호위만 이 풀을 따릅니다.
+   - 같은 용사를 구간 안에서 두 번 적어도 풀은 집합이므로 한 번으로 취급합니다.
+   ========================================================================== */
+const HERO_WAVE_POOLS_BASE=[
+  {from:0,  to:5,   ids:['swordsman','archer','mage']},
+  {from:6,  to:10,  ids:['swordsman','archer','mage','miner']},
+  {from:11, to:15,  ids:['swordsman','archer','mage','miner','paladin','assassin','priest']},
+  {from:16, to:20,  ids:['swordsman','archer','mage','miner','paladin','assassin','priest','berserker','shieldbearer','hunter']},
+  {from:21, to:25,  ids:['priest','berserker','shieldbearer','hunter','gunslinger','archmage']},
+  {from:26, to:30,  ids:['priest','berserker','shieldbearer','hunter','gunslinger','archmage','dragoon']},
+  {from:31, to:35,  ids:['priest','berserker','shieldbearer','hunter','gunslinger','archmage','shadowrogue','swordsaint']},
+  {from:36, to:40,  ids:['priest','berserker','shieldbearer','hunter','gunslinger','archmage','shadowrogue','swordsaint','druid','miko']},
+  {from:41, to:45,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist']},
+  {from:46, to:50,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller']},
+  {from:51, to:55,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder']},
+  {from:56, to:60,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight']},
+  {from:61, to:65,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight','ironclad']},
+  {from:66, to:70,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight','ironclad','dragonslayer']},
+  {from:71, to:80,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight','ironclad','dragonslayer','dragoon']},
+  {from:81, to:90,  ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight','ironclad','dragonslayer','dragoon']},
+  {from:91, to:100, ids:['shadowrogue','swordsaint','druid','miko','vampire','bard','alchemist','ice_mage','lancer','spirit_caller','martial_artist','dual_wielder','curse_caster','dark_knight','ironclad','dragonslayer','dragoon','archmage','paladin','miner']},
+];
+// v51: 왕국 정예 영웅은 기본 표(위)를 건드리지 않고, 등장 시작 웨이브부터 각 구간 풀에 덧붙입니다.
+const HERO_WAVE_POOL_ADDONS=[
+  {from:21, ids:['horseman','royal_longbow']},
+  {from:26, ids:['royal_elite','pikeman']},
+  {from:31, ids:['royal_guard']},
+  {from:36, ids:['battle_mage','rune_guardian']},
+  {from:41, ids:['griffon_knight']},
+  {from:46, ids:['sun_lancer','imperial_magus']},
+  {from:51, ids:['royal_lance']},
+  {from:66, ids:['dragon_rider']},
+];
+const HERO_WAVE_POOLS=HERO_WAVE_POOLS_BASE.map(row=>({
+  from:row.from, to:row.to,
+  ids:[...row.ids, ...HERO_WAVE_POOL_ADDONS.filter(a=>row.from>=a.from).flatMap(a=>a.ids)]
+}));
+function heroPoolIdsForWave(wave){
+  const w=Math.max(0,Math.floor(Number(wave)||0));
+  let row=HERO_WAVE_POOLS.find(p=>w>=p.from && w<=p.to);
+  if(!row) row=HERO_WAVE_POOLS[HERO_WAVE_POOLS.length-1];
+  const ids=[...new Set(row.ids)].filter(id=>HERO_TYPES.some(h=>h.id===id));
+  return ids.length?ids:['swordsman'];
+}
+function heroPoolTypesForWave(wave){
+  const ids=heroPoolIdsForWave(wave);
+  return HERO_TYPES.filter(h=>ids.includes(h.id));
+}
+
 function getEncounterPattern(wave){
-  const eligible=HERO_ENCOUNTER_PATTERNS.filter(x=>wave>=x.minWave);
-  if(!eligible.length) return HERO_ENCOUNTER_PATTERNS[0];
-  const tier=eligible[eligible.length-1];
-  const candidates=eligible.filter(x=>x.minWave>=Math.max(1,tier.minWave-6));
-  return candidates[Math.floor(Math.random()*candidates.length)]||tier;
+  const pool=heroPoolIdsForWave(wave);
+  // 웨이브 풀과 2종 이상 겹치는 기존 원정대 패턴(이름/이동속도/시너지 연출)만 후보로 삼고,
+  // 풀 전체를 쓰는 범용 원정대도 항상 후보에 넣어 어떤 패턴에도 없는 용사(예: 광부)도 등장할 수 있게 합니다.
+  const fits=HERO_ENCOUNTER_PATTERNS.filter(x=>x.types.filter(id=>pool.includes(id)).length>=2);
+  const generic={id:'wavepool',name:'용사 원정대',minWave:wave,types:pool.slice(),speedMul:1.0};
+  const candidates=[...fits,generic];
+  return candidates[Math.floor(Math.random()*candidates.length)];
 }
 function pickEncounterHeroType(pattern,wave,usedIds){
-  const unlockable=pattern.types.filter(id=>{const h=HERO_TYPES.find(x=>x.id===id); return h&&wave>=h.unlockAt;});
-  const fallback=HERO_TYPES.filter(h=>wave>=h.unlockAt);
-  const pool=(unlockable.length?unlockable:fallback).filter(id=>!usedIds.has(id));
-  const finalPool=pool.length?pool:(unlockable.length?unlockable:fallback.map(x=>x.id));
+  const poolIds=heroPoolIdsForWave(wave);
+  const isBossPattern=!!(pattern&&typeof pattern.id==='string'&&pattern.id.startsWith('boss_'));
+  const inPattern=(pattern?.types||[]).filter(id=>poolIds.includes(id));
+  // 패턴 밖의 용사도 등장할 수 있도록 일반 웨이브의 파티 슬롯 일부(25%)는 풀 전체에서 뽑습니다.
+  const wildcard=!isBossPattern && inPattern.length && Math.random()<0.25;
+  const base=(inPattern.length && !wildcard)?inPattern:poolIds;
+  const fresh=base.filter(id=>!usedIds.has(id));
+  const finalPool=fresh.length?fresh:base;
   return finalPool[Math.floor(Math.random()*finalPool.length)]||'swordsman';
 }
 function applyPartySynergy(heroMembers, patternId, isBossWave=false){
@@ -1229,6 +1296,14 @@ function applyPartySynergy(heroMembers, patternId, isBossWave=false){
     heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.10;}); label='공포 저주: 디버프 강화';
   } else if(ids.has('ironclad')&&ids.has('priest')){
     heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.08;}); label='철벽 수호: 방어/회복 강화';
+  } else if(ids.has('royal_elite')&&ids.has('royal_guard')){
+    heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.10;}); label='왕국 방진: 정예 전열 강화';
+  } else if(ids.has('battle_mage')&&ids.has('rune_guardian')){
+    heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.10;}); label='룬 마도 연계: 마법 증폭';
+  } else if(ids.has('sun_lancer')&&ids.has('imperial_magus')){
+    heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.12;}); label='태양의 가호: 성광 강화';
+  } else if(['horseman','pikeman','griffon_knight','sun_lancer','royal_lance','dragon_rider'].filter(id=>ids.has(id)).length>=2){
+    heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.10;}); label='기마 돌격: 기동 타격 강화';
   } else if(heroMembers.length>=3){
     heroMembers.forEach(h=>{h.partySynergy=(h.partySynergy||1)*1.04;}); label='원정대 결속: 전원 소폭 강화';
   }
@@ -1251,7 +1326,7 @@ function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, for
     spawnTile.isEntrance=isMainSpawn;
     spawnTile.breached=!isMainSpawn;
   }
-  const pool=HERO_TYPES.filter(h=>state.wave>=h.unlockAt);
+  const pool=heroPoolTypesForWave(state.wave); // v50: 웨이브 구간별 등장 풀 사용
   const type=(forcedTypeId&&HERO_TYPES.find(h=>h.id===forcedTypeId))||pool[Math.floor(Math.random()*pool.length)];
   const b=heroBaseStats(state.wave);
   const majorBoss=(state.wave%10===0&&isBoss);
@@ -1785,6 +1860,8 @@ function processMonsterTick(m,dt){
     const hDefType=heroTypeOf(h);
     if(hDefType&&hDefType.dmgReduction) dmg=Math.max(1,Math.round(dmg*(1-hDefType.dmgReduction)));
     if(h.tauntUntil&&performance.now()<h.tauntUntil) dmg=Math.max(1,Math.round(dmg*(1-(h.tauntDamageReduction||0))));
+    // v51: 왕국 수호대/룬 수호자/왕국 창기병 등이 거는 방어 버프
+    if(h.guardUntil&&performance.now()<h.guardUntil) dmg=Math.max(1,Math.round(dmg*(1-Math.min(.8,h.guardReduction||0))));
     if(state.archetypeActive && state.archetypeActive.sniper && (m.range||1)>=2 && h.hp<=h.maxHp*0.25){
       const focusAllies=state.monsters.filter(o=>o!==m && (o.range||1)>=2 && o.targetHeroId===h.id).length;
       if(focusAllies>=1){ dmg=Math.max(dmg,h.hp); state.fxEvents.push({type:'floatText',r:h.r,c:h.c,text:'🏹처형!',color:'#ff2d55'}); }
@@ -1798,7 +1875,14 @@ function processMonsterTick(m,dt){
     if(dist<=1){
       const dR=Math.sign(h.r-m.r),dC=Math.sign(h.c-m.c); const back=Math.max(1,h.atk-m.def); m.hp-=back;
       const meleeFxReady=now-(m.lastMeleeFxAt||0)>=280;
-      if(meleeFxReady){
+      if(isRangedMonsterUnit(m)){
+        // v48: 원거리 몬스터(궁수/마법사/정령 등)도 용사가 붙어도 투사체를 발사합니다.
+        state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:'#b76bf2',owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
+        if(meleeFxReady){
+          m.lastMeleeFxAt=now;
+          state.fxEvents.push({type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'});
+        }
+      }else if(meleeFxReady){
         m.lastMeleeFxAt=now;
         state.fxEvents.push({type:'punch',key:'m'+m.id,dr:dR,dc:dC,mode:'attacker'},{type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'},{type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg});
       }else{
