@@ -68,7 +68,8 @@ function markObstacleTrigger(tile,ms){
 }
 function activateObstacle(h,tile,trigger='contact',chained=false){
   if(!h||h.hp<=0||!tile?.obstacle) return false;
-  const root=obstacleRootPos(h.r,h.c) || obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || {r:h.r,c:h.c};
+  if(typeof physicalDef==='function' && physicalDef(tile.obstacle)) return armPhysicalTrap(tile);
+  const root=obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || obstacleRootPos(h.r,h.c) || {r:h.r,c:h.c};
   const rootTile=state.grid[root.r]?.[root.c] || tile;
   const ob=OBSTACLE_TYPES.find(o=>o.id===rootTile.obstacle); if(!ob) return false;
   // 그림자 도적 등 trapIgnoreChance를 가진 용사는 일정 확률로 함정을 완전히 무시하고 지나갑니다.
@@ -250,25 +251,11 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
   if(ob.id==='gust'){
     // 밟은 방향의 반대쪽으로 밀쳐냅니다. 뒤에 다른 함정·구덩이를 깔아두면 그쪽으로 처넣을 수 있습니다.
     let kr=-Math.sign(h.lastStepR||0), kc=-Math.sign(h.lastStepC||0);
-    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R)||0; kc=Math.sign(h.c-CORE_C)||0; if(!kr&&!kc) kc=1; }
+    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R); kc=Math.sign(h.c-CORE_C); }
+    // Cardinal, real-entity movement; no copied heroes and no unbounded trap recursion.
+    if(kr) kc=0; else if(!kc) kc=1;
     const dist=GUST_KNOCK_TILES+(lv>=5?1:0);
-    let cr=h.r, cc=h.c, moved=0;
-    for(let i=0;i<dist;i++){
-      const nr=cr+kr, nc=cc+kc;
-      if(!inBounds(nr,nc)) break;
-      const nt=state.grid[nr][nc];
-      if(!nt || (nt.type!=='floor'&&nt.type!=='core') || nt.obstacle==='barricade' || monsterAt(nr,nc) || isHeroAt(nr,nc)) break;
-      cr=nr; cc=nc; moved++;
-      if(nt.obstacle && nt.obstacle!==ob.id && isObstacleRoot(nr,nc)){
-        // 밀려난 칸에 다른 함정이 있으면 그 함정도 함께 발동시킵니다(구덩이로 처넣기 콤보 등).
-        activateObstacle({...h,r:nr,c:nc},nt,'chain',true);
-      }
-    }
-    if(moved>0){
-      h.prevR=h.r; h.prevC=h.c; h.lastMoveAt=now; h.r=cr; h.c=cc;
-      state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'💨 밀려남!',color:'#9fe3ff'});
-      sayHero(h,pickHeroDialogue('trapGust'),'trapHit',1300,true);
-    }
+    if(typeof physicalForceMove==='function') physicalForceMove(h,kr,kc,dist,{source:'gust',damage:8,launch:false});
     markObstacleTrigger(rootTile,500); // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
     Sound.trap('gust');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'gust',text:'💨',footprint:2});
@@ -352,8 +339,8 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
 }
 
 function handleHeroTileEnter(h, tile){
-  if(!tile?.obstacle) return;
-  activateObstacle(h,tile,'contact');
+  if(tile?.obstacle) activateObstacle(h,tile,'contact');
+  if(typeof physicalNotifyEntry==='function') physicalNotifyEntry(h);
 }
 
 function midwaveDifficultyScale(){
@@ -613,6 +600,10 @@ function heroProjectileFx(h,tr,tc){
 }
 
 function processHeroTick(h,dt){
+  // A trap kill must reach the shared reward cleanup without regeneration or another action.
+  if(!h || h.hp<=0 || h.environmentDeath) return;
+  if(typeof physicalHeroLocked==='function' && physicalHeroLocked(h)) return;
+  if(typeof physicalConsumeLanding==='function' && physicalConsumeLanding(h)) return;
   // v49: 대기 표시는 매 틱 초기화합니다. 계속 대기 중이면 아래 로직에서 다시 켜지고, 끝났다면 정상 문구로 돌아갑니다.
   if(h.waitingBehindDigger){ h.waitingBehindDigger=false; h.dungeonIntent='핵으로 전진'; }
   if(h.hp<h.maxHp){ h.hp=Math.min(h.maxHp, h.hp + HERO_REGEN_PER_LEVEL*(h.level||1)*dt); }
@@ -1047,6 +1038,7 @@ function processHeroTick(h,dt){
       state._rangesDirty=true;
       state._archetypeDirty=true;
       state._auraDirty=true;
+      dungeonStructureInvalidate();
       h.prevR=h.r;h.prevC=h.c;h.lastStepR=h.digTargetR-h.r;h.lastStepC=h.digTargetC-h.c;h.r=h.digTargetR;h.c=h.digTargetC;h.showedQuestion=false;h.lastMoveAt=performance.now();
       if(Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C)<=1&&!h.coreFound){h.coreFound=true;sayHero(h,'!','alert',1200,true);setTimeout(()=>{if(state&&state.heroes.includes(h)&&h.hp>0)sayHero(h,pickHeroDialogue('coreFound'),'normal',2400,true);},950);}
       handleHeroTileEnter(h,state.grid[h.r][h.c]); h.digging=false;h.digProgress=0;h.digKind=null;
@@ -1112,7 +1104,7 @@ function processHeroTick(h,dt){
       for(const [nr,nc] of neighbors4(cr,cc)){
         if(!inBounds(nr,nc)) continue;
         const nt=state.grid[nr][nc];
-        if(nt.type==='rock' && nt.isEntrance) continue;
+        if(nt.type==='chasm' || (nt.type==='rock' && nt.isEntrance)) continue;
         const nk=keyOf(nr,nc);
         if(closed.has(nk)) continue;
         const tentative=(gScore.get(current)??Infinity)+terrainCost(nr,nc);
@@ -1241,6 +1233,7 @@ function processObstacleVisualsAndZones(dt){
   const now=performance.now();
   for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
     const tile=state.grid[r][c],ob=tile.obstacle;if(!ob || !isObstacleRoot(r,c))continue;
+    if(typeof physicalDef==='function' && physicalDef(ob)) continue;
     const lv=obstacleLevel(tile),range=obstacleRange(ob,tile);
     for(const h of state.heroes){
       if(h.hp<=0)continue; const d=obstacleDistanceToHero(r,c,h.r,h.c); if(d>range)continue;
@@ -1508,6 +1501,7 @@ function simulateStep(dt){
     state._auraTickAt=logicNow;
     state._auraDirty=false;
   }
+  if(typeof processPhysicalTraps==='function') processPhysicalTraps(dt);
   processObstacleVisualsAndZones(dt);
   processPendingRockfalls();
   for(const p of state.auraPositions.statue){
@@ -1571,7 +1565,7 @@ function simulateStep(dt){
       return false;
     }
     if(h.hp<=0){
-      pushDeathFx(h.r,h.c,'#e0495f');
+      if(!h.environmentDeath) pushDeathFx(h.r,h.c,'#e0495f');
       state._panelDirty=true;
       showTransientHeroBubble(h.r,h.c,pickHeroDialogue('death'),'death',2300);
       addGold(h.reward); state.killCount++;

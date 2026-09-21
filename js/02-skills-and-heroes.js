@@ -692,7 +692,7 @@ function renderTrapResearchTab(content){
 
   if(trapResearchSubTab==='trap'){
     const grid=content.querySelector('#trapResearchGrid');
-    OBSTACLE_TYPES.forEach(ob=>{
+    OBSTACLE_TYPES.filter(ob=>!ob.physical).forEach(ob=>{
       const lv=trapResearchLevel(ob.id);
       const max=lv>=TRAP_RESEARCH_MAX_LEVEL;
       const nextCost=max?0:trapResearchUpgradeCost(ob.id,lv);
