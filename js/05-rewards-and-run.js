@@ -295,7 +295,7 @@ function altarFindUpgradeableObstacle(){
   const pool=[];
   for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
     if(!isObstacleRoot(r,c)) continue;
-    const t=state.grid[r][c]; if(t.obstacle&&obstacleLevel(t)<OBSTACLE_LEVEL_MAX) pool.push({r,c,t});
+    const t=state.grid[r][c]; if(t.obstacle && !OBSTACLE_TYPES.find(o=>o.id===t.obstacle)?.fixed && obstacleLevel(t)<OBSTACLE_LEVEL_MAX) pool.push({r,c,t});
   }
   if(!pool.length) return null;
   return pool[Math.floor(Math.random()*pool.length)];
@@ -369,7 +369,7 @@ function altarApplyAllObstaclePlusOne(){
   let n=0;
   for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
     if(!isObstacleRoot(r,c)) continue;
-    const t=state.grid[r][c]; if(t.obstacle&&obstacleLevel(t)<OBSTACLE_LEVEL_MAX){
+    const t=state.grid[r][c]; if(t.obstacle && !OBSTACLE_TYPES.find(o=>o.id===t.obstacle)?.fixed && obstacleLevel(t)<OBSTACLE_LEVEL_MAX){
       const ob=OBSTACLE_TYPES.find(o=>o.id===t.obstacle); const to=obstacleLevel(t)+1;
       t.obstacleLevel=to; t.obstacleMaxHp=obstacleMaxHpFor(ob,to); t.obstacleHp=t.obstacleMaxHp; syncObstacleFootprint(r,c); n++;
     }
@@ -590,6 +590,8 @@ function renderUI(){
     state._lastPanelRenderAt=renderNow;
     state._panelDirty=false;
   }
+  if(typeof renderPhysicalTraps==='function') renderPhysicalTraps();
+  if(typeof updatePhysicalBuildControls==='function') updatePhysicalBuildControls();
 }
 
 function obstacleEffectRadius(ob,tile){
@@ -604,6 +606,7 @@ function renderObstacleRanges(){
     const obId=state.grid[r][c].obstacle;
     if(!obId || !isObstacleRoot(r,c)) continue;
     const ob=OBSTACLE_TYPES.find(o=>o.id===obId);
+    if(ob?.physical) continue;
     const radius=obstacleEffectRadius(ob, state.grid[r][c]);
     if(radius===null) continue;
     const ring=document.createElement('div');
@@ -752,7 +755,7 @@ function renderMapCells(){
       }
       if(state && state.activeTool==='obstacle' && state.selectedObstacleType && state.phase==='build'){
         if(state.selectedObstacleType==='__wall_dig__'){
-          if(t.type==='rock' && !t.isEntrance && (t.playerWall===true || isDiggable(r,c))) cls+=' wall-dig-target';
+          if(t.type==='rock' && !t.obstacle && !t.isEntrance && (t.playerWall===true || isDiggable(r,c))) cls+=' wall-dig-target';
         } else if(state.selectedObstacleType==='__wall__'){
           if(t.type==='floor' && !t.isEntrance && !t.obstacle && !monsterAt(r,c)) cls+=' wall-target';
         } else if(t.type==='floor' && !t.isEntrance && !t.obstacle){
@@ -761,6 +764,7 @@ function renderMapCells(){
           if(anchor.r===r && anchor.c===c && canPlaceObstacleAt(r,c)) cls+=' obstacle-target';
         }
       }
+      if(typeof physicalCellClass==='function') cls=physicalCellClass(cls,r,c,t);
       cls+=dungeonTileClass(r,c,t);
       if(t.type==='floor'||t.type==='core') cls+=' zone-'+dungeonZoneAt(r,c);
       if(state && state.selected){
@@ -884,6 +888,7 @@ const MONSTER_SIZE_MUL={goblin_archer:0.8, wisp:0.8, thief_rat:0.85, minotaur:1.
 
 /* ---------------- dungeon structure / room & corridor ---------------- */
 function dungeonStructureInvalidate(){
+  if(state) state._physicalTopologyVersion=(state._physicalTopologyVersion||0)+1;
   if(!state) return;
   state.dungeonLayoutVersion=(state.dungeonLayoutVersion||0)+1;
   state.dungeonStructure=null;
@@ -1143,6 +1148,7 @@ function syncTokens(){
   for(const key in tokenEls){
     if(!seen.has(key)){
       const el=tokenEls[key];
+      if(typeof physicalOwnsToken==='function' && physicalOwnsToken(key)){ el.remove(); delete tokenEls[key]; continue; }
       el.classList.add('dying');
       setTimeout(()=>{ if(el.parentNode) el.remove(); }, 720);
       delete tokenEls[key];

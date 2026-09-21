@@ -1,6 +1,7 @@
 "use strict";
 function monsterBuildInfoHtml(m){const a=monsterBuildAffinity(m);if(!a)return `<div class="panel-hint" style="margin-top:6px;color:#8c8c9e;">🧬 현재 빌드와 아직 연결되지 않은 몬스터입니다.</div>`;const meta=BUILD_TAG_META[a.tag]||{icon:'◆',name:a.tag};const st=buildStageInfo(a.tag);const mult=monsterBuildCombatMultiplier(m);const cd=monsterBuildSkillCooldownMul(m);return `<div class="panel-hint" style="margin-top:6px;border:1px solid rgba(224,182,74,.18);"><b style="color:var(--gold)">${meta.icon} 빌드 각성</b><br>${meta.name} · ${st.stage}/5 · <b>${st.name}</b><br><span style="color:#c9b9ff">Lv.${m.tier>=10?'10':m.tier>=5?'5':'1'} 연계 전투 보정 ×${mult.toFixed(2)}</span>${cd<1?`<br><span style="color:#8de0b5">스킬 재사용 ${Math.round((1-cd)*100)}% 감소</span>`:''}</div>`;}
 function renderPanel(){
+  if(typeof renderPhysicalPanel==='function' && renderPhysicalPanel()) return;
   // 매 200ms마다 패널 전체를 재생성하면 모바일 native scroll의 관성이 끊깁니다.
   // 같은 종류의 상점/선택 리스트가 이미 존재하면 카드 DOM은 유지하고 상태만 동기화합니다.
   const oldShop=els.panelBox.querySelector('.shop-list');
@@ -41,7 +42,7 @@ function syncShopListState(list){
       const mt=MONSTER_TYPES.find(x=>x.id===id);
       const ob=OBSTACLE_TYPES.find(x=>x.id===id);
       isMonster=!!mt;
-      cost=mt?monsterCost(mt):(ob?ob.cost:0);
+      cost=mt?monsterCost(mt):(ob?obstaclePlaceCost(ob):0);
     }
     const disabled=cost>state.gold || (isMonster && capFull);
     item.classList.toggle('disabled',disabled);
@@ -187,16 +188,16 @@ function renderPanelInner(){
           </div>`;
       }
       html+=`</div>`;
-      html+=`<div class="panel-hint" style="margin-top:6px;font-size:9px;">벽 파기는 <b>5G</b>로 <b>기존 암벽 또는 생성한 벽</b>을 제거 · 벽 생성은 <b>개척된 빈 바닥</b>에 설치 · 일반 장애물은 <b>2×2 빈 바닥</b>에 설치합니다.</div>`;
+      html+=`<div class="panel-hint" style="margin-top:6px;font-size:9px;">벽 파기는 <b>5G</b>로 <b>기존 암벽 또는 생성한 벽</b>을 제거 · 벽 생성은 <b>개척된 빈 바닥</b>에 설치 · 기존 함정은 <b>2×2 바닥</b> · 신규 기계/지형은 <b>1칸</b>입니다. 선택 시 설치 조건과 방향을 확인하세요.</div>`;
       if(state.selectedObstacleType==='__wall_dig__'){
         html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">벽 파기</b> 선택됨 — <b>기존 암벽과 생성한 벽</b>을 ${WALL_DIG_COST}G로 파냅니다.</div>`;
       } else if(state.selectedObstacleType==='__wall__'){
         html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">벽 생성</b> 선택됨 — <b>개척된 빈 바닥</b>을 탭하면 ${WALL_BUILD_COST}G를 사용해 암벽을 세웁니다. 용사의 진행 경로를 직접 설계할 수 있습니다.</div>`;
       } else if(state.selectedObstacleType==='__clear__'){
-        html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">장애물 제거</b> 선택됨 — 설치된 2×2 장애물을 탭해 제거하세요.</div>`;
+        html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">장애물 제거</b> 선택됨 — 설치된 장애물을 탭해 제거하세요. 벽 부착물은 벽을 남기고, 심연은 바닥으로 복구합니다.</div>`;
       } else if(state.selectedObstacleType){
         const ob=OBSTACLE_TYPES.find(x=>x.id===state.selectedObstacleType);
-        if(ob) html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">${ob.name}</b> 선택됨 — <b>빈 바닥</b>을 탭해 설치하세요. 용사가 발견하면 공격해 부수거나, 못 보고 지나칠 수 있습니다.</div>`;
+        if(ob && !ob.physical) html+=`<div class="panel-hint" style="margin-top:6px;"><b style="color:var(--gold)">${ob.name}</b> 선택됨 — <b>빈 바닥</b>을 탭해 설치하세요. 용사가 발견하면 공격해 부수거나, 못 보고 지나칠 수 있습니다.</div>`;
       }
     }
     els.panelBox.innerHTML=html;
@@ -1894,7 +1895,10 @@ function showVillageResult(v, success, done, holdMs){
 
   const _renderUI = renderUI;
   renderUI = function(){
-    if(state && state.phase==='village'){ return renderVillageUI(); }
+    if(state && state.phase==='village'){
+      if(typeof renderPhysicalTraps==='function') renderPhysicalTraps();
+      return renderVillageUI();
+    }
     return _renderUI();
   };
 

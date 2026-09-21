@@ -103,7 +103,7 @@ if(els.logToggle&&els.log){ els.logToggle.addEventListener('click',()=>{
 
 function isDiggable(r,c){
   const t=state.grid[r][c];
-  if(t.type!=='rock') return false;
+  if(t.type!=='rock' || t.obstacle) return false;
   if(t.isEntrance) return false;
   return neighbors4(r,c).some(([nr,nc])=>{
     const nt=state.grid[nr][nc];
@@ -316,7 +316,7 @@ function cellFromEvent(clientX,clientY){
 }
 function attemptDig(r,c){
   if(!state || state.phase!=='build') return false;
-  if(state.grid[r][c].type!=='rock') return false;
+  if(state.grid[r][c].type!=='rock' || state.grid[r][c].obstacle) return false;
   if(!isDiggable(r,c)) return false;
   if(state.gold<DIG_COST) return false;
   state.gold-=DIG_COST;
@@ -345,7 +345,7 @@ function digPlayerWall(r,c){
   if(!state || state.phase!=='build') return false;
   if(!inBounds(r,c)) return false;
   const tile=state.grid[r][c];
-  if(!tile || tile.type!=='rock' || tile.isEntrance) return false;
+  if(!tile || tile.type!=='rock' || tile.isEntrance || tile.obstacle) return false;
   if(monsterAt(r,c)) return false;
 
   // [장애물 > 벽 파기]는 기존 암벽과 플레이어가 만든 벽 모두 5G를 사용합니다.
@@ -419,6 +419,7 @@ function canPlaceObstacleAt(r,c){
 }
 function syncObstacleFootprint(rootR,rootC){
   const root=state?.grid?.[rootR]?.[rootC]; if(!root?.obstacle) return;
+  if(typeof physicalDef==='function' && physicalDef(root.obstacle)) return;
   for(let rr=rootR;rr<rootR+2;rr++)for(let cc=rootC;cc<rootC+2;cc++){
     const t=state.grid[rr][cc]; t.obstacle=root.obstacle;t.obstacleRootR=rootR;t.obstacleRootC=rootC;
     t.obstacleLevel=root.obstacleLevel||1;t.obstacleHp=root.obstacleHp??0;t.obstacleMaxHp=root.obstacleMaxHp??0;
@@ -427,15 +428,19 @@ function syncObstacleFootprint(rootR,rootC){
 function clearObstacleFootprint(r,c){
   const root=obstacleRootPos(r,c); if(!root)return false;
   const rootTile=state.grid[root.r][root.c];
+  if(typeof physicalDef==='function' && physicalDef(rootTile.obstacle)) return clearPhysicalTrap(root.r,root.c);
+  // Snapshot before clearing the root: comparing against a mutated root left 3 orphan cells.
+  const clearedId=rootTile.obstacle;
   for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++){
     const t=state.grid[rr]?.[cc];
-    if(t?.obstacle===rootTile.obstacle&&(t.obstacleRootR??root.r)===root.r&&(t.obstacleRootC??root.c)===root.c){
+    if(t?.obstacle===clearedId&&(t.obstacleRootR??root.r)===root.r&&(t.obstacleRootC??root.c)===root.c){
       t.obstacle=null;delete t.obstacleRootR;delete t.obstacleRootC;delete t.obstacleLevel;delete t.obstacleHp;delete t.obstacleMaxHp;delete t.statueCooldown;delete t.obstacleFxAt;
     }
   }
   return true;
 }
 function placeObstacle(r,c,obId,free=false){
+  if(typeof physicalDef==='function' && physicalDef(obId)) return placePhysicalTrap(r,c,obId,free);
   if(!state || state.phase!=='build') return false;
   if(state.contractNoObstacleWaves>0 && !free){ addLog('<span class="hl-red">⛓️ 침묵의 맹약</span> — 이번 준비 단계엔 새 함정을 설치할 수 없습니다.'); return false; }
   const ob=OBSTACLE_TYPES.find(o=>o.id===obId); if(!ob||obId==='__wall__') return false;
@@ -450,6 +455,7 @@ function placeObstacle(r,c,obId,free=false){
   dungeonStructureInvalidate();return true;
 }
 function upgradeObstacle(r,c){
+  if(typeof physicalDef==='function' && physicalDef(obstacleRootTile(r,c)?.obstacle)) return upgradePhysicalTrap(r,c);
   if(!state||state.phase!=='build')return false;const root=obstacleRootPos(r,c);if(!root)return false;
   const tile=state.grid[root.r]?.[root.c];if(!tile?.obstacle)return false;const ob=OBSTACLE_TYPES.find(o=>o.id===tile.obstacle);if(!ob)return false;
   const lv=obstacleLevel(tile);if(lv>=OBSTACLE_LEVEL_MAX)return false;const cost=obstacleUpgradeCost(ob,lv);if(state.gold<cost)return false;
@@ -458,7 +464,7 @@ function upgradeObstacle(r,c){
   addLog(`<span class="hl-gold">${ob.name}</span>이(가) Lv.${tile.obstacleLevel}로 강화되었습니다! 범위 ${obstacleRange(ob.id,tile)}칸`);dungeonStructureInvalidate();return true;
 }
 function clearObstacle(r,c){
-  if(!state||state.phase!=='build')return;const tile=state.grid[r][c];if(tile.obstacle&&clearObstacleFootprint(r,c)){dungeonStructureInvalidate();addLog('2×2 장애물을 제거했습니다.');}
+  if(!state||state.phase!=='build')return;const tile=state.grid[r][c];if(tile.obstacle&&clearObstacleFootprint(r,c)){dungeonStructureInvalidate();addLog('장애물을 제거했습니다.');}
 }
 function pointerStart(x,y){
   if(!state||!state.running||state.gameOver) return;
@@ -525,6 +531,9 @@ function pointerEnd(){
         if(tile.obstacle) clearObstacle(r,c);
         else if(tile.type==='floor' && !tile.isEntrance) selectCell(r,c);
         else selectCell(r,c);
+      } else if(typeof physicalDef==='function' && physicalDef(state.selectedObstacleType) && !tile.obstacle){
+        placePhysicalTrap(r,c,state.selectedObstacleType);
+        showToolInfo('obstacle');
       } else if(tile.type==='floor' && !tile.isEntrance){
         if(tile.obstacle){ selectCell(r,c); }
         else if(state.selectedObstacleType==='__wall__') placeWall(r,c);

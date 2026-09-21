@@ -1,0 +1,96 @@
+{
+  "package": "collapse-bridge-code-and-assets",
+  "version": "1.0.0",
+  "basis": [
+    "dungeon_physical_traps_2x2_patch.zip",
+    "obstacle_menu_card_ui_fix.zip"
+  ],
+  "scope": "One existing JS file (previous card fix preserved) plus four real PNGs. Not a complete game. No account, economy, damage or physics source changes.",
+  "files": [
+    {
+      "path": "README_ko.md",
+      "bytes": 6194,
+      "sha256": "f2e9c3a76bcfa81a80d9ff7d42a1a898c1e9777a84c47deac6eaa4f7f2b89062"
+    },
+    {
+      "path": "assets/images/collapse_bridge_frames.json",
+      "bytes": 1256,
+      "sha256": "2bb1a3a472405d402310837b1ee1ec2117021dc11c889051b49ad2ff5663377f"
+    },
+    {
+      "path": "assets/images/obstacle_anim_collapse_bridge.png",
+      "bytes": 1072737,
+      "sha256": "f18164fe77b852b115aed0dc766cd2c21efe2f6b71df73bb4503d727924be424"
+    },
+    {
+      "path": "assets/images/obstacle_collapse_bridge.png",
+      "bytes": 131834,
+      "sha256": "c673b586c8883202db696dd9d1e7a0fc4b42c17dad528cae34fefced02a1bd3b"
+    },
+    {
+      "path": "assets/images/obstacle_collapse_bridge_alt.png",
+      "bytes": 140826,
+      "sha256": "6d5cac06dc05903958f90e1918be9b49403bb0754a7d7530537055ffac71afaa"
+    },
+    {
+      "path": "assets/images/obstacle_collapse_bridge_icon.png",
+      "bytes": 37924,
+      "sha256": "ea638da80babfd800aa1c4d0474797d89d44f156dc3aec78dce3eb8141971fc2"
+    },
+    {
+      "path": "changes_from_card_fix.patch",
+      "bytes": 13622,
+      "sha256": "eae0a39ae849929d4c7ac85b2b2faf7a731b7cf72ebab953c07fd16ec263ba21"
+    },
+    {
+      "path": "js/patches.js",
+      "bytes": 42414,
+      "sha256": "0e5b0c495970fdd51915f1166eda15a331ce63c090e920af6b43744f9edc493a"
+    },
+    {
+      "path": "reference/collapse-bridge-art.js",
+      "bytes": 13141,
+      "sha256": "b5e32c760c0d32247980cfe6b5315938c4c2380cac1c4f2bc6c53d638d0e8a8a"
+    },
+    {
+      "path": "tests/browser_bridge.py",
+      "bytes": 19775,
+      "sha256": "c45279402367d7b658886e353d93ee2593f691a5a922d9bbafc04bc02050a022"
+    },
+    {
+      "path": "tests/results/asset-checks.json",
+      "bytes": 1259,
+      "sha256": "ef8ebc40e5e595757a75fb24b055697c02ee7e4984f33f5694cba9003aea2779"
+    },
+    {
+      "path": "tests/results/browser-bridge-results.json",
+      "bytes": 10504,
+      "sha256": "1f08f7498175e2c1e88ecbd7d6328cd6d1d49dfca8d3682c02c688d429db004d"
+    },
+    {
+      "path": "tests/results/desktop-bridge.png",
+      "bytes": 434327,
+      "sha256": "96df096125f83dd4034dc66ecb1c2a28edf2c2c330995e3ddc5aac954879d58e"
+    },
+    {
+      "path": "tests/results/mobile-bridge.png",
+      "bytes": 176598,
+      "sha256": "4755a2ae22f6b8ff32bfe4283f8a91dfe6598b22d55d3e30653c5ac15e9930ea"
+    },
+    {
+      "path": "tests/results/physics.log",
+      "bytes": 6423,
+      "sha256": "5847dff94a244156d34d1e7990245d2884f41da362907f5b472b9f418e1b9281"
+    },
+    {
+      "path": "tests/results/sprites.log",
+      "bytes": 2870,
+      "sha256": "fc460651b3914cc8712cc5f5d04de639144b19f7a5001cb7af2b1bf7b6054dda"
+    },
+    {
+      "path": "tests/results/syntax-results.json",
+      "bytes": 655,
+      "sha256": "f586d5ded41f0460b2f309c989f293ffd4509ddaa4cbe4c124ad02147c3c2d3f"
+    }
+  ]
+}
