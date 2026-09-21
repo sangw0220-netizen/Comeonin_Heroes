@@ -455,7 +455,11 @@ const PIT_ROOT_MS=2200;
 const PIT_DAMAGE=5;
 // v46: 신규 장애물 1차 5종 밸런스 상수
 const GUST_KNOCK_TILES=2;        // 돌풍진: 기본 밀치는 칸 수(Lv.5부터 +1)
-const MAGNET_PULL_TILES=1;       // 흡인진: 트리거 1회당 당기는 칸 수
+const MAGNET_PULL_TILES=1;       // 흡인진: 펄스 1회당 당기는 칸 수(Lv.10은 +1)
+const MAGNET_PULL_INTERVAL_MS=380;// 흡인진: 범위 안에서 반복 흡인되는 기본 간격
+const CURSE_PULSE_INTERVAL_MS=2200; // 저주의 밀바닥: 같은 용사에게 저주를 다시 거는 최소 간격
+const CURSE_PULSE_MIN_MS=1200;    // 저주의 밀바닥: Lv.1 저주 지속시간
+const CURSE_PULSE_MAX_MS=1800;    // 저주의 밀바닥: Lv.10 저주 지속시간
 const STUN_CAGE_MS=1500;         // 포박의 철창: 완전 구속 시간(Lv.10에서 +900ms)
 const STUN_CAGE_FX_MS=900;       // 포박의 철창: "발동" 프레임을 보여주는 시간
 const ROCKFALL_DELAY_MS=1400;    // 붕락지대: 예고 후 실제로 무너지기까지 걸리는 시간
@@ -541,10 +545,10 @@ const OBSTACLE_TYPES=[
   {id:'statue',name:'수호진',icon:'🗿',kind:'defense',cost:110,range:2,color:'rgba(183,107,242,.55)',desc:'바닥에 새겨진 수호 마법진이 주변 몬스터의 방어력과 생존력을 강화합니다.',short:'수호진',sprite:OBSTACLE_SPRITES.statue},
   {id:'frost',name:'빙판',icon:'❄️',kind:'debuff',cost:54,range:1,color:'rgba(102,200,255,.55)',desc:'바닥이 얼어붙어 주변 용사의 이동 속도와 공격 속도를 감소시킵니다.',short:'빙판',sprite:OBSTACLE_SPRITES.frost},
   {id:'web',name:'거미둥지',icon:'🕸️',kind:'debuff',cost:44,range:1,color:'rgba(210,210,220,.45)',desc:'거미줄이 바닥에 퍼져 주변 용사의 이동 속도를 감소시킵니다.',short:'거미둥지',sprite:OBSTACLE_SPRITES.web},
-  {id:'curse',name:'저주의 밀바닥',icon:'💀',kind:'debuff',cost:72,range:1,color:'rgba(150,60,90,.6)',desc:'바닥에 깔린 저주가 용사의 공격력을 약화시키고 회복 효과를 감소시킵니다.',short:'저주의 밀바닥',sprite:OBSTACLE_SPRITES.curse},
+  {id:'curse',name:'저주의 밀바닥',icon:'💀',kind:'debuff',cost:72,range:1,color:'rgba(150,60,90,.6)',desc:'범위 안 용사에게 주기적으로 짧은 저주를 걸어 공격력과 회복 효율을 낮춥니다. 저주는 계속 이어지지 않고 재발동 사이에 숨 돌릴 틈이 있습니다.',short:'저주의 밀바닥',sprite:OBSTACLE_SPRITES.curse},
   // v46: 신규 장애물 1차 5종
   {id:'gust',name:'돌풍진',icon:'💨',kind:'debuff',cost:48,range:1,color:'rgba(140,210,255,.55)',desc:'강한 돌풍이 밟은 용사를 진행 방향 반대로 밀쳐냅니다. 뒤에 함정이나 구덩이를 깔아두면 더욱 위력적입니다.',short:'돌풍진',sprite:OBSTACLE_SPRITES.gust},
-  {id:'magnet',name:'흡인진',icon:'🧲',kind:'debuff',cost:52,range:1,color:'rgba(183,107,242,.6)',desc:'어두운 마력이 주변 용사를 진의 중심으로 서서히 끌어당깁니다. 다른 함정 쪽으로 유인할 때 유용합니다.',short:'흡인진',sprite:OBSTACLE_SPRITES.magnet},
+  {id:'magnet',name:'흡인진',icon:'🧲',kind:'debuff',cost:52,range:2,color:'rgba(183,107,242,.6)',desc:'주변 2칸 안의 용사를 일정 간격으로 진의 2×2 중심부 쪽으로 끌어당깁니다. 직접 피해보다 다른 함정과의 위치 콤보에 특화됩니다.',short:'흡인진',sprite:OBSTACLE_SPRITES.magnet},
   {id:'stun_cage',name:'포박의 철창',icon:'⛓️',kind:'defense',cost:80,range:0,color:'rgba(224,73,95,.55)',desc:'밟으면 철창이 솟아올라 용사를 잠시 완전히 묶어둡니다. 주변 몬스터가 집중 공격할 처형 포인트로 좋습니다.',short:'포박의 철창',sprite:OBSTACLE_SPRITES.stun_cage,spriteAlt:OBSTACLE_SPRITES.stun_cage_alt},
   {id:'rockfall',name:'붕락지대',icon:'🪨',kind:'attack',cost:66,range:1,color:'rgba(255,150,90,.55)',desc:'금이 간 천장이 예고 후 잠시 뒤 무너져 범위 내 용사에게 큰 낙석 피해를 줍니다.',short:'붕락지대',sprite:OBSTACLE_SPRITES.rockfall,spriteAlt:OBSTACLE_SPRITES.rockfall_alt},
   {id:'collapse_bridge',name:'붕락교',icon:'🌉',kind:'defense',cost:90,range:0,color:'rgba(200,180,140,.55)',desc:'다리 형태의 장애물로, 일정 횟수 이상 밟히면 완전히 무너져 그 통로를 영구히 막아버립니다.',short:'붕락교',sprite:OBSTACLE_SPRITES.collapse_bridge,spriteAlt:OBSTACLE_SPRITES.collapse_bridge_alt}
@@ -1430,6 +1434,24 @@ function spellCastCenter(h,tg){
   return center;
 }
 function isCasterHero(h){ const ht=heroTypeOf(h); return !!(ht&&ht.caster&&CASTER_BASIC_SPELLS[h.typeId]); }
+const HERO_RETALIATE_AGGRO_MS=7000;
+function markHeroAggro(target,h,durationMs=HERO_RETALIATE_AGGRO_MS){
+  if(!target||!h||h.hp<=0) return;
+  const now=performance.now();
+  target.provokedByHeroId=h.id;
+  target.provokedUntil=now+Math.max(1000,Number(durationMs)||HERO_RETALIATE_AGGRO_MS);
+  target.lastDamagedByHeroAt=now;
+}
+function heroAggroTarget(target){
+  if(!target||!state||!Array.isArray(state.heroes)) return null;
+  const now=performance.now();
+  if(target.provokedByHeroId==null || now>=(target.provokedUntil||0)){
+    target.provokedByHeroId=null; target.provokedUntil=0; return null;
+  }
+  const h=state.heroes.find(o=>o.id===target.provokedByHeroId&&o.hp>0);
+  if(!h){ target.provokedByHeroId=null; target.provokedUntil=0; return null; }
+  return h;
+}
 // 기본 마법 시전 시작. tgt = 몬스터 엔티티 또는 {r,c,isMawang:true}. castMul = 저주/버프 등 공격력 보정.
 function startCasterSpell(h,tgt,castMul){
   const sp=CASTER_BASIC_SPELLS[h.typeId]; if(!sp||h.castingSkill) return false;
@@ -1647,7 +1669,7 @@ function finishHeroSkill(h){
     const baseDmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*s.mult));
     for(const m of targets){
       const dmg=Math.max(1,baseDmg-Math.round(m.def*.5));
-      m.hp-=dmg; m.skillDefBuffUntil=now+6000; m.skillDefBuffMul=.70;
+      m.hp-=dmg; markHeroAggro(m,h); m.skillDefBuffUntil=now+6000; m.skillDefBuffMul=.70;
       state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'-'+dmg,color:'#b6ff5c'},{type:'floatText',r:m.r,c:m.c,text:'방어↓',color:'#b6ff5c'});
       if(m.hp<=0) h.heroKills=(h.heroKills||0)+1;
     }
@@ -1728,7 +1750,7 @@ function finishHeroSkill(h){
         const ignore=Math.random()<.20;
         const def=ignore?0:m.def;
         const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*s.mult)-def);
-        m.hp-=dmg;
+        m.hp-=dmg; markHeroAggro(m,h);
         state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:'#cbd4e1'});
         if(m.hp<=0){h.heroKills=(h.heroKills||0)+1;break;}
       }
@@ -1738,7 +1760,7 @@ function finishHeroSkill(h){
     for(const m of targets){
       let dmg=Math.max(1,baseDmg-(m.def*(s.lancer ? .7 : (s.ext&&s.ext.pierceDef ? 1-s.ext.pierceDef : 1))));
       if(s.basic) dmg=Math.max(1,applyStatueSanctuary(m,dmg)); // 기본 마법은 기존 즉발 공격처럼 수호 석상 보호를 받습니다
-      m.hp-=dmg;
+      m.hp-=dmg; markHeroAggro(m,h);
       state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:skillStyle(s.kind).color});
       if(s.area) state.fxEvents.push({type:'spellImpact',r:m.r,c:m.c,spell:s.kind});
       if(m.hp<=0) h.heroKills=(h.heroKills||0)+1;
@@ -1772,7 +1794,7 @@ function finishHeroSkill(h){
     const mw=state.mawang;
     if(mw && mw.hp>0 && !mw.dead && inSpellArea(mw.r,mw.c)){
       const mwDmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*(s.castMul||1)*s.mult)-mawangCurrentStats().def);
-      mw.hp-=mwDmg;
+      mw.hp-=mwDmg; markHeroAggro(mw,h);
       state.fxEvents.push({type:'damageNumber',r:mw.r,c:mw.c,amount:mwDmg,color:'#ff9b6e'},{type:'spark',r:mw.r,c:mw.c,color:'#ffd166'});
       if(mw.hp<=0) killMawang(mw);
     }

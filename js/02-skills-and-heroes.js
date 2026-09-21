@@ -149,6 +149,8 @@ function refreshMawangEntityStats(m){
   m.maxMana=st.maxMana; m.mana=Math.min(st.maxMana,m.mana??st.maxMana); m.atk=st.atk; m.def=st.def; m.level=st.level;
 }
 function findHeroForMawang(m){
+  const provoked=(typeof heroAggroTarget==='function')?heroAggroTarget(m):null;
+  if(provoked) return {hero:provoked,dist:Math.abs(provoked.r-m.r)+Math.abs(provoked.c-m.c)};
   let best=null,bestD=Infinity;
   const command=normalizeMonsterCommand(state?.monsterCommand||mawangProfile.command||'defense');
   const defensive=command==='defense';
@@ -692,7 +694,7 @@ function renderTrapResearchTab(content){
 
   if(trapResearchSubTab==='trap'){
     const grid=content.querySelector('#trapResearchGrid');
-    OBSTACLE_TYPES.forEach(ob=>{
+    OBSTACLE_TYPES.filter(ob=>!ob.physical).forEach(ob=>{
       const lv=trapResearchLevel(ob.id);
       const max=lv>=TRAP_RESEARCH_MAX_LEVEL;
       const nextCost=max?0:trapResearchUpgradeCost(ob.id,lv);

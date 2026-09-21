@@ -66,9 +66,83 @@ function markObstacleTrigger(tile,ms){
   if(typeof state!=='undefined' && state){ state._mapDirty=true; setTimeout(()=>{ if(state) state._mapDirty=true; },ms+40); }
   return until;
 }
+function magnetNearestFootprintCell(rootR,rootC,r,c){
+  let best=null,bestD=Infinity;
+  for(let rr=rootR;rr<=rootR+1;rr++)for(let cc=rootC;cc<=rootC+1;cc++){
+    const d=Math.abs(rr-r)+Math.abs(cc-c);
+    if(d<bestD){bestD=d;best={r:rr,c:cc};}
+  }
+  return best;
+}
+function magnetPullOneStep(h,rootR,rootC){
+  if(!h||h.hp<=0) return false;
+  const target=magnetNearestFootprintCell(rootR,rootC,h.r,h.c);
+  if(!target || (target.r===h.r&&target.c===h.c)) return false;
+  const currentDist=Math.abs(target.r-h.r)+Math.abs(target.c-h.c);
+  const candidates=[];
+  for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
+    const nr=h.r+dr,nc=h.c+dc,nt=state.grid[nr]?.[nc];
+    if(!nt||(nt.type!=='floor'&&nt.type!=='core')||nt.obstacle==='barricade') continue;
+    if(monsterAt(nr,nc)||(isHeroAt(nr,nc)&&!(nr===h.r&&nc===h.c))) continue;
+    const nextTarget=magnetNearestFootprintCell(rootR,rootC,nr,nc);
+    const d=nextTarget?Math.abs(nextTarget.r-nr)+Math.abs(nextTarget.c-nc):Infinity;
+    if(d<currentDist)candidates.push({r:nr,c:nc,d});
+  }
+  if(!candidates.length)return false;
+  candidates.sort((x,y)=>x.d-y.d);
+  const step=candidates[0];
+  h.prevR=h.r;h.prevC=h.c;h.lastStepR=step.r-h.r;h.lastStepC=step.c-h.c;
+  h.r=step.r;h.c=step.c;h.lastMoveAt=performance.now();h.stuckTicks=0;
+  return true;
+}
+function triggerMagnetPulse(root,rootTile,lv,now){
+  if(!rootTile||now<(rootTile.magnetNextPullAt||0))return false;
+  const interval=lv>=10?280:lv>=5?330:MAGNET_PULL_INTERVAL_MS;
+  rootTile.magnetNextPullAt=now+interval;
+  const range=obstacleRange('magnet',rootTile);
+  const targets=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(root.r,root.c,x.r,x.c)<=range);
+  let moved=0;
+  for(const x of targets){
+    const steps=MAGNET_PULL_TILES+(lv>=10?1:0);
+    let pulled=false;
+    for(let i=0;i<steps;i++){if(!magnetPullOneStep(x,root.r,root.c))break;pulled=true;}
+    if(pulled){
+      moved++;
+      state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'🧲 끌림',color:'#c9a0ff'});
+      if(now-(x.magnetReactAt||0)>1200){x.magnetReactAt=now;sayHero(x,pickHeroDialogue('trapMagnet'),'trapHit',1000,true);}
+    }
+  }
+  if(targets.length){
+    markObstacleTrigger(rootTile,Math.min(360,interval));
+    if(moved)Sound.trap('magnet');
+    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'magnet',text:'🧲',footprint:2});
+  }
+  return moved>0;
+}
+function applyCursePulse(h,rootTile,lv,now,force=false){
+  if(!h||h.hp<=0)return false;
+  if(!force&&now<(h.obstacleCurseNextPulseAt||0))return false;
+  const rlv=trapResearchLevel('curse');
+  const duration=lerpLv(lv,CURSE_PULSE_MIN_MS,CURSE_PULSE_MAX_MS)*Math.min(1.25,trapMasteryControlDurMul());
+  const baseMul=lerpLv(lv,.90,.72);
+  const researchPenalty=(rlv-1)*.02;
+  h.obstacleCurseUntil=now+duration;
+  h.obstacleCurseMul=Math.max(.62,baseMul-researchPenalty);
+  h.obstacleCurseHealMul=lv>=10?.70:(rlv>=3?.82:.90);
+  h.obstacleCurseNextPulseAt=now+CURSE_PULSE_INTERVAL_MS;
+  if(rlv>=4)h.obstacleCurseDefPenalty=0.05;
+  if(rlv>=5)h.obstacleCurseLv5=true;
+  if(now-(h.obstacleCurseFxAt||0)>700){
+    state.fxEvents.push({type:'floatText',r:h.r,c:h.c,text:'☠ 저주',color:'#43e78b'});
+    h.obstacleCurseFxAt=now;
+  }
+  return true;
+}
+
 function activateObstacle(h,tile,trigger='contact',chained=false){
   if(!h||h.hp<=0||!tile?.obstacle) return false;
-  const root=obstacleRootPos(h.r,h.c) || obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || {r:h.r,c:h.c};
+  if(typeof physicalDef==='function' && physicalDef(tile.obstacle)) return armPhysicalTrap(tile);
+  const root=obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c) || obstacleRootPos(h.r,h.c) || {r:h.r,c:h.c};
   const rootTile=state.grid[root.r]?.[root.c] || tile;
   const ob=OBSTACLE_TYPES.find(o=>o.id===rootTile.obstacle); if(!ob) return false;
   // 그림자 도적 등 trapIgnoreChance를 가진 용사는 일정 확률로 함정을 완전히 무시하고 지나갑니다.
@@ -231,72 +305,31 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'web',text:'🕸',footprint:2});return true;
   }
   if(ob.id==='curse'){
-    const rlv=trapResearchLevel('curse');
-    const curseMulBonus=(rlv-1)*0.04;
-    for(const x of affected){
-      x.obstacleCurseUntil=now+lerpLv(lv,3000,6500)*trapMasteryControlDurMul();
-      x.obstacleCurseMul=Math.max(.2,lerpLv(lv,.82,.55)*trapMasteryControlEffectMul()-curseMulBonus);
-      if(lv>=10)x.obstacleHealMul=.5;
-      if(rlv>=3) x.obstacleHealMul=Math.min(x.obstacleHealMul??1,0.9);
-      if(rlv>=4) x.obstacleCurseDefPenalty=0.05;
-      if(rlv>=5) x.obstacleCurseLv5=true; // 죽음의 낙인: 저주 상태+체력25%이하면 받는 피해 +15%(다른 피해 계산부에서 참조)
-        state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'☠ 저주!',color:'#43e78b'});
-        sayHero(x,pickHeroDialogue('trapCurse'),'trapHit',1200,true);
+    const curseTargets=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(root.r,root.c,x.r,x.c)<=range);
+    let applied=0;
+    for(const x of curseTargets){
+      if(applyCursePulse(x,rootTile,lv,now,false)){applied++;sayHero(x,pickHeroDialogue('trapCurse'),'trapHit',1000,true);}
     }
-    Sound.trap('curse');
+    if(applied){Sound.trap('curse');markObstacleTrigger(rootTile,420);}
     state.fxEvents.push({type:'obstacleAuraPulse',r:root.r+0.5,c:root.c+0.5,ob:'curse',lv,footprint:2});return true;
   }
   // v46: 신규 장애물 1차 5종
   if(ob.id==='gust'){
     // 밟은 방향의 반대쪽으로 밀쳐냅니다. 뒤에 다른 함정·구덩이를 깔아두면 그쪽으로 처넣을 수 있습니다.
     let kr=-Math.sign(h.lastStepR||0), kc=-Math.sign(h.lastStepC||0);
-    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R)||0; kc=Math.sign(h.c-CORE_C)||0; if(!kr&&!kc) kc=1; }
+    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R); kc=Math.sign(h.c-CORE_C); }
+    // Cardinal, real-entity movement; no copied heroes and no unbounded trap recursion.
+    if(kr) kc=0; else if(!kc) kc=1;
     const dist=GUST_KNOCK_TILES+(lv>=5?1:0);
-    let cr=h.r, cc=h.c, moved=0;
-    for(let i=0;i<dist;i++){
-      const nr=cr+kr, nc=cc+kc;
-      if(!inBounds(nr,nc)) break;
-      const nt=state.grid[nr][nc];
-      if(!nt || (nt.type!=='floor'&&nt.type!=='core') || nt.obstacle==='barricade' || monsterAt(nr,nc) || isHeroAt(nr,nc)) break;
-      cr=nr; cc=nc; moved++;
-      if(nt.obstacle && nt.obstacle!==ob.id && isObstacleRoot(nr,nc)){
-        // 밀려난 칸에 다른 함정이 있으면 그 함정도 함께 발동시킵니다(구덩이로 처넣기 콤보 등).
-        activateObstacle({...h,r:nr,c:nc},nt,'chain',true);
-      }
-    }
-    if(moved>0){
-      h.prevR=h.r; h.prevC=h.c; h.lastMoveAt=now; h.r=cr; h.c=cc;
-      state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'💨 밀려남!',color:'#9fe3ff'});
-      sayHero(h,pickHeroDialogue('trapGust'),'trapHit',1300,true);
-    }
+    if(typeof physicalForceMove==='function') physicalForceMove(h,kr,kc,dist,{source:'gust',damage:8,launch:false});
     markObstacleTrigger(rootTile,500); // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
     Sound.trap('gust');
     state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'gust',text:'💨',footprint:2});
     return true;
   }
   if(ob.id==='magnet'){
-    // 접촉할 때마다 범위 안 용사들을 진의 중심 쪽으로 한 칸씩 끌어당깁니다(계속 밟혀 있으면 서서히 끌려옵니다).
-    const pullTiles=MAGNET_PULL_TILES+(lv>=10?1:0);
-    for(const x of affected){
-      let cr=x.r, cc=x.c;
-      for(let i=0;i<pullTiles;i++){
-        const dr=Math.sign(root.r-cr), dc=Math.sign(root.c-cc);
-        if(!dr && !dc) break;
-        const nr=cr+dr, nc=cc+dc;
-        const nt=state.grid[nr]?.[nc];
-        if(!nt || (nt.type!=='floor'&&nt.type!=='core') || nt.obstacle==='barricade') break;
-        if((nr!==x.r||nc!==x.c) && (monsterAt(nr,nc) || (isHeroAt(nr,nc)&&!(nr===x.r&&nc===x.c)))) break;
-        cr=nr; cc=nc;
-      }
-      if(cr!==x.r || cc!==x.c){
-        x.prevR=x.r; x.prevC=x.c; x.lastMoveAt=now; x.r=cr; x.c=cc;
-        state.fxEvents.push({type:'floatText',r:cr,c:cc,text:'🧲',color:'#c9a0ff'});
-        sayHero(x,pickHeroDialogue('trapMagnet'),'trapHit',1300,true);
-      }
-    }
-    markObstacleTrigger(rootTile,400); // v47: 발동 애니메이션(확 당겨지는 느낌) 재생 시간
-    Sound.trap('magnet');
-    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'magnet',text:'🧲',footprint:2});
+    // 타일 접촉은 즉시 첫 흡인 펄스를 요청하고, 이후 반복 흡인은 zone tick에서 처리합니다.
+    triggerMagnetPulse(root,rootTile,lv,now);
     return true;
   }
   if(ob.id==='stun_cage'){
@@ -352,8 +385,8 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
 }
 
 function handleHeroTileEnter(h, tile){
-  if(!tile?.obstacle) return;
-  activateObstacle(h,tile,'contact');
+  if(tile?.obstacle) activateObstacle(h,tile,'contact');
+  if(typeof physicalNotifyEntry==='function') physicalNotifyEntry(h);
 }
 
 function midwaveDifficultyScale(){
@@ -596,7 +629,7 @@ function tryHeroPierce(h,m,baseHit,now){
       let dmg=Math.max(1,Math.round(baseHit*mul)-(o.def+(o.mawangDefBonus||0))*defBuff);
       if(o.skillShieldUntil&&now<o.skillShieldUntil) dmg=Math.max(1,Math.round(dmg*(o.skillShieldMul||1)));
       dmg=Math.max(1,applyStatueSanctuary(o,dmg));
-      o.hp-=dmg; hits++;
+      o.hp-=dmg; if(typeof markHeroAggro==='function') markHeroAggro(o,h); hits++;
       state.fxEvents.push({type:'battleHit',r:o.r,c:o.c,color:'#ffd166',strong:false,damage:dmg},{type:'damageNumber',r:o.r,c:o.c,amount:dmg,color:'#ffd166'});
       if(o.hp<=0){ h.heroKills=(h.heroKills||0)+1; kills++; }
     }
@@ -613,6 +646,10 @@ function heroProjectileFx(h,tr,tc){
 }
 
 function processHeroTick(h,dt){
+  // A trap kill must reach the shared reward cleanup without regeneration or another action.
+  if(!h || h.hp<=0 || h.environmentDeath) return;
+  if(typeof physicalHeroLocked==='function' && physicalHeroLocked(h)) return;
+  if(typeof physicalConsumeLanding==='function' && physicalConsumeLanding(h)) return;
   // v49: 대기 표시는 매 틱 초기화합니다. 계속 대기 중이면 아래 로직에서 다시 켜지고, 끝났다면 정상 문구로 돌아갑니다.
   if(h.waitingBehindDigger){ h.waitingBehindDigger=false; h.dungeonIntent='핵으로 전진'; }
   if(h.hp<h.maxHp){ h.hp=Math.min(h.maxHp, h.hp + HERO_REGEN_PER_LEVEL*(h.level||1)*dt); }
@@ -637,7 +674,7 @@ function processHeroTick(h,dt){
       .sort((a,b)=>(Math.abs(a.r-h.r)+Math.abs(a.c-h.c))-(Math.abs(b.r-h.r)+Math.abs(b.c-h.c)))[0];
     if(t){
       const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*.55));
-      t.hp-=dmg;
+      t.hp-=dmg; if(typeof markHeroAggro==='function') markHeroAggro(t,h);
       state.fxEvents.push({type:'damageNumber',r:t.r,c:t.c,amount:dmg,color:'#68e5ff'});
       state.fxEvents.push({type:'projectile',fromR:h.r,fromC:h.c,toR:t.r,toC:t.c,color:'#68e5ff',owner:'hero',typeId:h.typeId,kind:rangedProjectileKind('hero',h.typeId)});
       if(t.hp<=0) h.heroKills=(h.heroKills||0)+1;
@@ -756,12 +793,20 @@ function processHeroTick(h,dt){
   if(h.typeId==='priest'){
     let target=null,bestFrac=1;
     for(const o of state.heroes){ if(o===h||o.hp<=0) continue; const d=Math.abs(o.r-h.r)+Math.abs(o.c-h.c); if(d<=PRIEST_HEAL_RANGE&&o.hp<o.maxHp){const frac=o.hp/o.maxHp;if(frac<bestFrac){bestFrac=frac;target=o;}} }
-    if(target){ const healMul=(target.obstacleHealPenaltyUntil&&performance.now()<target.obstacleHealPenaltyUntil)?0.45:1; const healAmt=Math.max(1,Math.round(PRIEST_HEAL_AMT*healMul)); target.hp=Math.min(target.maxHp,target.hp+healAmt); target.lastHealAt=performance.now(); state.fxEvents.push({type:'floatText',r:target.r,c:target.c,text:'+'+healAmt,color:'#73d99a'},{type:'spellImpact',r:target.r,c:target.c,spell:'holy'}); Sound.magic('holy'); }
+    if(target){
+      const healNow=performance.now();
+      const hardPenalty=(target.obstacleHealPenaltyUntil&&healNow<target.obstacleHealPenaltyUntil)?0.45:1;
+      const curseHeal=(target.obstacleCurseUntil&&healNow<target.obstacleCurseUntil)?(target.obstacleCurseHealMul||1):1;
+      const healMul=hardPenalty*curseHeal;
+      const healAmt=Math.max(1,Math.round(PRIEST_HEAL_AMT*healMul)); target.hp=Math.min(target.maxHp,target.hp+healAmt); target.lastHealAt=healNow; state.fxEvents.push({type:'floatText',r:target.r,c:target.c,text:'+'+healAmt,color:'#73d99a'},{type:'spellImpact',r:target.r,c:target.c,spell:'holy'}); Sound.magic('holy');
+    }
   }
   const near=(kind)=>state.auraPositions[kind]&&state.auraPositions[kind].some(p=>{const ot=state.grid[p.r]?.[p.c];return Math.abs(p.r-h.r)+Math.abs(p.c-h.c)<=obstacleRange(kind,ot);});
-  let auraCurseMul=1; const cursePos=state.auraPositions.curse.find(p=>Math.abs(p.r-h.r)+Math.abs(p.c-h.c)<=obstacleRange('curse',state.grid[p.r]?.[p.c])); if(cursePos){ const curseTile=state.grid[cursePos.r][cursePos.c]; const cl=obstacleLevel(curseTile); auraCurseMul=cl>=10?.52:cl>=5?.64:CURSE_ATK_MUL; if(cl>=10) h.obstacleHealPenaltyUntil=performance.now()+350; }
+  // 저주의 밀바닥은 이제 상시 오라가 아니라 짧은 펄스형 디버프입니다.
+  const curseNow=performance.now();
+  const auraCurseMul=(h.obstacleCurseUntil&&curseNow<h.obstacleCurseUntil)?(h.obstacleCurseMul||CURSE_ATK_MUL):1;
   // 디버프 몬스터(거미·흑마법사)에게 물린 용사는 저주 지속시간 동안 공격력이 낮아집니다.
-  const monsterCurseMul=(h.monsterCurseUntil && performance.now()<h.monsterCurseUntil)?MONSTER_CURSE_ATK_MUL:1;
+  const monsterCurseMul=(h.monsterCurseUntil && curseNow<h.monsterCurseUntil)?MONSTER_CURSE_ATK_MUL:1;
   const curseMul=auraCurseMul*monsterCurseMul;
 
   // 용사가 마왕을 발견한 경우: 가장 가까운 마왕을 실제 전투 대상으로 삼습니다.
@@ -781,7 +826,7 @@ function processHeroTick(h,dt){
           h.lastMawangAttackAt=nowMw;
           const mwStats=mawangCurrentStats();
           const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1))-mwStats.def);
-          mw.hp-=dmg;
+          mw.hp-=dmg; if(typeof markHeroAggro==='function') markHeroAggro(mw,h);
           // v48: 마왕을 공격할 때도 몬스터 공격과 같은 연출(원거리=투사체, 근접=런지+타격)을 보여줍니다.
           const mwDR=Math.sign(mw.r-h.r), mwDC=Math.sign(mw.c-h.c);
           if(isRangedHeroUnit(h)){
@@ -836,7 +881,7 @@ function processHeroTick(h,dt){
       for(let i=0;i<2;i++){
         const ignore=Math.random()<.20;
         const d=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*curseMul*allyAtkBuffMul)-(ignore?0:(m.def+(m.mawangDefBonus||0))*skillDefBuff));
-        m.hp-=applyStatueSanctuary(m,d); hits.push(d);
+        m.hp-=applyStatueSanctuary(m,d); if(typeof markHeroAggro==='function') markHeroAggro(m,h); hits.push(d);
         if(m.hp<=0) break;
       }
       h.lastAttackAt=now;
@@ -873,7 +918,7 @@ function processHeroTick(h,dt){
       }
     }
     if((h.range||1)>1) Sound.heroRanged(); else Sound.heroAttack();
-    m.hp-=applyStatueSanctuary(m,dmg); h.lastAttackAt=now;
+    m.hp-=applyStatueSanctuary(m,dmg); if(typeof markHeroAggro==='function') markHeroAggro(m,h); h.lastAttackAt=now;
     if(state.archetypeActive && state.archetypeActive.unbrokenLine && (m.special==='tank'||m.special==='guard')){
       state.throneHP=Math.min(state.maxThroneHP,state.throneHP+1);
       state.fxEvents.push({type:'floatText',r:CORE_R,c:CORE_C,text:'+1',color:'#7ee3a7'});
@@ -1047,6 +1092,7 @@ function processHeroTick(h,dt){
       state._rangesDirty=true;
       state._archetypeDirty=true;
       state._auraDirty=true;
+      dungeonStructureInvalidate();
       h.prevR=h.r;h.prevC=h.c;h.lastStepR=h.digTargetR-h.r;h.lastStepC=h.digTargetC-h.c;h.r=h.digTargetR;h.c=h.digTargetC;h.showedQuestion=false;h.lastMoveAt=performance.now();
       if(Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C)<=1&&!h.coreFound){h.coreFound=true;sayHero(h,'!','alert',1200,true);setTimeout(()=>{if(state&&state.heroes.includes(h)&&h.hp>0)sayHero(h,pickHeroDialogue('coreFound'),'normal',2400,true);},950);}
       handleHeroTileEnter(h,state.grid[h.r][h.c]); h.digging=false;h.digProgress=0;h.digKind=null;
@@ -1112,7 +1158,7 @@ function processHeroTick(h,dt){
       for(const [nr,nc] of neighbors4(cr,cc)){
         if(!inBounds(nr,nc)) continue;
         const nt=state.grid[nr][nc];
-        if(nt.type==='rock' && nt.isEntrance) continue;
+        if(nt.type==='chasm' || (nt.type==='rock' && nt.isEntrance)) continue;
         const nk=keyOf(nr,nc);
         if(closed.has(nk)) continue;
         const tentative=(gScore.get(current)??Infinity)+terrainCost(nr,nc);
@@ -1241,6 +1287,7 @@ function processObstacleVisualsAndZones(dt){
   const now=performance.now();
   for(let r=0;r<GRID;r++) for(let c=0;c<GRID;c++){
     const tile=state.grid[r][c],ob=tile.obstacle;if(!ob || !isObstacleRoot(r,c))continue;
+    if(typeof physicalDef==='function' && physicalDef(ob)) continue;
     const lv=obstacleLevel(tile),range=obstacleRange(ob,tile);
     for(const h of state.heroes){
       if(h.hp<=0)continue; const d=obstacleDistanceToHero(r,c,h.r,h.c); if(d>range)continue;
@@ -1256,14 +1303,20 @@ function processObstacleVisualsAndZones(dt){
           if(near){ near.poisonSpreadUntil=now+3000; near.poisonSpreadDps=dps*0.6; state.fxEvents.push({type:'floatText',r:near.r,c:near.c,text:'☠전염!',color:'#78f06b'}); }
         }
       }
-      else if(ob==='flame'||ob==='lightning'||ob==='pit'||ob==='spike'||ob==='magnet'){ activateObstacle(h,tile,'stay'); }
+      else if(ob==='flame'||ob==='lightning'||ob==='pit'||ob==='spike'){ activateObstacle(h,tile,'stay'); }
+      else if(ob==='magnet'){ triggerMagnetPulse({r,c},tile,lv,now); }
       else if(ob==='barricade'){
         h.barricadeSlowUntil=now+450;h.barricadeSlowMul=lerpLv(lv,.82,.55);
         if(now-(h.barricadeReactAt||0)>1500){ h.barricadeReactAt=now; sayHero(h,pickHeroDialogue('trapBarricade'),'trapHit',1200,true); }
       }
       else if(ob==='frost'){h.frostSlowUntil=now+900;h.frostSlowMul=lerpLv(lv,.68,.35);h.stunTicks=Math.max(h.stunTicks||0,Math.round(lerpLv(lv,0,6)*0.17));}
       else if(ob==='web'){h.webSlowUntil=now+(lv>=10?3200:lv>=5?2100:1200);h.webSlowMul=lv>=10?.32:lv>=5?.5:.68;if(lv>=10)h.webRootUntil=Math.max(h.webRootUntil||0,now+700);if(now-(h.webFxAt||0)>650){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'web',text:'🕸'});h.webFxAt=now;}}
-      else if(ob==='curse'){h.obstacleCurseUntil=now+lerpLv(lv,1200,2400);h.obstacleCurseMul=lerpLv(lv,.82,.55);if(lv>=10)h.obstacleHealMul=.5;if(now-(h.obstacleCurseFxAt||0)>900){state.fxEvents.push({type:'obstacleAuraPulse',r:h.r,c:h.c,ob:'curse',lv});h.obstacleCurseFxAt=now;}}
+      else if(ob==='curse'){
+        if(applyCursePulse(h,tile,lv,now,false)){
+          state.fxEvents.push({type:'obstacleAuraPulse',r:h.r,c:h.c,ob:'curse',lv});
+          markObstacleTrigger(tile,320);
+        }
+      }
     }
     if(ob==='statue' && now-(tile.obstacleFxAt||0)>1100){state.fxEvents.push({type:'obstacleAuraPulse',r,c,ob:'statue',lv});tile.obstacleFxAt=now;}
   }
@@ -1508,6 +1561,7 @@ function simulateStep(dt){
     state._auraTickAt=logicNow;
     state._auraDirty=false;
   }
+  if(typeof processPhysicalTraps==='function') processPhysicalTraps(dt);
   processObstacleVisualsAndZones(dt);
   processPendingRockfalls();
   for(const p of state.auraPositions.statue){
@@ -1571,7 +1625,7 @@ function simulateStep(dt){
       return false;
     }
     if(h.hp<=0){
-      pushDeathFx(h.r,h.c,'#e0495f');
+      if(!h.environmentDeath) pushDeathFx(h.r,h.c,'#e0495f');
       state._panelDirty=true;
       showTransientHeroBubble(h.r,h.c,pickHeroDialogue('death'),'death',2300);
       addGold(h.reward); state.killCount++;
