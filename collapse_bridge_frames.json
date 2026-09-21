@@ -1,0 +1,90 @@
+{
+  "source_sha256": "bc5c0e7ecaeedc1f4d84cbe83e66c8a61c7a18b88654b55cb88ddbea1e0d6194",
+  "source_size": [
+    1774,
+    887
+  ],
+  "frame_size": [
+    256,
+    256
+  ],
+  "columns": 8,
+  "rows": 1,
+  "frames": [
+    {
+      "index": 0,
+      "source_rect": [
+        11,
+        10,
+        435,
+        434
+      ]
+    },
+    {
+      "index": 1,
+      "source_rect": [
+        454,
+        10,
+        878,
+        434
+      ]
+    },
+    {
+      "index": 2,
+      "source_rect": [
+        898,
+        10,
+        1322,
+        434
+      ]
+    },
+    {
+      "index": 3,
+      "source_rect": [
+        1341,
+        10,
+        1765,
+        434
+      ]
+    },
+    {
+      "index": 4,
+      "source_rect": [
+        11,
+        453,
+        435,
+        877
+      ]
+    },
+    {
+      "index": 5,
+      "source_rect": [
+        454,
+        453,
+        878,
+        877
+      ]
+    },
+    {
+      "index": 6,
+      "source_rect": [
+        898,
+        453,
+        1322,
+        877
+      ]
+    },
+    {
+      "index": 7,
+      "source_rect": [
+        1341,
+        453,
+        1765,
+        877
+      ]
+    }
+  ],
+  "normal_frame": 0,
+  "destroyed_frame": 7,
+  "note": "Frame 0 and 7 from the same sheet are used as still sprites to avoid jumps."
+}
