@@ -1048,3 +1048,22 @@
 .cell.ob-animated .obstacle-anim.ob-trig{
   filter:brightness(1.4) saturate(1.25) drop-shadow(0 2px 2px rgba(0,0,0,.78));
 }
+
+
+/* ==================================================================
+   v63: 몬스터 명령 메뉴 — 휴대폰 화면에서 3번째 카드(중립)가 잘려 클릭되지 않던 문제
+   패널 높이가 약 240px 로 고정된 스크롤 영역인데 카드 3장이 376px 라서 중립 카드가 아래로 잘렸습니다.
+   폭 680px 이하에서는 카드를 가로 3열 컴팩트 형태로 배치하고, 설명은 현재 명령 것만 한 번 표시합니다.
+   ================================================================== */
+.cmd-cur-desc{ display:none; }
+@media (max-width:680px){
+  .command-list{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:6px; }
+  .command-card{ padding:8px 3px 7px; text-align:center; border-radius:10px; }
+  .command-card .cc-head{ flex-direction:column; align-items:center; gap:2px; }
+  .command-card .cc-icon{ font-size:21px; }
+  .command-card .cc-name{ font-size:11.5px; flex:none; }
+  .command-card .cc-state{ font-size:7.5px; padding:1px 6px; min-height:10px; }
+  .command-card .cc-state:empty{ visibility:hidden; }
+  .command-card .cc-desc{ display:none; }
+  .cmd-cur-desc{ display:block; margin-top:7px; padding:0 2px; font-size:9.5px; line-height:1.5; color:#c9bfe6; }
+}
