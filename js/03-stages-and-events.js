@@ -1311,6 +1311,19 @@ function applyPartySynergy(heroMembers, patternId, isBossWave=false){
   if(isBossWave) addLog(`<span class="hl-red">☠️ ${patternId||'특수'} 원정군이 보스를 호위합니다.</span>`);
 }
 
+/* v62 · 초반 마법사 약화.
+   마법사는 5칸 밖에서 3×3 범위 마법을 쓰기 때문에, 몬스터(HP 44~84)가 뭉쳐 있는 초반에 특히 강했습니다.
+   초반(holdUntil 웨이브까지)에는 공격력을 mul 배로 낮추고, fullAt 웨이브까지 서서히 원래 강도로 되돌립니다.
+   (마법사는 웨이브 0~20 에만 등장하는 초반 전용 영웅이라, 이 조정은 후반 밸런스에 영향을 주지 않습니다.)
+   조정하려면 아래 값만 바꾸면 됩니다. */
+const EARLY_MAGE_NERF={mul:0.70, holdUntil:5, fullAt:15};
+function earlyCasterAtkMul(type,level){
+  if(!type||type.id!=='mage') return 1;
+  const n=EARLY_MAGE_NERF;
+  if(level<=n.holdUntil) return n.mul;
+  if(level>=n.fullAt) return 1;
+  return n.mul+(1-n.mul)*((level-n.holdUntil)/(n.fullAt-n.holdUntil));
+}
 function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, forcedTypeId=null, elite=false, bossProfile=null){
   const anchor=(spawnCell&&Array.isArray(state?.heroSpawnPoints)&&state.heroSpawnPoints.some(sp=>sp.r===spawnCell[0]&&sp.c===spawnCell[1])) ? {r:spawnCell[0],c:spawnCell[1]} : (state?.heroSpawnPoint||state?.heroSpawnPoints?.[0]);
   const e=spawnCell?{r:spawnCell[0],c:spawnCell[1]}:(anchor?{r:anchor.r,c:anchor.c}:randomEdgeSpawn());
@@ -1343,7 +1356,7 @@ function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, for
   const hero={
     id, r:e.r, c:e.c, spawnR:e.r, spawnC:e.c, typeId:type.id, range:type.range,
     hp:Math.round(b.hp*type.hpMult*(isBoss?(majorBoss?4.5:3):(elite?1.75:1))*((state.stageHeroHpMul||1))*midwaveMul*(bossProfile?.bonus?.hp||1)*earlyMajorBossHpNerf),
-    atk:Math.round(b.atk*type.atkMult*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf),
+    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf),
     def:Math.max(1,Math.round(level*HERO_DEF_PER_LEVEL*midwaveMul*earlyMajorBossNerf)),
     reward:Math.round(b.reward*type.rewardMult*(isBoss?(majorBoss?6:4):(elite?2.2:1))*(state.stageEvent?.id==='redmoon'?1.2:(state.stageEvent?.id==='panic'?1.15:1))),
     isBoss, majorBoss, elite:false, bossProfileId:null, partySynergy:1, level, coward, fleeing:false, escaped:false, fleeTarget:null, fleeTicks:0, fleeCooldown:0,
@@ -1464,7 +1477,7 @@ function debugSpawnHero(typeId){
   const hero={
     id, r:e.r, c:e.c, spawnR:e.r, spawnC:e.c, typeId:type.id, range:type.range,
     hp:Math.round(b.hp*type.hpMult*(isBoss?3:1)),
-    atk:Math.round(b.atk*type.atkMult*(isBoss?2.2:1)),
+    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?2.2:1)),
     def:Math.round(level*HERO_DEF_PER_LEVEL),
     reward:Math.round(b.reward*type.rewardMult*(isBoss?4:1)),
     isBoss, majorBoss, elite:false, bossProfileId:null, partySynergy:1, level, coward, fleeing:false, escaped:false, fleeTarget:null, fleeTicks:0, fleeCooldown:0,
