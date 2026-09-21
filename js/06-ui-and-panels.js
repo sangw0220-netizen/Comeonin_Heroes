@@ -13,7 +13,17 @@ function renderPanel(){
     return;
   }
   if(panelPointerActive) return;
+  // v63: 몬스터 명령 패널은 (현재 명령, 몬스터 수, 수비형 수)가 같으면 다시 그리지 않고 버튼 DOM을 그대로 둡니다.
+  //      빌드 단계에서는 패널이 매 프레임 통째로 재생성되어, 누르는 사이에 버튼이 교체되면 클릭이 사라졌습니다.
+  const isCmdPanel=!!(sel && sel.kind==='tool' && sel.tool==='command');
+  if(isCmdPanel && els.panelBox.dataset.cmdSig===commandPanelSig() && els.panelBox.querySelector('.command-list')) return;
   renderPanelInner();
+  if(isCmdPanel && els.panelBox.querySelector('.command-list')) els.panelBox.dataset.cmdSig=commandPanelSig();
+  else delete els.panelBox.dataset.cmdSig;
+}
+function commandPanelSig(){
+  if(!state) return '';
+  return normalizeMonsterCommand(state.monsterCommand)+'|'+state.monsters.length+'|'+state.monsters.filter(isMonsterDefensiveType).length;
 }
 
 function syncShopListState(list){
@@ -100,6 +110,7 @@ function renderPanelInner(){
           </button>`;
       }
       html+=`</div>`;
+      html+=`<div class="cmd-cur-desc">${MONSTER_COMMAND_META[command].desc}</div>`;   // v63: 휴대폰 컴팩트 배치용(넓은 화면에서는 숨김)
       html+=`<div class="command-summary">현재 명령: <b style="color:var(--gold)">${MONSTER_COMMAND_META[command].icon} ${MONSTER_COMMAND_META[command].name}</b><br>전체 ${state.monsters.length}마리 · 수비형 ${defensiveCount} · 공격형 ${aggressiveCount}<br><span style="color:#77708d">중립 명령에서는 탱커·수호형·힐러가 수비형으로 분류됩니다.</span></div>`;
     } else if(sel.tool==='monster'){
       const capFull=state.monsters.length>=(state.monsterCap||MONSTER_CAP_START);
@@ -488,11 +499,24 @@ els.panelBox.addEventListener('wheel',(e)=>{
 },{passive:false});
 
 // 몬스터 명령 카드는 상점 카드와 별도 입력으로 처리합니다.
+// v63: 패널 안의 버튼(명령 카드 포함)을 누르는 동안에는 패널을 다시 그리지 않습니다.
+//      (예전에는 상점 카드에만 이 보호가 있어서, 명령 카드는 누르는 사이 버튼이 새 요소로 교체되어 클릭이 사라졌습니다.)
+let panelPressed=false, panelPressTimer=null;
+function panelPressRelease(){ panelPressed=false; clearTimeout(panelPressTimer); panelPointerActive=false; if(state) state._panelDirty=true; }
+els.panelBox.addEventListener('pointerdown',(e)=>{
+  if(!e.target.closest || !e.target.closest('button, .command-card, [data-command]')) return;
+  panelPressed=true; panelPointerActive=true;
+  clearTimeout(panelPressTimer); panelPressTimer=setTimeout(panelPressRelease,2000);   // 안전장치: 이벤트가 유실돼도 2초 뒤 해제
+},true);
+const panelPressEnd=()=>{ if(!panelPressed) return; clearTimeout(panelPressTimer); panelPressTimer=setTimeout(panelPressRelease,90); };   // click 이 먼저 처리되도록 약간 늦게 해제
+window.addEventListener('pointerup',panelPressEnd,true);
+window.addEventListener('pointercancel',panelPressEnd,true);
 els.panelBox.addEventListener('click',(e)=>{
   const commandCard=e.target.closest('.command-card[data-command]');
   if(!commandCard || !state) return;
   e.preventDefault();
   e.stopPropagation();
+  panelPressRelease();   // 명령 적용 직후 화면이 바로 갱신되도록 보호를 즉시 해제
   setMonsterCommand(commandCard.dataset.command);
 });
 
