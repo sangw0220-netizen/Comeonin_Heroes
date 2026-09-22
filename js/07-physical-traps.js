@@ -348,6 +348,11 @@ function physicalForceMove(h,dr,dc,steps,options={}){
       if(!inBounds(nr,nc)||nt?.type==='chasm'){
         fall=physicalFall(h,nr,nc,{...options,fromR,fromC});blocked=!fall;break;
       }
+      // v72 심연구덩이: 정상 경로로는 피하지만, 넉백/밀치기 같은 강제 이동이 닿으면 낙사 판정.
+      if(nt?.obstacle==='pit' && typeof resolveAbyssPitForcedContact==='function'){
+        const pitResult=resolveAbyssPitForcedContact(h,nr,nc,{...options,fromR,fromC});
+        if(pitResult?.resolved){fall=!!pitResult.fall;blocked=!!pitResult.blocked;break;}
+      }
       if(!nt||nt.type!=='floor'||nt.isEntrance&&options.protectEntrance||nt.obstacle==='barricade'){
         physicalDamage(h,options.damage||8,options.source);blocked=true;break;
       }
@@ -492,6 +497,17 @@ function physicalDeviceMarkup(id){
   if(id==='abyss') art='<div class="pt-hole"></div><div class="pt-rift"></div><div class="pt-dust"><i></i><i></i><i></i></div>';
   return common+art+'</div><div class="pt-sheet-viewport"><div class="pt-sheet-frame"></div></div></div><span class="pt-arrow"></span><span class="pt-level"></span><span class="pt-charge"></span>';
 }
+let physicalRenderRootCache={state:null,grid:null,version:-1,roots:[]};
+function physicalRenderRoots(){
+  const version=state?._physicalTopologyVersion||0,grid=state?.grid;
+  if(physicalRenderRootCache.state===state&&physicalRenderRootCache.grid===grid&&physicalRenderRootCache.version===version) return physicalRenderRootCache.roots;
+  const roots=[];
+  if(grid) for(let r=0;r<GRID;r++)for(let c=0;c<GRID;c++){
+    const t=grid[r][c],def=physicalDef(t?.obstacle); if(!def||(t.obstacleRootR??r)!==r||(t.obstacleRootC??c)!==c)continue;
+    roots.push({r,c});
+  }
+  physicalRenderRootCache={state,grid,version,roots}; return roots;
+}
 function renderPhysicalTraps(){
   physicalNormalizeLegacyWallChildren();
   const layer=physicalEnsureLayer();if(!layer)return;
@@ -503,35 +519,59 @@ function renderPhysicalTraps(){
     return;
   }
   const px=currentCellPx,now=physicalVisualClock(),seen=new Set();
-  layer.style.setProperty('--pt-cell',px+'px');
-  for(let r=0;r<GRID;r++)for(let c=0;c<GRID;c++){
-    const t=state.grid[r][c],def=physicalDef(t.obstacle);if(!def||(t.obstacleRootR??r)!==r||(t.obstacleRootC??c)!==c)continue;
-    const key=r+'_'+c;seen.add(key);let node=physicalDeviceEls.get(key);
+  const topologyVersion=state._physicalTopologyVersion||0;
+  const roots=physicalRenderRoots();
+  const hasFlights=!!(state.physicalFlights&&state.physicalFlights.length);
+  const hasImpact=Array.isArray(state.heroes)&&state.heroes.some(h=>(h.physicalImpactUntil||0)>physicalClock());
+  if(!roots.length&&!hasFlights&&!hasImpact&&state.phase!=='build'){
+    if(physicalDeviceEls.size){ for(const [,node] of physicalDeviceEls)node.remove(); physicalDeviceEls.clear(); }
+    if(physicalFlightEls.size){ for(const [,node] of physicalFlightEls)node.remove(); physicalFlightEls.clear(); }
+    return;
+  }
+  const selectedRoot=state.selected?.kind==='tile'?physicalRootPos(state.selected.r,state.selected.c):null;
+  const cellPx=px+'px'; if(layer._ptCellPx!==cellPx){layer._ptCellPx=cellPx;layer.style.setProperty('--pt-cell',cellPx);}
+  for(const root of roots){
+    const r=root.r,c=root.c,t=state.grid[r][c],def=physicalDef(t?.obstacle); if(!def)continue;
+    const key=r+'_'+c;seen.add(key);let node=physicalDeviceEls.get(key),newNode=false;
     if(!node||node.dataset.trap!==def.id){
-      if(node)node.remove();node=document.createElement('div');node.className='pt-device pt-'+def.id;node.dataset.trap=def.id;node.innerHTML=physicalDeviceMarkup(def.id);physicalDeviceEls.set(key,node);layer.appendChild(node);
+      if(node)node.remove();node=document.createElement('div');newNode=true;node.className='pt-device pt-'+def.id;node.dataset.trap=def.id;node.innerHTML=physicalDeviceMarkup(def.id);
+      node._ptRefs={arrow:node.querySelector('.pt-arrow'),level:node.querySelector('.pt-level'),zones:node.querySelector('.pt-zones')};
+      node._ptGeoSig=''; node._ptGeo=null; physicalDeviceEls.set(key,node);layer.appendChild(node);
     }
     node._ptTile=t;node._ptRow=r;node._ptCol=c;
     const [visualLength,visualWidth]=physicalSize(def.id);
-    node.style.left=c*px+'px';node.style.top=r*px+'px';node.style.width=px+'px';node.style.height=px+'px';
+    const geomSig=px+'|'+r+'|'+c;
+    if(node._ptBoxSig!==geomSig){
+      node._ptBoxSig=geomSig;
+      node.style.left=c*px+'px';node.style.top=r*px+'px';node.style.width=px+'px';node.style.height=px+'px';
+    }
     const drawDir=physicalDir(t),drawSide={r:drawDir.c,c:-drawDir.r},backset=def.id==='wall_crusher'?.45:0;
     // The crusher graphic is now purpose-built CSS artwork instead of the old 224x160 sprite.
     // Give the rig the full three-cell wall face and enough forward canvas for a three-cell crush.
     const visualDepthPx=def.id==='wall_crusher'?4.15*px:visualLength*px;
     const visualFacePx=def.id==='wall_crusher'?3*px:visualWidth*px;
     const faceInset=0;
-    node.style.setProperty('--pt-length',visualDepthPx+'px');node.style.setProperty('--pt-width',visualFacePx+'px');
-    node.style.setProperty('--pt-offset-x',(-drawDir.c*backset*px+drawSide.c*faceInset)+'px');
-    node.style.setProperty('--pt-offset-y',(-drawDir.r*backset*px+drawSide.r*faceInset)+'px');
-    node.style.setProperty('--pt-color',def.color);node.style.setProperty('--pt-angle',(def.fixed?0:drawDir.angle)+'deg');
-    const rt=t.physicalRuntime||{},geo=physicalGeometry(r,c,def.id,t.physicalDir),armed=rt.armedAt!=null;
+    const visualSig=px+'|'+def.id+'|'+(t.physicalDir??1)+'|'+def.color;
+    if(node._ptVisualSig!==visualSig){
+      node._ptVisualSig=visualSig;
+      node.style.setProperty('--pt-length',visualDepthPx+'px');node.style.setProperty('--pt-width',visualFacePx+'px');
+      node.style.setProperty('--pt-offset-x',(-drawDir.c*backset*px+drawSide.c*faceInset)+'px');
+      node.style.setProperty('--pt-offset-y',(-drawDir.r*backset*px+drawSide.r*faceInset)+'px');
+      node.style.setProperty('--pt-color',def.color);node.style.setProperty('--pt-angle',(def.fixed?0:drawDir.angle)+'deg');
+    }
+    const rt=t.physicalRuntime||{},geoSig=topologyVersion+':'+def.id+':'+(t.physicalDir??1);
+    let geo=node._ptGeo;
+    if(!geo||node._ptGeoSig!==geoSig){ geo=physicalGeometry(r,c,def.id,t.physicalDir); node._ptGeo=geo; node._ptGeoSig=geoSig; node._ptZonesVersion=''; }
+    const armed=rt.armedAt!=null;
     const age=rt.firedAt==null?Infinity:Math.max(0,now-rt.firedAt),hit=age<def.recover;
-    const selectedRoot=state.selected?.kind==='tile'?physicalRootPos(state.selected.r,state.selected.c):null;
     const selected=!!selectedRoot&&selectedRoot.r===r&&selectedRoot.c===c;
-    node.classList.toggle('pt-armed',armed);node.classList.toggle('pt-hit',hit);node.classList.toggle('pt-fault',!geo.ok);node.classList.toggle('pt-selected',selected);
-    node._ptFault=!geo.ok;
-    // Crusher has its own wall artwork and animation; all other physical traps keep their sprite atlases.
+    if(node._ptArmed!==armed){node._ptArmed=armed;node.classList.toggle('pt-armed',armed);}
+    if(node._ptHit!==hit){node._ptHit=hit;node.classList.toggle('pt-hit',hit);}
+    const fault=!geo.ok;if(node._ptFault!==fault){node._ptFault=fault;node.classList.toggle('pt-fault',fault);}
+    if(node._ptSelected!==selected){node._ptSelected=selected;node.classList.toggle('pt-selected',selected);}
+    // 스프라이트는 메인 RAF에서 매 프레임 갱신하므로 여기서는 새 노드의 첫 프레임만 칠합니다.
     if(def.id==='wall_crusher') node.classList.remove('pt-sheet-ready');
-    else physicalPaintSprite(node,now);
+    else if(newNode) physicalPaintSprite(node,now);
     const warningProgress=armed?Math.min(1,Math.max(0,(now-rt.armedAt)/def.windup)):0;
     // Advance before the logical hit, reach full extension exactly when damage is resolved.
     const stroke=armed?Math.pow(warningProgress,5)*.88:hit?Math.max(0,1-age/def.recover):0;
@@ -540,21 +580,25 @@ function renderPhysicalTraps(){
     node.style.setProperty('--pt-stroke',(stroke*crusherTravel*px)+'px');
     node.style.setProperty('--pt-flap-angle',(hit?-68*stroke:armed?8:0)+'deg');
     node.style.setProperty('--pt-swing',(armed?-72*Math.sin(Math.PI*warningProgress):hit?72*Math.sin(Math.PI*Math.min(1,age/def.recover)):Math.sin(now*1.6+r)*8)+'deg');
-    node.querySelector('.pt-arrow').textContent=def.fixed?'':physicalDir(t).icon;
-    node.querySelector('.pt-level').textContent=def.fixed?'':String(obstacleLevel(t));
+    const arrow=node._ptRefs?.arrow,levelEl=node._ptRefs?.level;
+    const arrowText=def.fixed?'':physicalDir(t).icon,levelText=def.fixed?'':String(obstacleLevel(t));
+    if(arrow&&arrow.textContent!==arrowText)arrow.textContent=arrowText;
+    if(levelEl&&levelEl.textContent!==levelText)levelEl.textContent=levelText;
     const fraction=armed?Math.min(1,Math.max(0,(now-rt.armedAt)/def.windup)):Math.min(1,Math.max(0,1-((rt.readyAt||0)-now)/(def.cooldown||1)));
     node.style.setProperty('--pt-charge',fraction);
-    const zoneSig=JSON.stringify(geo.cells);
-    if(node.dataset.zones!==zoneSig){
-      node.dataset.zones=zoneSig;const zones=node.querySelector('.pt-zones');zones.replaceChildren();
-      if(!def.fixed)for(const [nr,nc] of geo.cells){const e=document.createElement('i');e.style.left=(nc-c)*100+'%';e.style.top=(nr-r)*100+'%';zones.appendChild(e);}
+    if(node._ptZonesVersion!==geoSig){
+      node._ptZonesVersion=geoSig; const zones=node._ptRefs?.zones;
+      if(zones){ zones.replaceChildren(); if(!def.fixed)for(const [nr,nc] of geo.cells){const e=document.createElement('i');e.style.left=(nc-c)*100+'%';e.style.top=(nr-r)*100+'%';zones.appendChild(e);} }
     }
   }
   for(const [key,node] of physicalDeviceEls)if(!seen.has(key)){node.remove();physicalDeviceEls.delete(key);}
-  // A placement ray, including the destination hole, makes direction unambiguous on touch.
-  let preview=layer.querySelector('.pt-preview');if(!preview){preview=document.createElement('div');preview.className='pt-preview';layer.appendChild(preview);}
-  preview.replaceChildren();
-  if(state.phase==='build'&&state.physicalHover&&physicalDef(state.selectedObstacleType)){
+  // A placement ray is build-only. During combat we avoid querying/clearing this DOM every visual tick.
+  let preview=layer._ptPreview||null;
+  if(state.phase==='build'){
+    if(!preview){preview=layer.querySelector('.pt-preview');if(!preview){preview=document.createElement('div');preview.className='pt-preview';layer.appendChild(preview);}layer._ptPreview=preview;}
+    preview.replaceChildren();
+  }
+  if(state.phase==='build'&&preview&&state.physicalHover&&physicalDef(state.selectedObstacleType)){
     const {r,c}=state.physicalHover,def=physicalDef(state.selectedObstacleType),geo=physicalPlacement(r,c,def.id);
     if(geo.ok){
       for(const [nr,nc] of (geo.footprintCells||physicalFootprintCells(r,c,def.id).cells)){
@@ -587,29 +631,39 @@ function renderPhysicalTraps(){
   });
   for(const [id,node] of physicalFlightEls)if(!flightSeen.has(id)){node.remove();physicalFlightEls.delete(id);}
   if(typeof tokenEls!=='undefined'){
-    const heroesByKey=new Map(state.heroes.map(h=>['h'+h.id,h]));
-    for(const [key,node] of Object.entries(tokenEls)){
-      const h=heroesByKey.get(key);
-      node.classList.toggle('physical-flying',physicalOwnsToken(key));
-      const crushing=!!h&&h.physicalImpactKind==='wall_crusher'&&(h.physicalImpactUntil||0)>physicalClock();
-      node.classList.toggle('physical-crushed',crushing);
-      node.classList.toggle('physical-sliced',!!h&&h.physicalImpactKind==='pendulum'&&(h.physicalImpactUntil||0)>physicalClock());
+    const clockNow=physicalClock();
+    for(const h of state.heroes){
+      const key='h'+h.id,node=tokenEls[key]; if(!node)continue;
+      const flying=physicalOwnsToken(key);
+      if(node._ptFlying!==flying){node._ptFlying=flying;node.classList.toggle('physical-flying',flying);}
+      const crushing=h.physicalImpactKind==='wall_crusher'&&(h.physicalImpactUntil||0)>clockNow;
+      const sliced=h.physicalImpactKind==='pendulum'&&(h.physicalImpactUntil||0)>clockNow;
+      if(node._ptCrushing!==crushing){node._ptCrushing=crushing;node.classList.toggle('physical-crushed',crushing);}
+      if(node._ptSliced!==sliced){node._ptSliced=sliced;node.classList.toggle('physical-sliced',sliced);}
       if(crushing){
         const dr=Math.sign(h.physicalImpactDirR||0),dc=Math.sign(h.physicalImpactDirC||0);
         const travel=px*Math.max(.45,Math.min(1.08,Number(h.physicalImpactTravel)||.7));
         const crushX=dc*travel,crushY=dr*travel;
-        node.style.setProperty('--pt-crush-x',crushX+'px');
-        node.style.setProperty('--pt-crush-y',crushY+'px');
-        node.style.setProperty('--pt-crush-x16',(crushX*.16)+'px');node.style.setProperty('--pt-crush-y16',(crushY*.16)+'px');
-        node.style.setProperty('--pt-crush-x76',(crushX*.76)+'px');node.style.setProperty('--pt-crush-y76',(crushY*.76)+'px');
-        node.style.setProperty('--pt-crush-x82',(crushX*.82)+'px');node.style.setProperty('--pt-crush-y82',(crushY*.82)+'px');
-        node.style.setProperty('--pt-crush-sx',String(dc?(h.isBoss?.52:.22):(h.isBoss?1.05:1.12)));
-        node.style.setProperty('--pt-crush-sy',String(dr?(h.isBoss?.52:.22):(h.isBoss?1.05:1.12)));
-        node.style.setProperty('--pt-release-sx',String(dc?.78:1.04));node.style.setProperty('--pt-release-sy',String(dr?.78:1.04));
-        node.style.setProperty('--pt-crush-ox',dc>0?'100%':dc<0?'0%':'50%');
-        node.style.setProperty('--pt-crush-oy',dr>0?'100%':dr<0?'0%':'50%');
-        node.style.setProperty('--pt-impact-ms',Math.max(120,560/Math.max(1,gameSpeed))+'ms');
-      }else node.style.setProperty('--pt-impact-ms',Math.max(100,400/Math.max(1,gameSpeed))+'ms');
+        const crushSig=[dr,dc,travel,h.isBoss?1:0,gameSpeed].join('|');
+        if(node._ptCrushSig!==crushSig){
+          node._ptCrushSig=crushSig;
+          node.style.setProperty('--pt-crush-x',crushX+'px');
+          node.style.setProperty('--pt-crush-y',crushY+'px');
+          node.style.setProperty('--pt-crush-x16',(crushX*.16)+'px');node.style.setProperty('--pt-crush-y16',(crushY*.16)+'px');
+          node.style.setProperty('--pt-crush-x76',(crushX*.76)+'px');node.style.setProperty('--pt-crush-y76',(crushY*.76)+'px');
+          node.style.setProperty('--pt-crush-x82',(crushX*.82)+'px');node.style.setProperty('--pt-crush-y82',(crushY*.82)+'px');
+          node.style.setProperty('--pt-crush-sx',String(dc?(h.isBoss?.52:.22):(h.isBoss?1.05:1.12)));
+          node.style.setProperty('--pt-crush-sy',String(dr?(h.isBoss?.52:.22):(h.isBoss?1.05:1.12)));
+          node.style.setProperty('--pt-release-sx',String(dc?.78:1.04));node.style.setProperty('--pt-release-sy',String(dr?.78:1.04));
+          node.style.setProperty('--pt-crush-ox',dc>0?'100%':dc<0?'0%':'50%');
+          node.style.setProperty('--pt-crush-oy',dr>0?'100%':dr<0?'0%':'50%');
+          node.style.setProperty('--pt-impact-ms',Math.max(120,560/Math.max(1,gameSpeed))+'ms');
+        }
+      }else{
+        node._ptCrushSig='';
+        const impactMs=Math.max(100,400/Math.max(1,gameSpeed))+'ms';
+        if(node._ptImpactMs!==impactMs){node._ptImpactMs=impactMs;node.style.setProperty('--pt-impact-ms',impactMs);}
+      }
     }
   }
 }
@@ -698,8 +752,7 @@ function physicalPaintSprite(node,now=physicalVisualClock()){
     finishCosmetics:state.phase!=='invasion',realNow,speed:gameSpeed
   });
 }
-function physicalSpriteAnimationFrame(){
-  requestAnimationFrame(physicalSpriteAnimationFrame);
+function physicalAnimateSpritesFrame(){
   if(typeof document==='undefined'||document.hidden||!state||!physicalLayer||physicalLayer.hidden||!physicalLayer.isConnected)return;
   const now=physicalVisualClock();
   for(const node of physicalDeviceEls.values())physicalPaintSprite(node,now);
@@ -714,5 +767,4 @@ if(typeof document!=='undefined' && typeof PhysicalTrapSprites!=='undefined'){
     }
     if(state){state._mapDirty=true;state._panelDirty=true;}
   });
-  requestAnimationFrame(physicalSpriteAnimationFrame);
 }

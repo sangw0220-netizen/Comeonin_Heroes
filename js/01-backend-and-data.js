@@ -379,7 +379,7 @@ function buildTimeForWave(wave){
 }
 const SPAWN_INTERVAL_START=4.8;
 const SPAWN_INTERVAL_MIN=1.5;
-const MAX_TIER=10;
+const MAX_TIER=99;
 const CORE_MAX_HP=180;
 const ROCK_WEIGHT=8;
 const HERO_DIG_TIME=3.0;
@@ -444,6 +444,13 @@ const STATUE_RANGE=2, STATUE_ATK=7, STATUE_COOLDOWN=1.0;
 const SPIKE_DMG=16;
 const FLAME_DMG=9;
 const FLAME_BURN_DPS=2.2;
+const LAVA_DPS=5.5; // v72: 용암지대 - 독보다 강한 지속 피해
+const POISON_DURATION_MS=5000;
+const POISON_TICK_MS=1000;
+const LIGHTNING_STUN_CHANCE=0.20;
+const LIGHTNING_STUN_MS=1000;
+const WEB_STUN_CHANCE=0.20;
+const WEB_STUN_MS=1000;
 const LIGHTNING_DMG=13;
 const LIGHTNING_RANGE=2;
 const FROST_STUN_TICKS=3;
@@ -523,28 +530,28 @@ function obstacleLevelName(lv){return lv>=10?'대악마급':lv>=5?'상급':lv>=3
 function obstacleSpecialText(id,lv){
   const texts={
     spike:lv>=10?'Lv.10 처형 가시: 체력 30% 이하 용사에게 추가 피해 + 출혈 4초':lv>=5?'Lv.5 파열 가시: 추가 출혈 2초':'Lv.1 기본 가시 피해',
-    flame:lv>=10?'Lv.10 지옥불 분사: 범위 3칸 · 화상 강화':'Lv.5 연옥 화염: 범위 2칸 · 화상 강화',
-    lightning:lv>=10?'Lv.10 천벌 코일: 범위 4칸 · 최대 4명 연쇄':'Lv.5 연쇄 코일: 범위 3칸 · 최대 3명 연쇄',
-    poison:lv>=10?'Lv.10 역병지대: 범위 3칸 · 강한 지속 피해 + 잔류 중독':lv>=5?'Lv.5 맹독: 범위 2칸 · 지속 피해 증가':'Lv.1 기본 중독',
-    barricade:lv>=10?'Lv.10 요새 바리케이드: 높은 내구도 · 주변 용사 강한 둔화':lv>=5?'Lv.5 강화 바리케이드: 파괴 시간 증가 · 둔화':'Lv.1 통로 차단',
-    pit:lv>=10?'Lv.10 심연 구덩이: 범위 3칸 · 강한 속박 + 추가 피해':lv>=5?'Lv.5 깊은 구덩이: 범위 2칸 · 속박 강화':'Lv.1 이동 봉쇄',
+    flame:lv>=10?'Lv.10 용암핵: 밟고 있는 동안 매우 강한 화염 피해':'Lv.1~9 용암지대: 밟고 있는 동안 지속 화염 피해',
+    lightning:lv>=10?'Lv.10 천벌 십자진: 십자 영역 전격 피해 · 20% 기절':'십자 영역 전격 피해 · 20% 기절',
+    poison:lv>=10?'Lv.10 역병독: 밟으면 5초간 1초마다 강한 독 피해':'밟으면 5초간 1초마다 독 피해',
+    barricade:lv>=10?'Lv.10 철벽: 매우 높은 내구도 · 직접 공격으로 파괴':'1×1 철벽: 용사가 직접 공격해 파괴',
+    pit:lv>=10?'Lv.10 심연구덩이: 강제 이동으로 빠지면 낙사 · 보스는 큰 피해':'2×2 심연구덩이: 용사가 경로상 회피 · 밀쳐져 닿으면 낙사',
     statue:lv>=10?'Lv.10 수호 대석상: 범위 4칸 · 피해 감소 + 지속 회복':lv>=5?'Lv.5 수호 석상: 범위 3칸 · 방어 강화 + 피해 감소':'Lv.1 주변 몬스터 지원',
-    frost:lv>=10?'Lv.10 절대빙결: 범위 3칸 · 강한 둔화 + 동결':lv>=5?'Lv.5 혹한: 범위 2칸 · 동결 후 둔화':'Lv.1 냉기 둔화',
-    web:lv>=10?'Lv.10 거미왕의 둥지: 범위 3칸 · 강한 감속 + 속박':lv>=5?'Lv.5 끈끈한 거미줄: 범위 2칸 · 감속 지속 증가':'Lv.1 기본 감속',
+    frost:lv>=10?'Lv.10 극빙판: 위에서 이동속도 크게 감소':'Lv.1 빙판: 이동속도 -20% · 레벨에 따라 강화',
+    web:lv>=10?'Lv.10 거미둥지: 강한 감속 · 20% 기절 · 기절 시 5초 중독':'2×2 거미둥지: 감속 · 20% 기절 · 기절 시 5초 중독',
     curse:lv>=10?'Lv.10 심연의 토템: 범위 3칸 · 공격력 대폭 감소 + 회복 감소':lv>=5?'Lv.5 저주 성역: 범위 2칸 · 공격력 감소 강화':'Lv.1 기본 공격력 약화'
   }; return texts[id]||'';
 }
 
 const OBSTACLE_TYPES=[
   {id:'spike',name:'가시 지옥',icon:'🔺',kind:'attack',cost:50,range:1,color:'rgba(224,73,95,.55)',desc:'바닥에서 날카로운 가시가 솟아나 지나가는 용사에게 큰 피해를 줍니다.',short:'가시 지옥',sprite:OBSTACLE_SPRITES.spike},
-  {id:'flame',name:'불구덩이',icon:'🔥',kind:'attack',cost:72,range:1,color:'rgba(255,118,92,.55)',desc:'바닥이 갈라지며 불길이 치솟아 지나가는 용사에게 화상 피해를 줍니다.',short:'불구덩이',sprite:OBSTACLE_SPRITES.flame},
-  {id:'lightning',name:'낙뢰지옥',icon:'⚡',kind:'attack',cost:90,range:2,color:'rgba(110,190,255,.6)',desc:'바닥에 새겨진 번개 문양이 작동하여 주변의 용사에게 연쇄 피해를 줍니다.',short:'낙뢰지옥',sprite:OBSTACLE_SPRITES.lightning},
-  {id:'poison',name:'독늪',icon:'☠️',kind:'attack',cost:58,range:1,color:'rgba(120,200,90,.55)',desc:'바닥의 독액이 끓어오르며 범위 내 용사에게 저속 피해를 입힙니다.',short:'독늪',sprite:OBSTACLE_SPRITES.poison},
-  {id:'barricade',name:'철벽',icon:'🛡️',kind:'defense',cost:68,range:1,color:'rgba(190,150,100,.55)',desc:'거대한 철제 방벽이 길을 막아 적의 이동을 차단합니다.',short:'철벽',sprite:OBSTACLE_SPRITES.barricade},
-  {id:'pit',name:'심연구덩이',icon:'🕳️',kind:'defense',cost:64,range:1,color:'rgba(140,110,220,.55)',desc:'바닥이 무너져 깊은 구덩이가 생기며 지나가는 용사를 추락시킵니다.',short:'심연구덩이',sprite:OBSTACLE_SPRITES.pit},
+  {id:'flame',name:'용암지대',icon:'🌋',kind:'attack',cost:72,range:0,color:'rgba(255,118,92,.55)',desc:'1×1 용암지대입니다. 용사가 위에 서 있는 동안 독늪보다 강한 화염 피해를 지속적으로 받습니다.',short:'용암지대',sprite:OBSTACLE_SPRITES.flame},
+  {id:'lightning',name:'낙뢰지옥',icon:'⚡',kind:'attack',cost:90,range:0,color:'rgba(110,190,255,.6)',desc:'십자형 5칸 전격 지대입니다. 범위에 들어온 용사는 전격 피해를 받고 20% 확률로 기절합니다.',short:'낙뢰지옥',sprite:OBSTACLE_SPRITES.lightning},
+  {id:'poison',name:'독늪',icon:'☠️',kind:'attack',cost:58,range:0,color:'rgba(120,200,90,.55)',desc:'1×1 독늪입니다. 한 번 밟으면 5초 동안 1초마다 독 피해를 받습니다.',short:'독늪',sprite:OBSTACLE_SPRITES.poison},
+  {id:'barricade',name:'철벽',icon:'🛡️',kind:'defense',cost:68,range:0,color:'rgba(190,150,100,.55)',desc:'1×1 철벽입니다. 길을 완전히 막으며 용사는 직접 공격해서 부숴야 합니다. 근처에 몬스터가 있으면 몬스터를 먼저 공격합니다.',short:'철벽',sprite:OBSTACLE_SPRITES.barricade},
+  {id:'pit',name:'심연구덩이',icon:'🕳️',kind:'defense',cost:64,range:0,color:'rgba(140,110,220,.55)',desc:'2×2 심연구덩이입니다. 용사는 스스로 피해 지나가며, 넉백이나 밀치기로 구덩이에 닿으면 낙사합니다. 보스 영웅은 낙사하지 않고 큰 피해만 받습니다.',short:'심연구덩이',sprite:OBSTACLE_SPRITES.pit},
   {id:'statue',name:'수호진',icon:'🗿',kind:'defense',cost:110,range:2,color:'rgba(183,107,242,.55)',desc:'바닥에 새겨진 수호 마법진이 주변 몬스터의 방어력과 생존력을 강화합니다.',short:'수호진',sprite:OBSTACLE_SPRITES.statue},
-  {id:'frost',name:'빙판',icon:'❄️',kind:'debuff',cost:54,range:1,color:'rgba(102,200,255,.55)',desc:'바닥이 얼어붙어 주변 용사의 이동 속도와 공격 속도를 감소시킵니다.',short:'빙판',sprite:OBSTACLE_SPRITES.frost},
-  {id:'web',name:'거미둥지',icon:'🕸️',kind:'debuff',cost:44,range:1,color:'rgba(210,210,220,.45)',desc:'거미줄이 바닥에 퍼져 주변 용사의 이동 속도를 감소시킵니다.',short:'거미둥지',sprite:OBSTACLE_SPRITES.web},
+  {id:'frost',name:'빙판',icon:'❄️',kind:'debuff',cost:54,range:0,color:'rgba(102,200,255,.55)',desc:'1×1 빙판입니다. 위를 걷는 용사는 이동속도가 Lv.1 기준 20% 느려지며 레벨이 오를수록 감속이 강해집니다.',short:'빙판',sprite:OBSTACLE_SPRITES.frost},
+  {id:'web',name:'거미둥지',icon:'🕸️',kind:'debuff',cost:44,range:0,color:'rgba(210,210,220,.45)',desc:'2×2 거미둥지입니다. 위를 걷는 용사는 느려지며 20% 확률로 기절합니다. 기절한 용사는 5초 동안 독 상태가 됩니다.',short:'거미둥지',sprite:OBSTACLE_SPRITES.web},
   {id:'curse',name:'저주의 밀바닥',icon:'💀',kind:'debuff',cost:72,range:1,color:'rgba(150,60,90,.6)',desc:'범위 안 용사에게 주기적으로 짧은 저주를 걸어 공격력과 회복 효율을 낮춥니다. 저주는 계속 이어지지 않고 재발동 사이에 숨 돌릴 틈이 있습니다.',short:'저주의 밀바닥',sprite:OBSTACLE_SPRITES.curse},
   // v46: 신규 장애물 1차 5종
   {id:'gust',name:'돌풍진',icon:'💨',kind:'debuff',cost:48,range:1,color:'rgba(140,210,255,.55)',desc:'강한 돌풍이 밟은 용사를 진행 방향 반대로 밀쳐냅니다. 뒤에 함정이나 구덩이를 깔아두면 더욱 위력적입니다.',short:'돌풍진',sprite:OBSTACLE_SPRITES.gust},
@@ -693,6 +700,7 @@ function monsterCost(mt){
   return Math.max(1, Math.round(mt.cost*mul));
 }
 const KILLS_PER_LEVEL=9;
+const MONSTER_LEVEL_PROGRESS_PER_KILL=2; // v71: 처치 1회당 레벨 진행도 2. 기존 대비 정확히 2배 성장 속도.
 const HERO_REGEN_PER_LEVEL=0.12;
 const HERO_DEF_PER_LEVEL=0.55;
 const HERO_LEVEL_SIZE_MUL=0.035;
@@ -902,6 +910,21 @@ const MONSTER_TYPES=[
   {id:'frenzied_bear',  grade:'S', name:'광폭 곰',       desc:'분노로 눈이 붉게 물든 거대한 곰. 체력이 낮아질수록 미쳐 날뛰며, 포효로 용사들을 기절시킨다.', cost:215, hp:380, atk:26, def:5, range:1, special:'rage', role:'berserker', cardOnly:true},
 ];
 
+// v66 · 몬스터 근접 공격의 사운드/타격 FX 무기 분류. 실제 외형/설명에 맞춰 검·창·둔기로 재사용합니다.
+const MONSTER_MELEE_AUDIO_TYPE={
+  slime:'blunt', goblin:'sword', skeleton:'sword', wolf:'sword', orc:'blunt', golem:'blunt', dragon:'blunt',
+  slime_king:'blunt', berserker_orc:'blunt', skeleton_warrior:'sword', grim_reaper:'sword', ice_golem:'blunt',
+  rock_colossus:'blunt', angry_orc:'spear', blood_berserker:'blunt', shadow_goblin:'sword', nightstalker:'sword',
+  lizardman:'spear', minotaur:'blunt', spiked_turtle:'blunt', thief_rat:'sword', frenzied_bear:'sword'
+};
+function monsterMeleeAudioType(m){
+  if(!m) return 'blunt';
+  if(MONSTER_MELEE_AUDIO_TYPE[m.typeId]) return MONSTER_MELEE_AUDIO_TYPE[m.typeId];
+  const mt=MONSTER_TYPES.find(x=>x.id===m.typeId);
+  if(mt?.role==='assassin') return 'sword';
+  if(mt?.role==='tank'||mt?.role==='berserker') return 'blunt';
+  return 'sword';
+}
 
 /* ---------------- monster skills ----------------
    각 몬스터는 Lv.1 / Lv.5 / Lv.10에 서로 다른 대표 스킬을 획득합니다.
@@ -1199,6 +1222,11 @@ function finishMonsterSkill(m){
     if(s.slow) h.monsterSlowUntil=performance.now()+3800;
     if(s.root) h.monsterRootUntil=performance.now()+s.root*1000;
     if(s.stun) h.stunTicks=Math.max(h.stunTicks||0,Math.round(s.stun*1000/TICK_MS));
+    if(s.knock && h.hp>0 && typeof physicalForceMove==='function'){
+      let kr=Math.sign(h.r-m.r),kc=Math.sign(h.c-m.c);
+      if(kr)kc=0;else if(!kc)kc=1;
+      physicalForceMove(h,kr,kc,s.knock,{source:m.typeId||'monster_knock',damage:Math.max(4,Math.round(m.atk*.25)),launch:false});
+    }
     if(s.bleed) h.monsterBleedUntil=performance.now()+s.bleed*1000;
     if(s.dot||s.burn){ h.monsterSkillDotUntil=performance.now()+(s.dot||s.burn)*1000; h.monsterSkillDotDmg=Math.max(2,Math.round(m.atk*.06)); }
   }
@@ -1244,20 +1272,20 @@ function heroSkillsPanelHtml(h){
   const lv=h.level||1;
   if(h.typeId==='mage'){
     const variants=[
-      {level:3, skill:HERO_SKILLS.mage},
-      {level:5, skill:MAGE_SKILL_T2},
-      {level:10, skill:MAGE_SKILL_T3}
+      {level:6, skill:HERO_SKILLS.mage},
+      {level:12, skill:MAGE_SKILL_T2},
+      {level:20, skill:MAGE_SKILL_T3}
     ];
     const rows=variants.map(v=>{
       const unlocked=lv>=v.level;
-      const current=unlocked && ((v.level===10&&lv>=10)||(v.level===5&&lv<10)||(v.level===3&&lv<5));
+      const current=unlocked && ((v.level===20&&lv>=20)||(v.level===12&&lv<20)||(v.level===6&&lv<12));
       return `<div class="skill-row ${current?'current':unlocked?'unlocked':'locked'}"><div class="skill-row-main"><span class="skill-level">Lv.${v.level}</span><span class="skill-icon">${v.skill.icon}</span><b>${v.skill.name}</b><span class="skill-status">${unlocked?(current?'현재':'해금됨'):'🔒 미해금'}</span></div><div class="skill-row-meta">시전 ${Number(v.skill.cast).toFixed(1)}초 · 재사용 ${Number(v.skill.cooldown).toFixed(0)}초 · 범위 ${spellAreaLabel(v.skill.cast)}</div></div>`;
     }).join('');
     return `<div class="panel-hint skill-panel" style="margin-top:6px;"><b style="color:var(--gold)">✨ 보유 스킬</b><div class="skill-list">${rows}</div></div>`;
   }
   if(!base) return `<div class="panel-hint skill-panel" style="margin-top:6px;"><b style="color:var(--gold)">✨ 보유 스킬</b><br>현재 이 영웅에게 등록된 고유 스킬이 없습니다.</div>`;
   const unlocked=lv>=base.unlock;
-  return `<div class="panel-hint skill-panel" style="margin-top:6px;"><b style="color:var(--gold)">✨ 보유 스킬</b><div class="skill-list"><div class="skill-row ${unlocked?'current':'locked'}"><div class="skill-row-main"><span class="skill-level">Lv.${base.unlock}</span><span class="skill-icon">${base.icon}</span><b>${base.name}</b><span class="skill-status">${unlocked?'현재':'🔒 미해금'}</span></div><div class="skill-row-meta">시전 ${Number(base.cast||0).toFixed(1)}초 · 재사용 ${Number(base.cooldown||0).toFixed(0)}초${(heroTypeOf(h)&&heroTypeOf(h).caster&&base.mult>0)?' · 범위 '+spellAreaLabel(base.cast):''}</div></div></div></div>`;
+  return `<div class="panel-hint skill-panel" style="margin-top:6px;"><b style="color:var(--gold)">✨ 보유 스킬</b><div class="skill-list"><div class="skill-row ${unlocked?'current':'locked'}"><div class="skill-row-main"><span class="skill-level">Lv.${base.unlock}</span><span class="skill-icon">${base.icon}</span><b>${base.name}</b><span class="skill-status">${unlocked?'현재':'🔒 미해금'}</span></div><div class="skill-row-meta">시전 ${Number(base.cast||0).toFixed(1)}초 · 재사용 ${Number(base.cooldown||0).toFixed(0)}초${(heroTypeOf(h)&&heroTypeOf(h).caster&&base.mult>0)?' · 범위 '+spellAreaLabel(base.areaCast??base.cast):''}</div></div></div></div>`;
 }
 
 function getAvailableMonsterTypes(){const unlocked=state&&state.unlockedMonsterIds?state.unlockedMonsterIds:[];return MONSTER_TYPES.filter(mt=>!mt.cardOnly||unlocked.includes(mt.id));}
@@ -1265,7 +1293,7 @@ function getAvailableMonsterTypes(){const unlocked=state&&state.unlockedMonsterI
 const HERO_TYPES=[
   {id:'swordsman', name:'검사',     hpMult:1.0, atkMult:1.0, rewardMult:1.0, range:1, unlockAt:0},
   {id:'archer',    name:'궁수',     hpMult:0.8, atkMult:1.1, rewardMult:1.0, range:2, unlockAt:0},
-  {id:'mage',      name:'마법사',   hpMult:0.85,atkMult:1.25,rewardMult:1.1, range:5, unlockAt:1, caster:true},
+  {id:'mage',      name:'마법사',   hpMult:0.85,atkMult:1.10,rewardMult:1.1, range:5, unlockAt:6, caster:true},
   {id:'assassin',  name:'암살자',   hpMult:0.7, atkMult:1.3, rewardMult:1.1, range:1, unlockAt:2},
   {id:'paladin',   name:'팔라딘',   hpMult:1.6, atkMult:0.9, rewardMult:1.3, range:1, unlockAt:2, knockbackChance:0.30},
   {id:'priest',    name:'사제',     hpMult:1.0, atkMult:0.8, rewardMult:1.1, range:1, unlockAt:3},
@@ -1335,28 +1363,78 @@ const HERO_TYPES=[
 ];
 function heroTypeOf(h){ return HERO_TYPES.find(x=>x.id===h.typeId); }
 
+const HERO_MELEE_WEAPON_TYPE={
+  swordsman:'sword', assassin:'sword', paladin:'blunt', priest:'blunt', berserker:'blunt', summoner:'blunt', dragoon:'spear',
+  shieldbearer:'blunt', miner:'blunt', swordsaint:'sword', vampire:'sword', shadowrogue:'sword', dragonslayer:'sword',
+  lancer:'spear', martial_artist:'blunt', dual_wielder:'sword', dark_knight:'sword', ironclad:'blunt',
+  horseman:'spear', pikeman:'spear', griffon_knight:'sword', sun_lancer:'spear', royal_lance:'spear', dragon_rider:'spear',
+  royal_elite:'sword', royal_guard:'blunt'
+};
+function heroMeleeWeaponType(typeId){ return HERO_MELEE_WEAPON_TYPE[typeId]||'sword'; }
+function heroMeleeImpactColor(typeId,fallback){
+  if(fallback) return fallback;
+  const t=heroMeleeWeaponType(typeId);
+  return t==='spear' ? '#7ae8ff' : t==='blunt' ? '#ffc36a' : '#ff6977';
+}
+const HERO_MELEE_SKILL_FX={
+  swordsman:{variant:'blade-burst',accent:'#dfe8ff'},
+  assassin:{variant:'shadow-step',accent:'#ae88ff'},
+  paladin:{variant:'holy-slam',accent:'#ffe48a'},
+  berserker:{variant:'blood-roar',accent:'#ff845f'},
+  dragoon:{variant:'dragon-lance',accent:'#ff9b62'},
+  lancer:{variant:'rush-thrust',accent:'#9ce8ff'},
+  martial_artist:{variant:'combo-burst',accent:'#ffd572'},
+  dual_wielder:{variant:'twin-tempest',accent:'#b3f1ff'},
+  dark_knight:{variant:'dread-cleave',accent:'#cb9bff'},
+  horseman:{variant:'cavalry-charge',accent:'#ffc47f'},
+  pikeman:{variant:'phalanx-drive',accent:'#a7ebff'},
+  griffon_knight:{variant:'sky-dive',accent:'#d8f7ff'},
+  sun_lancer:{variant:'solar-lance',accent:'#ffe16d'},
+  royal_lance:{variant:'royal-charge',accent:'#d6edff'},
+  dragon_rider:{variant:'dragon-flare',accent:'#ffa167'},
+  royal_elite:{variant:'royal-slash',accent:'#dccdff'},
+  ironclad:{variant:'shield-breaker',accent:'#8abaf9'},
+  royal_guard:{variant:'guard-bastion',accent:'#9fcdff'}
+};
+function heroMeleeSkillFx(typeId){ return HERO_MELEE_SKILL_FX[typeId]||null; }
+function heroMeleeBattleHitEvent(h,r,c,damage,dr,dc,color,strong,extra){
+  const ev={type:'battleHit',r,c,damage,dr,dc,strong:!!strong,color:heroMeleeImpactColor(h&&h.typeId,color),weaponType:heroMeleeWeaponType(h&&h.typeId),attackerType:h&&h.typeId||''};
+  if(extra) Object.assign(ev,extra);
+  return ev;
+}
+function heroMeleeSkillImpactEvent(h,s,r,c,delay=0){
+  const meta=heroMeleeSkillFx(h&&h.typeId);
+  if(!meta||!s||!((s.mult||0)>0)) return null;
+  return {
+    type:'heroMeleeSkillImpact',
+    r,c,delay,icon:s.icon||'',skillName:s.name||'',variant:meta.variant,accent:meta.accent,
+    color:skillStyle(s.kind).color,weaponType:heroMeleeWeaponType(h.typeId),attackerType:h.typeId,
+    radius:Math.max(.82,s.area?(spellAreaSpan(s.area)-1.05)/2:(s.aoe||.85))
+  };
+}
+
 const HERO_SKILLS={
   swordsman:{name:'파쇄참',icon:'⚔️',cast:1.8,cooldown:9,range:2,aoe:1.0,mult:2.2,kind:'steel',unlock:2},
-  archer:{name:'폭우의 화살',icon:'🏹',cast:2.2,cooldown:11,range:5,aoe:1.25,mult:1.8,kind:'wind',unlock:3},
-  mage:{name:'아케인 버스트',icon:'🔮',cast:2.0,cooldown:10,range:5,aoe:1.35,mult:9,kind:'arcane',unlock:3},
+  archer:{name:'폭우의 화살',icon:'🏹',cast:2.2,cooldown:11,range:5,aoe:1.25,mult:1.8,kind:'wind',fx:'arrow_rain',unlock:3},
+  mage:{name:'아케인 버스트',icon:'🔮',cast:3.0,areaCast:2.0,cooldown:11,range:5,aoe:1.35,mult:6.0,kind:'arcane',fx:'arcane_burst',unlock:6},
   assassin:{name:'그림자 급습',icon:'🗡️',cast:1.5,cooldown:8,range:3,aoe:.8,mult:2.7,kind:'dark',unlock:3},
   paladin:{name:'성역 강타',icon:'✨',cast:2.5,cooldown:13,range:3,aoe:1.35,mult:1.9,kind:'holy',unlock:3},
   priest:{name:'대회복',icon:'✚',cast:2.2,cooldown:12,range:4,aoe:2.2,mult:0,kind:'heal',unlock:4,heal:true},
   berserker:{name:'광전사의 포효',icon:'🔥',cast:1.7,cooldown:11,range:2,aoe:1.2,mult:2.0,kind:'rage',unlock:4},
-  gunslinger:{name:'마력 난사',icon:'🔫',cast:2.0,cooldown:10,range:5,aoe:1.0,mult:2.0,kind:'bullet',unlock:4},
-  summoner:{name:'망령 폭주',icon:'☠️',cast:3.0,cooldown:14,range:4,aoe:1.6,mult:2.5,kind:'wraith',unlock:5},
+  gunslinger:{name:'마력 난사',icon:'🔫',cast:2.0,cooldown:10,range:5,aoe:1.0,mult:2.0,kind:'bullet',fx:'mana_barrage',unlock:4},
+  summoner:{name:'망령 폭주',icon:'☠️',cast:3.0,cooldown:14,range:4,aoe:1.6,mult:2.5,kind:'wraith',fx:'wraith_swarm',unlock:5},
   dragoon:{name:'용창 강습',icon:'🐉',cast:2.6,cooldown:12,range:3,aoe:1.1,mult:2.8,kind:'storm',unlock:6},
 
-  druid:{name:'자연의 회복',icon:'🌿',cast:2.4,cooldown:18,range:3,aoe:2.0,mult:0,kind:'nature',unlock:8,regen:true},
-  miko:{name:'신의 가호',icon:'🌸',cast:2.0,cooldown:16,range:3,aoe:2.0,mult:0,kind:'holy',unlock:8,miko:true},
-  bard:{name:'영웅의 노래',icon:'🎵',cast:2.2,cooldown:20,range:3,aoe:2.5,mult:0,kind:'song',unlock:10,bard:true},
-  alchemist:{name:'포션 투척',icon:'🧪',cast:1.8,cooldown:14,range:3,aoe:1.0,mult:1.35,kind:'acid',unlock:9,alchemist:true},
-  ice_mage:{name:'얼음 창격',icon:'❄️',cast:2.0,cooldown:11,range:5,aoe:.9,mult:8,kind:'ice',unlock:10,freeze:true},
-  spirit_caller:{name:'정령 소환',icon:'🌀',cast:2.6,cooldown:29,range:4,aoe:1.0,mult:0,kind:'spirit',unlock:12,spirit:true},
+  druid:{name:'자연의 회복',icon:'🌿',cast:2.4,cooldown:18,range:3,aoe:2.0,mult:0,kind:'nature',fx:'nature_regen',unlock:8,regen:true},
+  miko:{name:'신의 가호',icon:'🌸',cast:2.0,cooldown:16,range:3,aoe:2.0,mult:0,kind:'holy',fx:'divine_blessing',unlock:8,miko:true},
+  bard:{name:'영웅의 노래',icon:'🎵',cast:2.2,cooldown:20,range:3,aoe:2.5,mult:0,kind:'song',fx:'heroic_anthem',unlock:10,bard:true},
+  alchemist:{name:'포션 투척',icon:'🧪',cast:1.8,cooldown:14,range:3,aoe:1.0,mult:1.35,kind:'acid',fx:'potion_burst',unlock:9,alchemist:true},
+  ice_mage:{name:'얼음 창격',icon:'❄️',cast:2.0,cooldown:11,range:5,aoe:.9,mult:8,kind:'ice',fx:'ice_lance',unlock:10,freeze:true},
+  spirit_caller:{name:'정령 소환',icon:'🌀',cast:2.6,cooldown:29,range:4,aoe:1.0,mult:0,kind:'spirit',fx:'spirit_summon',unlock:12,spirit:true},
   lancer:{name:'돌진 창격',icon:'🏇',cast:1.8,cooldown:14,range:3,aoe:.75,mult:1.80,kind:'storm',unlock:11,lancer:true},
   martial_artist:{name:'연속 타격',icon:'👊',cast:1.4,cooldown:12,range:1,aoe:.8,mult:2.40,kind:'steel',unlock:10,martial:true},
   dual_wielder:{name:'쌍검 난무',icon:'⚔️',cast:1.4,cooldown:10,range:3,aoe:.8,mult:.90,kind:'steel',unlock:12,dual:true},
-  curse_caster:{name:'광역 저주',icon:'☠️',cast:2.5,cooldown:18,range:5,aoe:1.4,mult:10,kind:'curse',unlock:13,curse:true},
+  curse_caster:{name:'광역 저주',icon:'☠️',cast:2.5,cooldown:18,range:5,aoe:1.4,mult:10,kind:'curse',fx:'mass_curse',unlock:13,curse:true},
   dark_knight:{name:'공포의 일격',icon:'👁️',cast:1.8,cooldown:16,range:3,aoe:1.0,mult:1.70,kind:'fear',unlock:14,fear:true},
   ironclad:{name:'도발',icon:'🛡️',cast:1.6,cooldown:20,range:4,aoe:4.0,mult:0,kind:'guard',unlock:15,taunt:true},
 
@@ -1380,36 +1458,37 @@ const HERO_SKILLS={
     ext:{selfAtk:{sec:6,mul:1.25}}},
   royal_guard:{name:'방벽 전개',icon:'🛡️',cast:1.6,cooldown:20,range:4,aoe:3.0,mult:0,kind:'guard',unlock:30,
     ext:{support:true,allyAoe:3.0,allyGuard:{sec:6,red:.30},selfGuard:{sec:6,red:.50}}},
-  royal_longbow:{name:'관통 사격',icon:'🏹',cast:1.8,cooldown:11,range:6,aoe:.8,mult:2.4,kind:'wind',unlock:20,
+  royal_longbow:{name:'관통 사격',icon:'🏹',cast:1.8,cooldown:11,range:6,aoe:.8,mult:2.4,kind:'wind',fx:'piercing_shot',unlock:20,
     ext:{line:4,pierceDef:.50,slowSec:3,slowMul:.70}},
-  battle_mage:{name:'마력 폭발',icon:'💥',cast:3.0,cooldown:12,range:5,aoe:1.6,mult:14,kind:'arcane',unlock:35,
+  battle_mage:{name:'마력 폭발',icon:'💥',cast:3.0,cooldown:12,range:5,aoe:1.6,mult:14,kind:'arcane',fx:'mana_blast',unlock:35,
     ext:{defBreak:{sec:6,mul:.70}}},
-  rune_guardian:{name:'룬 결계',icon:'🔰',cast:2.0,cooldown:17,range:4,aoe:2.5,mult:0,kind:'arcane',unlock:35,
+  rune_guardian:{name:'룬 결계',icon:'🔰',cast:2.0,cooldown:17,range:4,aoe:2.5,mult:0,kind:'arcane',fx:'rune_barrier',unlock:35,
     ext:{support:true,allyAoe:2.5,allyGuard:{sec:7,red:.35},allyHealPct:.06}},
-  imperial_magus:{name:'성광의 치유',icon:'🌟',cast:2.2,cooldown:15,range:4,aoe:2.5,mult:0,kind:'holy',unlock:45,
+  imperial_magus:{name:'성광의 치유',icon:'🌟',cast:2.2,cooldown:15,range:4,aoe:2.5,mult:0,kind:'holy',fx:'radiant_heal',unlock:45,
     ext:{support:true,allyAoe:2.5,allyHealPct:.18,allyAtk:{sec:6,mul:1.15},cleanse:true,hurtBelow:.85}},
 };
 /* ==========================================================================
    v54 · 마법사 시전(캐스팅) 시스템
    - 마법사 계열(HERO_TYPES.caster)은 5칸 안에서 적을 탐지하면 곧바로 마법 시전을 시작합니다.
-   - 기본 마법도 시전 시간이 있고(1~1.6초), 스킬은 2~5초. 시전 중에는 제자리에서 움직이지 않습니다.
+   - 기본 마법도 시전 시간이 있고(1~3초), 스킬은 2~5초. 시전 중에는 제자리에서 움직이지 않습니다.
    - 마법은 범위 공격이며, 캐스팅 시간이 길수록 범위가 넓어집니다 (아래 spellAreaByCast).
    ========================================================================== */
-const MAGE_SKILL_T2={name:'메테오 샤워',icon:'☄️',cast:3.5,cooldown:14,range:5,aoe:1.8,mult:17,kind:'fire',unlock:5};
-const MAGE_SKILL_T3={name:'종말의 혜성',icon:'☄️',cast:5.0,cooldown:18,range:5,aoe:2.3,mult:26,kind:'fire',unlock:10};
+const MAGE_SKILL_T2={name:'메테오 샤워',icon:'☄️',cast:3.8,cooldown:16,range:5,aoe:1.8,mult:11.5,kind:'fire',fx:'meteor_shower',unlock:12};
+const MAGE_SKILL_T3={name:'종말의 혜성',icon:'☄️',cast:5.2,cooldown:21,range:5,aoe:2.3,mult:18,kind:'fire',fx:'doom_comet',unlock:20};
 // 시전 시간 → 범위 반경(칸). 거리² <= 반경² 인 칸이 맞습니다.
 //   ≤1.3초 : 3×3(9칸) · ≤2.2초 : 3×3+십자 끝(13칸, 약 4×4) · ≤3.6초 : 5×5 모서리 제외(21칸) · 그 이상 : 5×5(25칸)
 function spellAreaByCast(cast){ return cast<=1.3?1.5 : cast<=2.2?2.0 : cast<=3.6?2.3 : 2.9; }
 function spellAreaSpan(area){ return area<1.6?3:5; }
 function spellAreaLabel(cast){ const a=spellAreaByCast(cast); return a<1.6?'3×3':a<2.1?'약 4×4':a<2.5?'약 5×5':'5×5'; }
-// 기본 마법: 시전 1~1.6초. mult는 "1회 시전 위력(공격력 배수)" — 예전 즉발 5회/초 대비 단일 대상 DPS 약 60~70% + 범위 보너스
+// 기본 마법. v61: 초반 마법사(mage)는 플레이어가 대응할 시간을 확보하도록 최소 3초를 시전합니다.
+// areaCast는 기존 착탄 범위를 유지하기 위한 기준 시전 시간으로, 캐스팅 연장 때문에 범위까지 커지는 것을 방지합니다.
 const CASTER_BASIC_SPELLS={
-  mage:          {name:'마력탄',    icon:'🔮',cast:1.0,mult:3.6,kind:'arcane'},
-  archmage:      {name:'성광 폭발', icon:'✨',cast:1.6,mult:6.4,kind:'holy'},
-  ice_mage:      {name:'서리 화살', icon:'❄️',cast:1.2,mult:4.2,kind:'ice',ext:{slowSec:1.5,slowMul:.8}},
-  spirit_caller: {name:'정령탄',    icon:'🌀',cast:1.2,mult:3.6,kind:'spirit'},
-  curse_caster:  {name:'저주탄',    icon:'☠️',cast:1.2,mult:3.6,kind:'curse'},
-  battle_mage:   {name:'마력 화살', icon:'💥',cast:1.0,mult:4.0,kind:'arcane'}
+  mage:          {name:'마력탄',    icon:'🔮',cast:3.0,areaCast:1.0,mult:2.6,kind:'arcane',fx:'arcane_bolt'},
+  archmage:      {name:'성광 폭발', icon:'✨',cast:1.6,mult:6.4,kind:'holy',fx:'holy_burst'},
+  ice_mage:      {name:'서리 화살', icon:'❄️',cast:1.2,mult:4.2,kind:'ice',fx:'frost_arrow',ext:{slowSec:1.5,slowMul:.8}},
+  spirit_caller: {name:'정령탄',    icon:'🌀',cast:1.2,mult:3.6,kind:'spirit',fx:'spirit_orb'},
+  curse_caster:  {name:'저주탄',    icon:'☠️',cast:1.2,mult:3.6,kind:'curse',fx:'curse_bolt'},
+  battle_mage:   {name:'마력 화살', icon:'💥',cast:1.0,mult:4.0,kind:'arcane',fx:'battle_bolt'}
 };
 // v58 · 마법진 이펙트용: 시전마다 고유 번호를 붙이고, 마법진과 실제 폭발이 같은 중심 규칙을 쓰도록 공용화합니다.
 let spellCastUid=0;
@@ -1434,6 +1513,27 @@ function spellCastCenter(h,tg){
   return center;
 }
 function isCasterHero(h){ const ht=heroTypeOf(h); return !!(ht&&ht.caster&&CASTER_BASIC_SPELLS[h.typeId]); }
+const SPELL_FALLING_FX=new Set(['meteor_shower','doom_comet','arrow_rain']);
+const SPELL_STATIONARY_FX=new Set(['spirit_summon']);
+function isFallingSpellFx(fx){ return !!fx && SPELL_FALLING_FX.has(fx); }
+function isStationarySpellFx(fx){ return !!fx && SPELL_STATIONARY_FX.has(fx); }
+function spellTravelDurationMs(fromR,fromC,toR,toC,fx){
+  if(!fx) return 0;
+  if(isFallingSpellFx(fx)) return fx==='doom_comet' ? 820 : 680;
+  const cells=Math.hypot((toR??fromR)-fromR,(toC??fromC)-fromC);
+  return Math.round(Math.max(260,Math.min(620,180+cells*88)));
+}
+function queueHeroSpellTravelFx(h,s,center){
+  if(!h||!s||!s.fx||!center||isStationarySpellFx(s.fx)) return 0;
+  const duration=spellTravelDurationMs(h.r,h.c,center.r,center.c,s.fx);
+  const payload={fromR:h.r,fromC:h.c,toR:center.r,toC:center.c,spell:s.kind,fx:s.fx,color:skillStyle(s.kind).color,duration};
+  if(isFallingSpellFx(s.fx)){
+    state.fxEvents.push({type:'spellDrop',...payload,count:s.fx==='meteor_shower'?4:1,spread:s.fx==='meteor_shower'?0.8:0});
+  }else{
+    state.fxEvents.push({type:'spellProjectile',...payload});
+  }
+  return duration;
+}
 const HERO_RETALIATE_AGGRO_MS=7000;
 function markHeroAggro(target,h,durationMs=HERO_RETALIATE_AGGRO_MS){
   if(!target||!h||h.hp<=0) return;
@@ -1455,12 +1555,13 @@ function heroAggroTarget(target){
 // 기본 마법 시전 시작. tgt = 몬스터 엔티티 또는 {r,c,isMawang:true}. castMul = 저주/버프 등 공격력 보정.
 function startCasterSpell(h,tgt,castMul){
   const sp=CASTER_BASIC_SPELLS[h.typeId]; if(!sp||h.castingSkill) return false;
-  const area=spellAreaByCast(sp.cast);
+  const area=spellAreaByCast(sp.areaCast??sp.cast);
   h.castingSkill={name:sp.name,icon:sp.icon,cast:sp.cast,elapsed:0,range:h.range,aoe:area,mult:sp.mult,kind:sp.kind,heal:false,
     regen:false,miko:false,bard:false,alchemist:false,freeze:false,spirit:false,lancer:false,martial:false,dual:false,curse:false,fear:false,taunt:false,
-    ext:sp.ext||null,area,basic:true,castMul:castMul||1,uid:++spellCastUid};
+    ext:sp.ext||null,area,basic:true,castMul:castMul||1,fx:sp.fx||null,uid:++spellCastUid};
   h.skillTarget={r:tgt.r,c:tgt.c,id:tgt.isMawang?null:tgt.id,mawang:!!tgt.isMawang};
-  state.fxEvents.push({type:'skillCast',r:h.r,c:h.c,spell:sp.kind,duration:sp.cast*1000,icon:sp.icon,ring:false});
+  Sound.skill(sp.kind,sp.cast);
+  state.fxEvents.push({type:'skillCast',r:h.r,c:h.c,spell:sp.kind,duration:sp.cast*1000,icon:sp.icon,ring:false,fx:sp.fx||null});
   return true;
 }
 
@@ -1468,8 +1569,8 @@ function getHeroSkill(h){
   const base=HERO_SKILLS[h.typeId]; if(!base || (h.level||1)<base.unlock) return null;
   if(h.typeId!=='mage') return base;
   const lv=h.level||1;
-  if(lv>=10) return MAGE_SKILL_T3;
-  if(lv>=5) return MAGE_SKILL_T2;
+  if(lv>=MAGE_SKILL_T3.unlock) return MAGE_SKILL_T3;
+  if(lv>=MAGE_SKILL_T2.unlock) return MAGE_SKILL_T2;
   return base;
 }
 function heroNeedsSupportSkill(h){
@@ -1502,8 +1603,8 @@ function startHeroSkill(h){
   const s=getHeroSkill(h); if(!s || !skillEligible(h)) return false;
   h.castingSkill={name:s.name,icon:s.icon,cast:s.cast,elapsed:0,range:s.range,aoe:s.aoe,mult:s.mult,kind:s.kind,heal:!!s.heal,
     regen:!!s.regen,miko:!!s.miko,bard:!!s.bard,alchemist:!!s.alchemist,freeze:!!s.freeze,spirit:!!s.spirit,lancer:!!s.lancer,
-    martial:!!s.martial,dual:!!s.dual,curse:!!s.curse,fear:!!s.fear,taunt:!!s.taunt,ext:s.ext||null,
-    area:(heroTypeOf(h)&&heroTypeOf(h).caster&&s.mult>0&&!s.spirit)?spellAreaByCast(s.cast):null,
+    martial:!!s.martial,dual:!!s.dual,curse:!!s.curse,fear:!!s.fear,taunt:!!s.taunt,ext:s.ext||null,fx:s.fx||null,
+    area:(heroTypeOf(h)&&heroTypeOf(h).caster&&s.mult>0&&!s.spirit)?spellAreaByCast(s.areaCast??s.cast):null,
     uid:++spellCastUid};
   h.skillCooldown=s.cooldown;
   h.skillTarget=null;
@@ -1533,36 +1634,38 @@ function startHeroSkill(h){
   sayHero(h,s.name,'skill',Math.max(1500,s.cast*1000),true);
   h.lastSkillName=s.name;
   Sound.skill(s.kind,s.cast);
-  state.fxEvents.push({type:'skillCast',r:h.r,c:h.c,spell:mcIsHealSkill(s)?'holy':s.kind,duration:s.cast*1000,icon:s.icon,ring:!((heroTypeOf(h)&&heroTypeOf(h).caster)||mcIsHealSkill(s))});
+  state.fxEvents.push({type:'skillCast',r:h.r,c:h.c,spell:mcIsHealSkill(s)?'holy':s.kind,duration:s.cast*1000,icon:s.icon,ring:!((heroTypeOf(h)&&heroTypeOf(h).caster)||mcIsHealSkill(s)),fx:s.fx||null});
   return true;
 }
 /* ==========================================================================
    v51 · 신규 영웅 스킬 확장 효과 (HERO_SKILLS[...].ext 옵션 처리)
    ========================================================================== */
 function heroSkillPushMonster(h,m,tiles=1){
+  const r0=m.r,c0=m.c;
   for(let k=0;k<tiles;k++){
     const dr=Math.sign(m.r-h.r),dc=Math.sign(m.c-h.c);
     const rr=m.r+dr,cc=m.c+dc;
     const t=state.grid[rr]?.[cc];
     if(t&&(t.type==='floor'||t.type==='core')&&!t.obstacle&&!monsterAt(rr,cc)&&!(rr===CORE_R&&cc===CORE_C)){m.r=rr;m.c=cc;} else break;
   }
+  if((m.r!==r0||m.c!==c0)&&typeof markMonsterCombatSpatialDirty==='function') markMonsterCombatSpatialDirty();
 }
 // 피해를 준 각 몬스터에게 거는 부가 효과
-function applyHeroSkillTargetExt(h,s,m,now){
+function applyHeroSkillTargetExt(h,s,m,now,delayMs=0){
   const x=s.ext; if(!x || m.hp<=0) return;
   if(x.stun){
     m.stunTicks=Math.max(m.stunTicks||0,Math.round(x.stun*1000/TICK_MS));
-    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'기절!',color:'#ffd166'});
+    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'기절!',color:'#ffd166',delay:delayMs});
   }
   if(x.slowSec){ m.skillSlowUntil=now+x.slowSec*1000; m.skillSlowMul=x.slowMul||.7; }
   if(x.burnSec){
     m.skillDotUntil=Math.max(m.skillDotUntil||0,now+x.burnSec*1000);
     m.skillDotDps=Math.max(m.skillDotDps||0,Math.max(1,Math.round(h.atk*(x.burnPct||.1))));
-    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'화상',color:'#ff8c42'});
+    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'화상',color:'#ff8c42',delay:delayMs});
   }
   if(x.defBreak){
     m.skillDefBuffUntil=now+x.defBreak.sec*1000; m.skillDefBuffMul=x.defBreak.mul;
-    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'방어↓',color:'#a98bff'});
+    state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'방어↓',color:'#a98bff',delay:delayMs});
   }
   if(x.knock && !s.lancer) heroSkillPushMonster(h,m,x.knock);
 }
@@ -1616,7 +1719,8 @@ function applyHeroSupportSkill(h,s,now){
     const cur=(h.guardUntil&&now<h.guardUntil)?(h.guardReduction||0):0;
     h.guardUntil=now+x.selfGuard.sec*1000; h.guardReduction=Math.max(cur,x.selfGuard.red);
   }
-  state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:s.kind,radius:R,icon:s.icon});
+  state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:s.kind,radius:R,icon:s.icon,fx:s.fx||null});
+  if(x.allyHealPct && Sound.heal) Sound.heal(); else if(Sound.buff) Sound.buff();
   addLog(`<span class="hl-gold">${s.name}</span> 발동! 아군 ${allies.length}명에게 효과`);
 }
 
@@ -1632,7 +1736,8 @@ function finishHeroSkill(h){
   if(s.regen){
     h.regenAuraUntil=now+8000;
     h.regenAuraNext=now;
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon});
+    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon,fx:s.fx||null});
+    if(Sound.heal) Sound.heal();
     addLog(`<span class="hl-gold">${s.name}</span> 발동! 주변 아군에게 8초간 자연의 재생`);
     return;
   }
@@ -1646,7 +1751,8 @@ function finishHeroSkill(h){
       o.attackBuffUntil=now+8000; o.attackBuffMul=1.25;
       state.fxEvents.push({type:'floatText',r:o.r,c:o.c,text:'+'+heal,color:'#73d99a'});
     }
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon});
+    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon,fx:s.fx||null});
+    if(Sound.heal) Sound.heal();
     return;
   }
 
@@ -1658,7 +1764,8 @@ function finishHeroSkill(h){
       o.moveSpeedBuffUntil=now+8000; o.moveSpeedMul=1.25;
       state.fxEvents.push({type:'floatText',r:o.r,c:o.c,text:'♪ 가호',color:'#f0c36a'});
     }
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'song',radius:s.aoe,icon:s.icon});
+    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'song',radius:s.aoe,icon:s.icon,fx:s.fx||null});
+    if(Sound.buff) Sound.buff();
     return;
   }
 
@@ -1678,14 +1785,14 @@ function finishHeroSkill(h){
       const heal=Math.round(8+(h.level||1)*.8); o.hp=Math.min(o.maxHp,o.hp+heal);
       state.fxEvents.push({type:'floatText',r:o.r,c:o.c,text:'+'+heal,color:'#73d99a'});
     }
-    state.fxEvents.push({type:'skillAoe',r:center.r,c:center.c,spell:'acid',radius:s.aoe,icon:s.icon});
+    state.fxEvents.push({type:'skillAoe',r:center.r,c:center.c,spell:'acid',radius:s.aoe,icon:s.icon,fx:s.fx||null});
     return;
   }
 
   // 정령사: 20초간 독립적인 정령 화력 지원
   if(s.spirit){
     h.spiritSummonUntil=now+20000; h.spiritNext=now;
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'spirit',radius:1.2,icon:s.icon});
+    state.fxEvents.push({type:'heroSpellImpact',r:h.r,c:h.c,spell:'spirit',fx:s.fx||'spirit_summon',radius:1.6,icon:s.icon});
     addLog(`<span class="hl-gold">${s.name}</span> 발동! 정령이 20초간 전투를 지원합니다.`);
     return;
   }
@@ -1693,7 +1800,7 @@ function finishHeroSkill(h){
   // 철벽기사: 5초 도발 + 피해 감소
   if(s.taunt){
     h.tauntUntil=now+5000; h.tauntDamageReduction=.40;
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'guard',radius:s.aoe,icon:s.icon});
+    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'guard',radius:s.aoe,icon:s.icon,fx:s.fx||null});
     addLog(`<span class="hl-gold">${s.name}</span> 발동! 주변 몬스터가 철벽기사를 공격합니다.`);
     return;
   }
@@ -1702,7 +1809,7 @@ function finishHeroSkill(h){
   if(s.heal){
     const targets=state.heroes.filter(o=>o.hp>0&&Math.abs(o.r-h.r)+Math.abs(o.c-h.c)<=s.aoe);
     for(const o of targets){ const heal=Math.round(8+(h.level||1)*2.2); o.hp=Math.min(o.maxHp,o.hp+heal); o.lastHealAt=now; state.fxEvents.push({type:'floatText',r:o.r,c:o.c,text:'+'+heal,color:'#73d99a'}); }
-    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon}); return;
+    state.fxEvents.push({type:'skillAoe',r:h.r,c:h.c,spell:'holy',radius:s.aoe,icon:s.icon,fx:s.fx||null}); return;
   }
 
   let center=h.skillTarget || {r:h.r,c:h.c};
@@ -1711,6 +1818,7 @@ function finishHeroSkill(h){
   if(s.area) center=spellCastCenter(h,center);
   // v57: 폭발 범위 안이라도 폭발 중심에서 벽에 가려진 칸에는 닿지 않습니다.
   const inSpellArea=(r,c)=>{ const dr=r-center.r,dc=c-center.c; if(dr*dr+dc*dc>s.area*s.area) return false; return (dr===0&&dc===0)||!losBlocked(center.r,center.c,r,c); };
+  const spellFxDelay=s.fx ? queueHeroSpellTravelFx(h,s,center) : 0;
   let targets=s.area
     ? state.monsters.filter(m=>m.hp>0&&inSpellArea(m.r,m.c))
     : state.monsters.filter(m=>m.hp>0&&Math.abs(m.r-center.r)+Math.abs(m.c-center.c)<=s.aoe);
@@ -1751,7 +1859,8 @@ function finishHeroSkill(h){
         const def=ignore?0:m.def;
         const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*s.mult)-def);
         m.hp-=dmg; markHeroAggro(m,h);
-        state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:'#cbd4e1'});
+        state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:'#cbd4e1',delay:spellFxDelay});
+        state.fxEvents.push(heroMeleeBattleHitEvent(h,m.r,m.c,dmg,Math.sign(m.r-h.r),Math.sign(m.c-h.c),'#cbd4e1',dmg>Math.max(10,(m.maxHp||0)*.10),{delay:spellFxDelay,skill:true,skillVariant:'twin-tempest'}));
         if(m.hp<=0){h.heroKills=(h.heroKills||0)+1;break;}
       }
     }
@@ -1761,31 +1870,32 @@ function finishHeroSkill(h){
       let dmg=Math.max(1,baseDmg-(m.def*(s.lancer ? .7 : (s.ext&&s.ext.pierceDef ? 1-s.ext.pierceDef : 1))));
       if(s.basic) dmg=Math.max(1,applyStatueSanctuary(m,dmg)); // 기본 마법은 기존 즉발 공격처럼 수호 석상 보호를 받습니다
       m.hp-=dmg; markHeroAggro(m,h);
-      state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:skillStyle(s.kind).color});
-      if(s.area) state.fxEvents.push({type:'spellImpact',r:m.r,c:m.c,spell:s.kind});
+      state.fxEvents.push({type:'damageNumber',r:m.r,c:m.c,amount:dmg,color:skillStyle(s.kind).color,delay:spellFxDelay});
+      if(heroMeleeSkillFx(h.typeId)) state.fxEvents.push(heroMeleeBattleHitEvent(h,m.r,m.c,dmg,Math.sign(m.r-h.r),Math.sign(m.c-h.c),skillStyle(s.kind).color,dmg>Math.max(10,(m.maxHp||0)*.10),{delay:spellFxDelay,skill:true,skillVariant:heroMeleeSkillFx(h.typeId).variant}));
+      if(s.area) state.fxEvents.push({type:'spellImpact',r:m.r,c:m.c,spell:s.kind,delay:spellFxDelay});
       if(m.hp<=0) h.heroKills=(h.heroKills||0)+1;
       if(s.freeze){
         m.frostStacks=(m.frostStacks||0)+1;
         m.skillSlowUntil=now+4000; m.skillSlowMul=.65;
-        if(m.frostStacks>=3){m.stunTicks=Math.max(m.stunTicks,Math.round(2.0*1000/TICK_MS));m.frostStacks=0;state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'빙결!',color:'#78dfff'});}
+        if(m.frostStacks>=3){m.stunTicks=Math.max(m.stunTicks,Math.round(2.0*1000/TICK_MS));m.frostStacks=0;state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'빙결!',color:'#78dfff',delay:spellFxDelay});}
       }
       if(s.curse){
         m.healBlockedUntil=now+8000;
         m.skillDotUntil=now+8000;
         m.skillDotDps=Math.max(1,Math.round(h.atk*.10));
-        state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'치유 차단',color:'#b76bf2'});
+        state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'치유 차단',color:'#b76bf2',delay:spellFxDelay});
       }
       if(s.fear){
         m.fearUntil=now+3000;
-        state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'공포!',color:'#c6a6ff'});
+        state.fxEvents.push({type:'floatText',r:m.r,c:m.c,text:'공포!',color:'#c6a6ff',delay:spellFxDelay});
       }
       if(s.lancer){
         const dr=Math.sign(m.r-h.r),dc=Math.sign(m.c-h.c);
         const rr=m.r+dr,cc=m.c+dc;
         const t=state.grid[rr]?.[cc];
-        if(t&&(t.type==='floor'||t.type==='core')&&!t.obstacle&&!monsterAt(rr,cc)&&!(rr===CORE_R&&cc===CORE_C)){m.r=rr;m.c=cc;}
+        if(t&&(t.type==='floor'||t.type==='core')&&!t.obstacle&&!monsterAt(rr,cc)&&!(rr===CORE_R&&cc===CORE_C)){m.r=rr;m.c=cc;if(typeof markMonsterCombatSpatialDirty==='function')markMonsterCombatSpatialDirty();}
       }
-      if(s.ext) applyHeroSkillTargetExt(h,s,m,now); // v51
+      if(s.ext) applyHeroSkillTargetExt(h,s,m,now,spellFxDelay); // v51
     }
   }
   if(s.ext) applyHeroSkillSelfExt(h,s,now); // v51
@@ -1795,15 +1905,22 @@ function finishHeroSkill(h){
     if(mw && mw.hp>0 && !mw.dead && inSpellArea(mw.r,mw.c)){
       const mwDmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*(s.castMul||1)*s.mult)-mawangCurrentStats().def);
       mw.hp-=mwDmg; markHeroAggro(mw,h);
-      state.fxEvents.push({type:'damageNumber',r:mw.r,c:mw.c,amount:mwDmg,color:'#ff9b6e'},{type:'spark',r:mw.r,c:mw.c,color:'#ffd166'});
+      state.fxEvents.push({type:'damageNumber',r:mw.r,c:mw.c,amount:mwDmg,color:'#ff9b6e',delay:spellFxDelay},{type:'spark',r:mw.r,c:mw.c,color:'#ffd166',delay:spellFxDelay});
       if(mw.hp<=0) killMawang(mw);
     }
     h.lastAttackAt=now;
     if(h.heroKills>=4&&(h.level||1)<99) heroLevelUp(h);
-    if(s.basic){ if(h.typeId==='mage') Sound.magic('arcane'); else Sound.heroRanged(); }
+    // 기본 캐스터는 시전 시작음은 startCasterSpell에서, 실제 착탄음은 heroSpellImpact에서 재생합니다.
+    // 여기서 다시 재생하면 착탄 전에 소리가 중복되어 타이밍이 어긋납니다.
   }
   // 범위 표시는 실제 적중 범위와 같은 크기(3×3 / 5×5 폭)로 그립니다.
-  state.fxEvents.push({type:'skillAoe',r:center.r,c:center.c,spell:s.kind,radius:s.area?(spellAreaSpan(s.area)-1.1)/2:s.aoe,icon:s.icon});
+  const meleeSkillImpact=heroMeleeSkillImpactEvent(h,s,center.r,center.c,spellFxDelay);
+  if(meleeSkillImpact) state.fxEvents.push(meleeSkillImpact);
+  if(s.fx){
+    state.fxEvents.push({type:'heroSpellImpact',r:center.r,c:center.c,spell:s.kind,fx:s.fx,radius:s.area?(spellAreaSpan(s.area)-1.1)/2:s.aoe,icon:s.icon,delay:spellFxDelay});
+  } else if(!meleeSkillImpact){
+    state.fxEvents.push({type:'skillAoe',r:center.r,c:center.c,spell:s.kind,radius:s.area?(spellAreaSpan(s.area)-1.1)/2:s.aoe,icon:s.icon,delay:spellFxDelay});
+  }
   if(!s.basic) addLog(`<span class="hl-gold">${s.name}</span> 발동! ${targets.length}마리에게 효과`);
 }
 

@@ -974,7 +974,11 @@ function syncTokens(){
   for(const m of state.monsters){
     const key='m'+m.id; seen.add(key);
     const el=ensureToken(key, m.typeId, 'monster');
-    const size=px*(0.95+m.tier*0.16)*TOKEN_VIEW_SCALE;
+    const monsterVisualLevel=Math.max(1,Math.min(MAX_TIER,m.tier||1));
+    const monsterBaseScale=0.95+0.16;
+    const monsterGrowthPerLevel=0.16*0.30;
+    const monsterLevelScale=Math.min(monsterBaseScale*2, monsterBaseScale+(monsterVisualLevel-1)*monsterGrowthPerLevel);
+    const size=px*monsterLevelScale*TOKEN_VIEW_SCALE;
     el.style.width=size+'px'; el.style.height=size+'px';
     el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
     updateFacing(el, m.r, m.c, !!MONSTER_FACING_INVERT[m.typeId]);

@@ -11,19 +11,19 @@ const RUN_RELICS=[
 {id:'relicCoreBastion',icon:'🏯',name:'핵의 방벽',rarity:'규칙 유물',desc:'핵 주위에 드리운 보이지 않는 방벽이 이따금 공격을 완전히 막아냅니다.',effect:'핵이 피해를 받을 때 5% 확률로 해당 공격 완전 무효화',apply(){state.relics.push('relicCoreBastion');state.relicCoreBastion=true;}},
 {id:'relicLastStand',icon:'🌪️',name:'최후의 저항',rarity:'규칙 유물',desc:'핵이 위태로워지는 순간, 몬스터들이 광기에 가까운 힘으로 각성합니다.',effect:'핵 체력이 30% 이하로 떨어지면 이후 몬스터 공격력 영구 +25% (판당 1회)',apply(){state.relics.push('relicLastStand');state.relicLastStand=true;}},
 {id:'relicSniperLegion',icon:'🏹',name:'저격 군단의 표식',rarity:'아키타입 유물',desc:'사거리 2 이상인 몬스터를 3마리 이상 운용하면, 이들은 더 이상 개별 사수가 아니라 하나의 화망이 됩니다.',effect:'[조건: 원거리 몬스터 3마리+] 같은 용사를 2마리 이상이 동시에 조준 중이면, 그 용사는 체력 25% 이하일 때 다음 피격에 즉시 처형',apply(){state.relics.push('relicSniperLegion');state.relicSniperLegion=true;}},
-{id:'relicGlacialPrison',icon:'🧊',name:'빙하 감옥',rarity:'아키타입 유물',desc:'냉기와 거미줄 함정을 3개 이상 깔아두면, 던전 전체가 하나의 얼음 감옥으로 변합니다.',effect:'[조건: 냉기/거미줄 함정 3개+] 이미 둔화·빙결 상태인 용사가 냉기 또는 거미줄에 다시 걸리면 장시간 완전 동결',apply(){state.relics.push('relicGlacialPrison');state.relicGlacialPrison=true;}},
+{id:'relicGlacialPrison',icon:'🧊',name:'빙하 감옥',rarity:'아키타입 유물',desc:'빙판과 거미둥지를 3개 이상 운용하면 제어 지대가 더 끈끈해집니다.',effect:'[조건: 빙판/거미둥지 3개+] 두 장애물의 이동속도 감소 효과가 추가로 6%p 강화',apply(){state.relics.push('relicGlacialPrison');state.relicGlacialPrison=true;}},
 {id:'relicPackFury',icon:'🐺',name:'광란의 무리',rarity:'아키타입 유물',desc:'몬스터 6마리 이상의 대군을 이끌면, 동료의 죽음이 슬픔이 아니라 분노가 됩니다.',effect:'[조건: 생존 몬스터 6마리+] 몬스터가 전사할 때마다 반경 2칸 동료 전원 4초간 공격력 +40%(갱신형)',apply(){state.relics.push('relicPackFury');state.relicPackFury=true;}},
 {id:'relicUnbrokenLine',icon:'🧱',name:'불패의 전선',rarity:'아키타입 유물',desc:'수호형 몬스터 2마리와 방어 시설을 함께 두면, 최전선이 곧 핵의 두 번째 심장이 됩니다.',effect:'[조건: 탱커/수호형 몬스터 2마리+ · 방어 시설(바리케이드/석상) 1개+] 탱커가 용사를 타격할 때마다 핵 체력 +1 회복',apply(){state.relics.push('relicUnbrokenLine');state.relicUnbrokenLine=true;}},
-{id:'relicPlagueZone',icon:'☠️',name:'역병 지대',rarity:'아키타입 유물',desc:'독가스와 저주 함정을 3개 이상 퍼뜨리면, 던전 자체가 역병의 진원지가 됩니다.',effect:'[조건: 독가스/저주 함정 합계 3개+] 중독·저주 상태로 죽은 용사는 폭발해 인접 용사에게 중독·저주를 전염',apply(){state.relics.push('relicPlagueZone');state.relicPlagueZone=true;}},
+{id:'relicPlagueZone',icon:'☠️',name:'역병 지대',rarity:'아키타입 유물',desc:'독늪과 저주 함정을 3개 이상 퍼뜨리면, 던전 자체가 역병의 진원지가 됩니다.',effect:'[조건: 독늪/저주 함정 합계 3개+] 중독·저주 상태로 죽은 용사는 폭발해 인접 용사에게 중독·저주를 전염',apply(){state.relics.push('relicPlagueZone');state.relicPlagueZone=true;}},
 {id:'relicChainBlast',icon:'💥',name:'연쇄 폭발',rarity:'아키타입 유물',desc:'직격형 함정 3개를 서로 가까이 배치하면, 하나가 터질 때 이웃도 함께 무너집니다.',effect:'[조건: 스파이크/화염/번개 함정 합계 3개+] 직격형 함정 발동 시 반경 2칸의 다른 직격형 함정도 자동 발동',apply(){state.relics.push('relicChainBlast');state.relicChainBlast=true;}},
 {id:'relicBerserkCult',icon:'🩸',name:'광전사 결사',rarity:'아키타입 유물',desc:'광폭 몬스터 둘 이상을 함께 풀어두면, 분노는 전염병처럼 번집니다.',effect:'[조건: 광폭(rage) 몬스터 2마리+] 한 마리가 격노(체력 50%↓)하면 다른 광폭 몬스터 전원도 즉시 함께 격노',apply(){state.relics.push('relicBerserkCult');state.relicBerserkCult=true;}},
 {id:'relicShadowExec',icon:'🗡️',name:'그림자 처형단',rarity:'아키타입 유물',desc:'즉사형 몬스터를 다수의 동료와 함께 두면, 그림자 속에서 확인 사살을 노립니다.',effect:'[조건: 즉사(execute) 몬스터 1마리+ · 생존 몬스터 3마리+] 다른 몬스터가 용사를 체력 25% 이하로 깎으면 처형자가 즉시 암살',apply(){state.relics.push('relicShadowExec');state.relicShadowExec=true;}},
 {id:'relicSanctuary',icon:'🩹',name:'수호 성소',rarity:'아키타입 유물',desc:'힐러와 여러 몬스터가 함께하는 진형은, 죽음의 문턱에서도 서로를 지킵니다.',effect:'[조건: 힐러형 몬스터 1마리+ · 생존 몬스터 3마리+] 힐러 범위 안 몬스터가 체력 10% 이하로 피격되면 힐러가 체력을 나눠줘 1회 구조',apply(){state.relics.push('relicSanctuary');state.relicSanctuary=true;}},
-{id:'relicPitMaze',icon:'🕳️',name:'함정의 미궁',rarity:'아키타입 유물',desc:'구덩이 2개를 서로 가까이 배치하면, 속박된 용사는 벗어날 틈이 없습니다.',effect:'[조건: 구덩이 함정 2개+] 구덩이에 속박된 용사 주변의 스파이크 함정이 주기적으로 자동 발동',apply(){state.relics.push('relicPitMaze');state.relicPitMaze=true;}},
+{id:'relicPitMaze',icon:'🕳️',name:'함정의 미궁',rarity:'아키타입 유물',desc:'심연구덩이 2개 이상을 운용하면 보스조차 심연의 충격을 버티기 어려워집니다.',effect:'[조건: 심연구덩이 2개+] 구덩이에 밀린 보스가 받는 최대HP 비례 피해 +6%p',apply(){state.relics.push('relicPitMaze');state.relicPitMaze=true;}},
 {id:'relicAuraResonance',icon:'🏛️',name:'오라 공명',rarity:'아키타입 유물',desc:'수호 석상과 저주 토템을 함께 두면, 두 오라가 공명해 던전 전체를 지탱합니다.',effect:'[조건: 수호 석상 1개+ · 저주 토템 1개+] 용사를 처치할 때마다 반경 2칸 몬스터 전원이 소량 회복',apply(){state.relics.push('relicAuraResonance');state.relicAuraResonance=true;}},
 {id:'relicMazeArchitect',icon:'⛏️',name:'미궁 건축가',rarity:'아키타입 유물',desc:'통로를 40칸 이상 파고 막다른 길을 여럿 만들면, 던전 자체가 설계된 함정이 됩니다.',effect:'[조건: 개척한 통로 40칸+ · 막다른 길 3개+] 막다른 길에 갇힌 용사는 공격력이 감소',apply(){state.relics.push('relicMazeArchitect');state.relicMazeArchitect=true;}},
 {id:'relicGoldMerc',icon:'💰',name:'황금 용병단',rarity:'아키타입 유물',desc:'값비싼 몬스터를 500G 이상 투자해 배치하면, 그들은 죽어서도 값어치를 합니다.',effect:'[조건: 배치 몬스터 총 투자 골드 500G+] 몬스터가 전사하면 투자 골드의 일부를 즉시 환급',apply(){state.relics.push('relicGoldMerc');state.relicGoldMerc=true;}},
-{id:'relicFireCurse',icon:'🔥',name:'화염 저주 결계',rarity:'아키타입 유물',desc:'화염과 저주를 함께 두면, 저주받은 살은 두 배로 타오릅니다.',effect:'[조건: 화염 함정 1개+ · 저주 토템 1개+] 저주 걸린 용사가 화염 피해를 받으면 화상 지속시간 2배',apply(){state.relics.push('relicFireCurse');state.relicFireCurse=true;}},
+{id:'relicFireCurse',icon:'🔥',name:'화염 저주 결계',rarity:'아키타입 유물',desc:'용암과 저주를 함께 두면 저주받은 용사가 용암을 더 버티기 어려워집니다.',effect:'[조건: 용암지대 1개+ · 저주 토템 1개+] 저주 걸린 용사가 용암지대 위에 있으면 용암 지속 피해 +25%',apply(){state.relics.push('relicFireCurse');state.relicFireCurse=true;}},
 {id:'relicUndeadPact',icon:'🧛',name:'불사의 계약',rarity:'아키타입 유물',desc:'흡혈귀와 힐러를 함께 두면, 죽음조차 계약으로 미룰 수 있습니다.',effect:'[조건: 흡혈형 몬스터 1마리+ · 힐러형 몬스터 1마리+] 흡혈 몬스터가 죽기 직전 근처에 힐러가 있으면 체력 1로 되살아남(몬스터별 판당 1회)',apply(){state.relics.push('relicUndeadPact');state.relicUndeadPact=true;}}
 ];
 const RUN_CONTRACTS=[
@@ -357,7 +357,7 @@ function altarUpgradeRandomObstacle(amount){
   const to=Math.min(OBSTACLE_LEVEL_MAX,obstacleLevel(t)+amount);
   t.obstacleLevel=to; t.obstacleMaxHp=obstacleMaxHpFor(ob,to); t.obstacleHp=t.obstacleMaxHp;
   syncObstacleFootprint(pick.r,pick.c);
-  state.fxEvents.push({type:'monsterUpgrade',r:pick.r,c:pick.c,tier:to,footprint:2});
+  state.fxEvents.push({type:'monsterUpgrade',r:pick.r,c:pick.c,tier:to,footprint:obstacleVisualFootprint(ob.id,t)});
   state.fxEvents.push({type:'floatText',r:pick.r,c:pick.c,text:'장애물 Lv.'+to+' 강화!',color:'#e0b64a'});
   return {t,ob,level:to};
 }
@@ -508,6 +508,7 @@ function fmtTime(sec){
 }
 function renderUI(){
   if(!state){ renderMapCells(); return; }
+  if(typeof Sound!=='undefined'&&Sound.syncMusic) Sound.syncMusic();
   const renderNow=performance.now();
   if(state.selected?.kind==='altar'){
     if(state.phase!=='build' || state.gameOver) closeAltar();
@@ -591,7 +592,7 @@ function renderUI(){
     state._panelDirty=false;
   }
   if(typeof renderPhysicalTraps==='function') renderPhysicalTraps();
-  if(typeof updatePhysicalBuildControls==='function') updatePhysicalBuildControls();
+  if(state.phase==='build' && typeof updatePhysicalBuildControls==='function') updatePhysicalBuildControls();
 }
 
 function obstacleEffectRadius(ob,tile){
@@ -759,9 +760,8 @@ function renderMapCells(){
         } else if(state.selectedObstacleType==='__wall__'){
           if(t.type==='floor' && !t.isEntrance && !t.obstacle && !monsterAt(r,c)) cls+=' wall-target';
         } else if(t.type==='floor' && !t.isEntrance && !t.obstacle){
-          // 2x2 설치 미리보기는 실제 설치 기준점(root) 한 곳에만 표시합니다.
-          const anchor=obstacleAnchor(r,c);
-          if(anchor.r===r && anchor.c===c && canPlaceObstacleAt(r,c)) cls+=' obstacle-target';
+          const anchor=obstacleAnchor(r,c,state.selectedObstacleType);
+          if(anchor.r===r && anchor.c===c && canPlaceObstacleAt(r,c,state.selectedObstacleType)) cls+=' obstacle-target';
         }
       }
       if(typeof physicalCellClass==='function') cls=physicalCellClass(cls,r,c,t);
@@ -772,6 +772,21 @@ function renderMapCells(){
         if(sel.kind==='tile' && sel.r===r && sel.c===c) cls+=' selected';
       }
       if(el.className!==cls) el.className=cls;
+      if(el.style.getPropertyValue('--ob-target-w')){
+        el.style.removeProperty('--ob-target-w');
+        el.style.removeProperty('--ob-target-h');
+        el.style.removeProperty('--ob-target-x');
+        el.style.removeProperty('--ob-target-y');
+        el.style.removeProperty('--ob-target-clip');
+      }
+      if(state && state.activeTool==='obstacle' && state.selectedObstacleType && state.phase==='build' && cls.includes('obstacle-target')){
+        const _targetBox=(typeof obstacleVisualBox==='function'?obstacleVisualBox(state.selectedObstacleType):{w:2,h:2,x:0,y:0,clip:'inset(0 round 3px)'});
+        el.style.setProperty('--ob-target-w',String(_targetBox.w||1));
+        el.style.setProperty('--ob-target-h',String(_targetBox.h||1));
+        el.style.setProperty('--ob-target-x',String(_targetBox.x||0));
+        el.style.setProperty('--ob-target-y',String(_targetBox.y||0));
+        el.style.setProperty('--ob-target-clip',_targetBox.clip||'inset(0 round 3px)');
+      }
       if(ob){
         const root=isObstacleRoot(r,c);
         if(el.dataset.icon!==ob.icon) el.dataset.icon=ob.icon;
@@ -806,6 +821,13 @@ function renderMapCells(){
           } else { const oldAnim=el.querySelector('.obstacle-anim'); if(oldAnim) oldAnim.remove(); }
           const lv=obstacleLevel(obstacleRootTile(r,c)||t);
           el.dataset.obLevel='Lv.'+lv;
+          const _obBox=(typeof obstacleVisualBox==='function'?obstacleVisualBox(ob.id,t):{w:obstacleVisualFootprint(ob.id,t),h:obstacleVisualFootprint(ob.id,t),x:0,y:0,clip:'inset(0 round 5px)'});
+          el.style.setProperty('--ob-footprint-size',String(obstacleVisualFootprint(ob.id,t)));
+          el.style.setProperty('--ob-box-w',String(_obBox.w||1));
+          el.style.setProperty('--ob-box-h',String(_obBox.h||1));
+          el.style.setProperty('--ob-box-x',String(_obBox.x||0));
+          el.style.setProperty('--ob-box-y',String(_obBox.y||0));
+          el.style.setProperty('--ob-box-clip',_obBox.clip||'inset(0 round 5px)');
           // 아이콘 확대폭을 키우고(최대 +45%), 레벨 구간(1~4/5~9/10)에 따라 발광·펄스 강도가 달라지는 클래스를 부여합니다.
           el.style.setProperty('--ob-level-scale',String(1+(lv-1)*0.05));
           el.classList.toggle('ob-lv-mid', lv>=5 && lv<10);
@@ -827,7 +849,8 @@ function renderMapCells(){
         const obBadge=el.querySelector('.ob-kind-badge'); if(obBadge) obBadge.remove();
       } else {
         if(el.dataset.icon) delete el.dataset.icon;
-        el.style.removeProperty('--ob-color');
+        el.style.removeProperty('--ob-color'); el.style.removeProperty('--ob-footprint-size');
+        el.style.removeProperty('--ob-box-w'); el.style.removeProperty('--ob-box-h'); el.style.removeProperty('--ob-box-x'); el.style.removeProperty('--ob-box-y'); el.style.removeProperty('--ob-box-clip');
         const obImg=el.querySelector('.obstacle-icon');
         if(obImg) obImg.remove();
         const _oa2=el.querySelector('.obstacle-anim'); if(_oa2) _oa2.remove();
@@ -850,6 +873,31 @@ function renderMapCells(){
 }
 
 let tokenEls={};
+let _tokenLayerBatchFragment=null;
+function appendTokenLayerNode(node){
+  if(!node||!els?.tokenLayer) return node;
+  if(_tokenLayerBatchFragment) _tokenLayerBatchFragment.appendChild(node);
+  else els.tokenLayer.appendChild(node);
+  return node;
+}
+function updateTokenGeometry(el,size,left,top){
+  if(!el) return;
+  if(el._tokenSize!==size){ el._tokenSize=size; const v=size+'px'; el.style.width=v; el.style.height=v; }
+  if(el._tokenLeft!==left){ el._tokenLeft=left; el.style.left=left+'px'; }
+  if(el._tokenTop!==top){ el._tokenTop=top; el.style.top=top+'px'; }
+}
+function toggleTokenClass(el,name,on,cacheKey){
+  if(!el) return;
+  const key=cacheKey||('_cls_'+name);
+  const v=!!on;
+  if(el[key]===v) return;
+  el[key]=v;
+  el.classList.toggle(name,v);
+}
+const transientTokenVisuals=new Map();
+function trackTransientToken(key,el,entity,type){
+  if(key&&el&&entity) transientTokenVisuals.set(key,{el,entity,type});
+}
 const RANGED_COLOR={archer:'#3f9e5c', mage:'#5aa9e6', gunslinger:'#e0a44a', ice_mage:'#78dfff', spirit_caller:'#68e5ff', curse_caster:'#b76bf2', alchemist:'#b6ff5c', bard:'#f0c36a', royal_longbow:'#e8c860', battle_mage:'#7aa8ff', rune_guardian:'#b98cff', imperial_magus:'#ffe08a'};
 // v60: 신규 원거리/마법 몬스터의 투사체 종류와 테마색 (기존 몬스터는 종전대로 보라색)
 const MONSTER_PROJECTILE_STYLE={
@@ -959,14 +1007,43 @@ function roleForLocation(entity){
 function locationCombatMultiplier(entity, purpose='attack'){ return 1; }
 function locationDefenseMultiplier(entity){ return 1; }
 
+function syncTokenTransientVisuals(now=performance.now()){
+  if(!state||!transientTokenVisuals.size) return;
+  for(const [key,rec] of transientTokenVisuals){
+    const el=rec.el,entity=rec.entity;
+    if(!el||!el.isConnected||!entity){transientTokenVisuals.delete(key);continue;}
+    let keep=false;
+    if(rec.type==='monster'){
+      const flash=now-(entity.lastAttackAt||0)<300;
+      toggleTokenClass(el,'flash',flash,'_flash'); keep=flash;
+    }else if(rec.type==='mawang'){
+      const hit=now-(entity.lastAttackAt||0)<260;
+      toggleTokenClass(el,'mawang-hit',hit,'_mawangHit'); keep=hit;
+    }else if(rec.type==='hero'){
+      const flash=now-(entity.lastAttackAt||0)<300;
+      const heal=now-(entity.lastHealAt||0)<300;
+      toggleTokenClass(el,'flash',flash,'_flash');
+      toggleTokenClass(el,'healpulse',heal,'_healPulse');
+      const bubble=el._tokenRefs?.bubble;
+      const bubbleVisible=!!(bubble&&now<=(entity.bubbleUntil||0)&&entity.bubbleText);
+      if(bubble) bubble.classList.toggle('show',bubbleVisible);
+      keep=flash||heal||bubbleVisible;
+    }
+    if(!keep) transientTokenVisuals.delete(key);
+  }
+}
+
 function syncTokens(){
   if(!state) return;
   const px=currentCellPx;
   const seen=new Set();
   const now=performance.now();
-  const heroById=new Map(state.heroes.map(h=>[h.id,h]));
-  const monsterById=new Map(state.monsters.map(m=>[m.id,m]));
-  for(const k in tokenEls) tokenEls[k].classList.remove('targeted','targeting');
+  const heroIds=new Set();
+  const monsterIds=new Set();
+  const heroesTargetedByMonsters=new Set();
+  const monstersTargetedByHeroes=new Set();
+  for(const h of state.heroes){ heroIds.add(h.id); if(h.targetMonsterId!=null) monstersTargetedByHeroes.add(h.targetMonsterId); }
+  for(const m of state.monsters){ monsterIds.add(m.id); if(m.targetHeroId!=null) heroesTargetedByMonsters.add(m.targetHeroId); }
 
   function ensureToken(key, typeId, extraClass){
     let el=tokenEls[key];
@@ -1020,9 +1097,21 @@ function syncTokens(){
           }
         });
       }
-      els.tokenLayer.appendChild(el); tokenEls[key]=el;
+      appendTokenLayerNode(el); tokenEls[key]=el;
+      el._tokenRefs={
+        wrap:el.querySelector('.spriteWrap'), facing:el.querySelector('.facing'),
+        hpbar:el.querySelector('.unit-hpbar'), hpfill:el.querySelector('.unit-hpfill'), badge:el.querySelector('.lvbadge'),
+        statusRing:el.querySelector('.status-ring'), statusIcon:el.querySelector('.status-icon'), bubble:el.querySelector('.speech-bubble')
+      };
       el.addEventListener('animationend',()=>el.classList.remove('spawn-in'),{once:true});
-      el.dataset.lastR=''; el.dataset.lastC=''; el.dataset.flip='0';
+      el.dataset.lastR=''; el.dataset.lastC=''; el.dataset.flip='0'; el.dataset.tier=''; el.dataset.statusSig='';
+    }
+    if(!el._tokenRefs){
+      el._tokenRefs={
+        wrap:el.querySelector('.spriteWrap'), facing:el.querySelector('.facing'),
+        hpbar:el.querySelector('.unit-hpbar'), hpfill:el.querySelector('.unit-hpfill'), badge:el.querySelector('.lvbadge'),
+        statusRing:el.querySelector('.status-ring'), statusIcon:el.querySelector('.status-icon'), bubble:el.querySelector('.speech-bubble')
+      };
     }
     return el;
   }
@@ -1031,58 +1120,79 @@ function syncTokens(){
     let dir=null;
     if(curC<prevC-0.001) dir='left';
     else if(curC>prevC+0.001) dir='right';
+    let nextFlip=el.dataset.flip||'0';
     if(dir){
       const flipRight = invert ? '0' : '1';
       const flipLeft  = invert ? '1' : '0';
-      el.dataset.flip = dir==='right' ? flipRight : flipLeft;
+      nextFlip = dir==='right' ? flipRight : flipLeft;
+    }
+    if(nextFlip!==el.dataset.flip){
+      el.dataset.flip=nextFlip;
+      const facing=el._tokenRefs?.facing;
+      if(facing) facing.style.transform = nextFlip==='1' ? 'scaleX(-1)' : 'scaleX(1)';
     }
     el.dataset.lastR=curR; el.dataset.lastC=curC;
-    const facing=el.querySelector('.facing');
-    if(facing) facing.style.transform = el.dataset.flip==='1' ? 'scaleX(-1)' : 'scaleX(1)';
   }
   function updateStatusVisual(el, entity){
-    const ring=el.querySelector('.status-ring'); if(!ring) return;
-    ring.classList.remove('active','status-burn','status-poison','status-frost','status-debuff');
-    const icon=ring.querySelector('.status-icon');
+    const ring=el._tokenRefs?.statusRing; if(!ring) return;
+    const icon=el._tokenRefs?.statusIcon;
     const active=[];
     const nowMs=now;
     if(entity.flameBurnUntil&&entity.flameBurnUntil>nowMs) active.push(['status-burn','🔥']);
     if((entity.obstaclePoisonUntil&&entity.obstaclePoisonUntil>nowMs)||(entity.poisonSpreadUntil&&entity.poisonSpreadUntil>nowMs)) active.push(['status-poison','☠']);
     if(entity.frostSlowUntil&&entity.frostSlowUntil>nowMs) active.push(['status-frost','❄']);
     if((entity.monsterCurseUntil&&entity.monsterCurseUntil>nowMs)||(entity.obstacleCurseUntil&&entity.obstacleCurseUntil>nowMs)||(entity.monsterSkillCurseUntil&&entity.monsterSkillCurseUntil>nowMs)||(entity.skillSlowUntil&&entity.skillSlowUntil>nowMs)||(entity.webSlowUntil&&entity.webSlowUntil>nowMs)||(entity.fearUntil&&entity.fearUntil>nowMs)||(entity.healBlockedUntil&&entity.healBlockedUntil>nowMs)||(entity.skillDotUntil&&entity.skillDotUntil>nowMs)) active.push(['status-debuff','✦']);
+    let cls='', glyph='';
     if(active.length){
       // 한 캐릭터에 여러 상태가 있어도 가장 중요한 상태 하나를 중심으로 표시해 화면이 지저분해지지 않도록 합니다.
       const preferred=active.find(x=>x[0]==='status-debuff')||active.find(x=>x[0]==='status-frost')||active.find(x=>x[0]==='status-poison')||active[0];
-      ring.classList.add('active',preferred[0]);
-      if(icon) icon.textContent=preferred[1];
-    } else if(icon) icon.textContent='';
+      cls=preferred[0]; glyph=preferred[1];
+    }
+    const sig=cls+'|'+glyph;
+    if(el.dataset.statusSig===sig) return;
+    el.dataset.statusSig=sig;
+    ring.classList.remove('active','status-burn','status-poison','status-frost','status-debuff');
+    if(cls) ring.classList.add('active',cls);
+    if(icon) icon.textContent=glyph;
   }
 
   for(const m of state.monsters){
     const key='m'+m.id; seen.add(key);
     const el=ensureToken(key, m.typeId, 'monster');
-    const size=px*(0.95+m.tier*0.16)*TOKEN_VIEW_SCALE*(MONSTER_SIZE_MUL[m.typeId]||1); // v44: 몬스터별 크기 보정
-    el.style.width=size+'px'; el.style.height=size+'px';
-    el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
+    // v86: 몬스터 외형 성장 완화
+    // Lv.1의 기존 크기(1.11)를 기준으로, 레벨당 성장량은 기존 0.16의 30%(0.048)만 적용합니다.
+    // 종족별 기본 크기 차이는 유지하되, 어떤 레벨에서도 Lv.1 기본 크기의 2배를 넘지 않습니다.
+    const monsterVisualLevel=Math.max(1,Math.min(MAX_TIER,m.tier||1));
+    const monsterBaseScale=0.95+0.16; // 기존 Lv.1 시각 크기 = 1.11
+    const monsterGrowthPerLevel=0.16*0.30; // 기존 대비 70% 감소
+    const monsterLevelScale=Math.min(monsterBaseScale*2, monsterBaseScale+(monsterVisualLevel-1)*monsterGrowthPerLevel);
+    const size=px*monsterLevelScale*TOKEN_VIEW_SCALE*(MONSTER_SIZE_MUL[m.typeId]||1);
+    updateTokenGeometry(el,size,m.c*px+px/2,m.r*px+px/2);
     updateFacing(el, m.r, m.c, !!MONSTER_FACING_INVERT[m.typeId]);
-    el.classList.toggle('flash', now-m.lastAttackAt<300);
-    const mtTarget=heroById.get(m.targetHeroId);
-    el.classList.toggle('targeting',!!mtTarget);
-    if(mtTarget){const tel=tokenEls['h'+mtTarget.id];if(tel)tel.classList.add('targeted');}
-    for(let t=1;t<=MAX_TIER;t++) el.classList.toggle('tier-'+t, t===m.tier);
-    if(state.selected && state.selected.kind==='monster' && state.selected.id===m.id) el.style.outline='2px solid var(--gold)';
-    else el.style.outline='none';
-    const mHpFill=el.querySelector('.unit-hpfill');
-    if(mHpFill){ mHpFill.style.width=Math.max(0,Math.min(100,(m.hp/Math.max(1,m.maxHp))*100))+'%'; }
-    const mHpBar=el.querySelector('.unit-hpbar');
-    if(mHpBar){ mHpBar.setAttribute('aria-label','HP '+Math.max(0,Math.round(m.hp))+'/'+Math.max(1,Math.round(m.maxHp))); }
-    const mBadge=el.querySelector('.lvbadge');
+    const monsterFlash=now-(m.lastAttackAt||0)<300;
+    toggleTokenClass(el,'flash',monsterFlash,'_flash');
+    if(monsterFlash) trackTransientToken(key,el,m,'monster');
+    toggleTokenClass(el,'targeting',m.targetHeroId!=null&&heroIds.has(m.targetHeroId),'_targeting');
+    toggleTokenClass(el,'targeted',monstersTargetedByHeroes.has(m.id),'_targeted');
+    const tierKey=String(m.tier);
+    if(el.dataset.tier!==tierKey){
+      const prevTier=Number(el.dataset.tier)||0;
+      if(prevTier) el.classList.remove('tier-'+prevTier);
+      el.classList.add('tier-'+m.tier); el.dataset.tier=tierKey;
+      const tierColor=TIER_COLORS[(m.tier-1)%TIER_COLORS.length]||'#e0b64a';
+      const badge=el._tokenRefs?.badge;
+      if(badge){ badge.style.color=tierColor; badge.style.borderColor=tierColor; }
+    }
+    const monsterSelected=!!(state.selected&&state.selected.kind==='monster'&&state.selected.id===m.id);
+    if(el._selectedOutline!==monsterSelected){ el._selectedOutline=monsterSelected; el.style.outline=monsterSelected?'2px solid var(--gold)':'none'; }
+    const mHpFill=el._tokenRefs?.hpfill;
+    if(mHpFill){ const hpw=Math.max(0,Math.min(100,(m.hp/Math.max(1,m.maxHp))*100)).toFixed(2)+'%'; if(mHpFill.style.width!==hpw)mHpFill.style.width=hpw; }
+    const mHpBar=el._tokenRefs?.hpbar;
+    if(mHpBar){ const aria='HP '+Math.max(0,Math.round(m.hp))+'/'+Math.max(1,Math.round(m.maxHp)); if(mHpBar.getAttribute('aria-label')!==aria)mHpBar.setAttribute('aria-label',aria); }
+    const mBadge=el._tokenRefs?.badge;
     if(mBadge){
       const txt='Lv.'+m.tier;
       if(mBadge.textContent!==txt) mBadge.textContent=txt;
-      const tierColor=TIER_COLORS[(m.tier-1)%TIER_COLORS.length]||'#e0b64a';
-      mBadge.style.color=tierColor;
-      mBadge.style.borderColor=tierColor;
     }
     updateStatusVisual(el,m);
   }
@@ -1094,15 +1204,16 @@ function syncTokens(){
     const m=state.mawang; const key='mawang'; seen.add(key);
     const el=ensureToken(key,'__mawang__','mawang-token');
     const size=px*1.52*0.7*TOKEN_VIEW_SCALE; // v43: 마왕 크기를 기존 대비 30% 축소
-    el.style.width=size+'px'; el.style.height=size+'px';
-    el.style.left=(m.c*px+px/2)+'px'; el.style.top=(m.r*px+px/2)+'px';
+    updateTokenGeometry(el,size,m.c*px+px/2,m.r*px+px/2);
     // 마왕 원본 스프라이트는 오른쪽을 바라보고 있으므로, 이동 방향과 시선을 일치시킵니다.
     updateFacing(el,m.r,m.c,true);
-    el.classList.toggle('mawang-hit',now-(m.lastAttackAt||0)<260);
-    if(state.selected && state.selected.kind==='mawang') el.classList.add('mawang-selected'); else el.classList.remove('mawang-selected');
-    const fill=el.querySelector('.unit-hpfill'); if(fill) fill.style.width=Math.max(0,Math.min(100,(m.hp/Math.max(1,m.maxHp))*100))+'%';
-    const bar=el.querySelector('.unit-hpbar'); if(bar) bar.setAttribute('aria-label','마왕 HP '+Math.max(0,Math.round(m.hp))+'/'+Math.max(1,Math.round(m.maxHp)));
-    const badge=el.querySelector('.lvbadge'); if(badge) badge.textContent='Lv.'+(m.level||mawangProfile.level||1);
+    const mawangHit=now-(m.lastAttackAt||0)<260;
+    toggleTokenClass(el,'mawang-hit',mawangHit,'_mawangHit');
+    if(mawangHit) trackTransientToken(key,el,m,'mawang');
+    toggleTokenClass(el,'mawang-selected',!!(state.selected&&state.selected.kind==='mawang'),'_mawangSelected');
+    const fill=el._tokenRefs?.hpfill; if(fill){ const hpw=Math.max(0,Math.min(100,(m.hp/Math.max(1,m.maxHp))*100)).toFixed(2)+'%'; if(fill.style.width!==hpw)fill.style.width=hpw; }
+    const bar=el._tokenRefs?.hpbar; if(bar){ const aria='마왕 HP '+Math.max(0,Math.round(m.hp))+'/'+Math.max(1,Math.round(m.maxHp)); if(bar.getAttribute('aria-label')!==aria)bar.setAttribute('aria-label',aria); }
+    const badge=el._tokenRefs?.badge; if(badge){ const txt='Lv.'+(m.level||mawangProfile.level||1); if(badge.textContent!==txt)badge.textContent=txt; }
     updateStatusVisual(el,m);
   }
 
@@ -1110,37 +1221,45 @@ function syncTokens(){
     const key='h'+h.id; seen.add(key);
     const el=ensureToken(key, h.typeId, 'hero');
     const levelMul=1+Math.min(HERO_LEVEL_SIZE_CAP, Math.max(0,(h.level||1)-1)*HERO_LEVEL_SIZE_MUL);
-    const size=px*(h.isBoss?1.6:1.0)*levelMul*TOKEN_VIEW_SCALE;
-    el.style.width=size+'px'; el.style.height=size+'px';
-    el.style.left=(h.c*px+px/2)+'px'; el.style.top=(h.r*px+px/2)+'px';
+    const size=px*(h.majorBoss?1.12:(h.isBoss?1.6:1.0))*levelMul*TOKEN_VIEW_SCALE;
+    updateTokenGeometry(el,size,h.c*px+px/2,h.r*px+px/2);
     updateFacing(el, h.r, h.c, Object.prototype.hasOwnProperty.call(HERO_FACING_INVERT,h.typeId)?HERO_FACING_INVERT[h.typeId]:true);
-    el.classList.toggle('boss', !!h.isBoss);
-    el.classList.toggle('elite', !!h.elite);
-    el.classList.toggle('flash', now-h.lastAttackAt<300);
-    el.classList.toggle('healpulse', now-(h.lastHealAt||0)<300);
-    el.classList.toggle('casting', !!h.castingSkill);
-    const hmTarget=monsterById.get(h.targetMonsterId);
-    el.classList.toggle('targeting',!!hmTarget);
-    if(hmTarget){const tel=tokenEls['m'+hmTarget.id];if(tel)tel.classList.add('targeted');}
-    const hHpFill=el.querySelector('.unit-hpfill');
-    if(hHpFill){ hHpFill.style.width=Math.max(0,Math.min(100,(h.hp/Math.max(1,h.maxHp))*100))+'%'; }
-    const hHpBar=el.querySelector('.unit-hpbar');
-    if(hHpBar){ hHpBar.setAttribute('aria-label','HP '+Math.max(0,Math.round(h.hp))+'/'+Math.max(1,Math.round(h.maxHp))); }
-    const badge=el.querySelector('.lvbadge');
+    toggleTokenClass(el,'boss',!!h.isBoss,'_boss');
+    toggleTokenClass(el,'elite',!!h.elite,'_elite');
+    const heroFlash=now-(h.lastAttackAt||0)<300, heroHeal=now-(h.lastHealAt||0)<300;
+    toggleTokenClass(el,'flash',heroFlash,'_flash');
+    toggleTokenClass(el,'healpulse',heroHeal,'_healPulse');
+    if(heroFlash||heroHeal) trackTransientToken(key,el,h,'hero');
+    toggleTokenClass(el,'casting',!!h.castingSkill,'_casting');
+    toggleTokenClass(el,'targeting',h.targetMonsterId!=null&&monsterIds.has(h.targetMonsterId),'_targeting');
+    toggleTokenClass(el,'targeted',heroesTargetedByMonsters.has(h.id),'_targeted');
+    const hHpFill=el._tokenRefs?.hpfill;
+    if(hHpFill){ const hpw=Math.max(0,Math.min(100,(h.hp/Math.max(1,h.maxHp))*100)).toFixed(2)+'%'; if(hHpFill.style.width!==hpw)hHpFill.style.width=hpw; }
+    const hHpBar=el._tokenRefs?.hpbar;
+    if(hHpBar){ const aria='HP '+Math.max(0,Math.round(h.hp))+'/'+Math.max(1,Math.round(h.maxHp)); if(hHpBar.getAttribute('aria-label')!==aria)hHpBar.setAttribute('aria-label',aria); }
+    const badge=el._tokenRefs?.badge;
     if(badge){
       const txt='Lv.'+(h.level||1);
       if(badge.textContent!==txt) badge.textContent=txt;
     }
-    const bubble=el.querySelector('.speech-bubble');
+    const bubble=el._tokenRefs?.bubble;
     if(bubble){
-      const visible=performance.now()<=(h.bubbleUntil||0) && !!h.bubbleText;
-      bubble.classList.toggle('show',visible);
-      bubble.classList.toggle('alert',h.bubbleKind==='alert');
-      bubble.classList.toggle('question',h.bubbleKind==='question');
-      bubble.classList.toggle('skill',h.bubbleKind==='skill');
-      bubble.classList.toggle('flee',h.bubbleKind==='flee');
-      bubble.classList.toggle('trapHit',h.bubbleKind==='trapHit');
-      if(visible && bubble.textContent!==h.bubbleText) bubble.textContent=h.bubbleText;
+      const visible=now<=(h.bubbleUntil||0) && !!h.bubbleText;
+      const kind=h.bubbleKind||'';
+      const bubbleSig=(visible?'1':'0')+'|'+kind;
+      if(bubble._sig!==bubbleSig){
+        bubble._sig=bubbleSig;
+        bubble.classList.toggle('show',visible);
+        bubble.classList.toggle('alert',kind==='alert');
+        bubble.classList.toggle('question',kind==='question');
+        bubble.classList.toggle('skill',kind==='skill');
+        bubble.classList.toggle('flee',kind==='flee');
+        bubble.classList.toggle('trapHit',kind==='trapHit');
+      }
+      if(visible){
+        if(bubble.textContent!==h.bubbleText) bubble.textContent=h.bubbleText;
+        trackTransientToken(key,el,h,'hero');
+      }
     }
     updateStatusVisual(el,h);
   }
@@ -1148,6 +1267,7 @@ function syncTokens(){
   for(const key in tokenEls){
     if(!seen.has(key)){
       const el=tokenEls[key];
+      transientTokenVisuals.delete(key);
       if(typeof physicalOwnsToken==='function' && physicalOwnsToken(key)){ el.remove(); delete tokenEls[key]; continue; }
       el.classList.add('dying');
       setTimeout(()=>{ if(el.parentNode) el.remove(); }, 720);
@@ -1165,7 +1285,7 @@ function syncTokens(){
         const r1=document.createElement('div'); r1.className='ring1';
         const r2=document.createElement('div'); r2.className='ring2'; r2.style.borderColor=fx.color;
         fx.el.appendChild(r1); fx.el.appendChild(r2);
-        els.tokenLayer.appendChild(fx.el);
+        appendTokenLayerNode(fx.el);
       }
       return true;
     });
@@ -1206,6 +1326,224 @@ function buildMagicCircle(kind,cls,icon){
     +(cls.indexOf('mc-target')>=0?`<span class="mc-icon">${icon||st.glyph}</span>`:'');
   return el;
 }
+
+// v62 · 용사 마법사 전용 시각 언어. 같은 마법진을 공유하지 않고 주문별 실루엣을 구분합니다.
+const CASTER_FX_META={
+  arcane_bolt:{color:'#a98bff'}, arcane_burst:{color:'#d5b7ff'},
+  meteor_shower:{color:'#ff8a3d'}, doom_comet:{color:'#ff5a32'},
+  holy_burst:{color:'#ffe89a'}, frost_arrow:{color:'#7fe9ff'}, ice_lance:{color:'#b6f5ff'},
+  spirit_orb:{color:'#66e7dc'}, spirit_summon:{color:'#79f5cf'},
+  curse_bolt:{color:'#b56cf0'}, mass_curse:{color:'#8f4bce'},
+  battle_bolt:{color:'#79a8ff'}, mana_blast:{color:'#8c86ff'},
+  arrow_rain:{color:'#9ef6a7'}, mana_barrage:{color:'#73bbff'}, wraith_swarm:{color:'#b47aff'},
+  nature_regen:{color:'#90ff98'}, divine_blessing:{color:'#ffc7df'}, heroic_anthem:{color:'#ffd86a'},
+  potion_burst:{color:'#64f4d5'}, piercing_shot:{color:'#aaf5a2'}, rune_barrier:{color:'#9db1ff'}, radiant_heal:{color:'#ffe89b'}
+};
+const CASTER_FX_SPRITES={
+  arcane_bolt:'assets/images/spells/arcane_bolt.png',
+  arcane_burst:'assets/images/spells/arcane_burst.png',
+  meteor_shower:'assets/images/spells/meteor_shower.png',
+  doom_comet:'assets/images/spells/doom_comet.png',
+  holy_burst:'assets/images/spells/holy_burst.png',
+  frost_arrow:'assets/images/spells/frost_arrow.png',
+  ice_lance:'assets/images/spells/ice_lance.png',
+  spirit_orb:'assets/images/spells/spirit_orb.png',
+  spirit_summon:'assets/images/spells/spirit_summon.png',
+  curse_bolt:'assets/images/spells/curse_bolt.png',
+  mass_curse:'assets/images/spells/mass_curse.png',
+  battle_bolt:'assets/images/spells/battle_bolt.png',
+  mana_blast:'assets/images/spells/mana_blast.png',
+  arrow_rain:'assets/images/spells/arrow_rain.png',
+  mana_barrage:'assets/images/spells/mana_barrage.png',
+  wraith_swarm:'assets/images/spells/wraith_swarm.png',
+  nature_regen:'assets/images/spells/nature_regen.png',
+  divine_blessing:'assets/images/spells/divine_blessing.png',
+  heroic_anthem:'assets/images/spells/heroic_anthem.png',
+  potion_burst:'assets/images/spells/potion_burst.png',
+  piercing_shot:'assets/images/spells/piercing_shot.png',
+  rune_barrier:'assets/images/spells/rune_barrier.png',
+  radiant_heal:'assets/images/spells/radiant_heal.png'
+};
+function casterFxMeta(c){
+  const key=(c&&c.fx)||'';
+  return {key:key||'generic',color:(CASTER_FX_META[key]&&CASTER_FX_META[key].color)||mcColor((c&&c.kind)||'arcane')};
+}
+function casterFxSpriteSrc(key){ return key&&CASTER_FX_SPRITES[key] ? CASTER_FX_SPRITES[key] : ''; }
+function casterFxSpriteSheetSrc(key){
+  const src=casterFxSpriteSrc(key);
+  return src ? src.replace(/\.png$/,'_sheet.png') : '';
+}
+function appendCasterFxSprite(parent,className,fx,mode='once'){
+  const src=casterFxSpriteSrc(fx), sheet=casterFxSpriteSheetSrc(fx);
+  if(!src || !parent) return false;
+  const el=document.createElement('i');
+  el.className=className + (sheet?' sprite-sheet':'') + (mode==='loop'?' sprite-loop':' sprite-once');
+  el.setAttribute('aria-hidden','true');
+  el.style.backgroundImage=`url(${sheet||src})`;
+  el.style.setProperty('--sprite-frames', sheet ? 6 : 1);
+  parent.appendChild(el);
+  return true;
+}
+function buildCasterTelegraph(c,cls){
+  const meta=casterFxMeta(c), el=document.createElement('div');
+  el.className='caster-telegraph '+cls+' fx-'+meta.key;
+  el.style.setProperty('--fx-color',meta.color);
+  let rays='',particles='';
+  for(let i=0;i<8;i++) rays+=`<i class="cst-ray" style="--a:${i*45}deg;--i:${i}"></i>`;
+  const pts=[[18,24],[72,18],[86,58],[66,84],[28,82],[12,58],[50,12],[48,90]];
+  for(let i=0;i<pts.length;i++) particles+=`<i class="cst-particle" style="--x:${pts[i][0]}%;--y:${pts[i][1]}%;--i:${i};--a:${i*45}deg"></i>`;
+  el.innerHTML=`<div class="cst-glow"></div><i class="cst-ring cst-ring-a"></i><i class="cst-ring cst-ring-b"></i><i class="cst-core"></i><div class="cst-rays">${rays}</div><div class="cst-particles">${particles}</div>`;
+  if(!appendCasterFxSprite(el,'cst-sprite',meta.key,'loop')){
+    const icon=document.createElement('span'); icon.className='cst-icon'; icon.textContent=c.icon||skillStyle(c.kind).glyph; el.appendChild(icon);
+  }
+  return el;
+}
+function appendHeroSpellImpact(ev,px){
+  const meta=casterFxMeta(ev), fx=meta.key;
+  if(Sound.spellImpact) Sound.spellImpact(ev.spell||'arcane',fx,fx==='doom_comet'||fx==='meteor_shower');
+  const wrap=document.createElement('div');
+  wrap.className='hero-spell-impact fx-'+fx;
+  wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
+  wrap.style.color=meta.color;
+  const size=px*Math.max(1.7,(ev.radius||1)*2+1.05);
+  wrap.style.setProperty('--impact-size',size+'px');
+  const flash=document.createElement('i'); flash.className='hsi-flash'; wrap.appendChild(flash);
+  for(let i=0;i<3;i++){ const ring=document.createElement('i'); ring.className='hsi-ring r'+(i+1); wrap.appendChild(ring); }
+  const core=document.createElement('i'); core.className='hsi-core'; wrap.appendChild(core);
+  if(!appendCasterFxSprite(wrap,'hsi-sprite',fx,'once') && ev.icon){ const icon=document.createElement('span'); icon.className='hsi-icon'; icon.textContent=ev.icon; wrap.appendChild(icon); }
+  for(let i=0;i<12;i++){
+    const p=document.createElement('i'); p.className='hsi-particle'; p.style.setProperty('--a',(i*30)+'deg'); p.style.setProperty('--i',i); p.style.setProperty('--d',(size*(.28+(i%4)*.07))+'px'); wrap.appendChild(p);
+  }
+  if(fx==='meteor_shower'){
+    [[-0.62,-0.35],[-0.2,0.18],[0.34,-0.5],[0.58,0.24],[-0.42,0.52]].forEach((q,i)=>{const m=document.createElement('i');m.className='hsi-meteor';m.style.setProperty('--x',(q[0]*size*.42)+'px');m.style.setProperty('--y',(q[1]*size*.42)+'px');m.style.setProperty('--i',i);wrap.appendChild(m);});
+  } else if(fx==='doom_comet'){
+    const comet=document.createElement('i'); comet.className='hsi-comet'; wrap.appendChild(comet);
+  } else if(fx==='holy_burst'){
+    const pillar=document.createElement('i'); pillar.className='hsi-pillar'; wrap.appendChild(pillar);
+  } else if(fx==='ice_lance'||fx==='frost_arrow'){
+    for(let i=0;i<6;i++){const sh=document.createElement('i');sh.className='hsi-ice-shard';sh.style.setProperty('--a',(i*60)+'deg');wrap.appendChild(sh);}
+  } else if(fx==='spirit_orb'||fx==='spirit_summon'){
+    for(let i=0;i<6;i++){const w=document.createElement('i');w.className='hsi-wisp';w.style.setProperty('--a',(i*60)+'deg');w.style.setProperty('--i',i);wrap.appendChild(w);}
+  } else if(fx==='curse_bolt'||fx==='mass_curse'){
+    for(let i=0;i<7;i++){const t=document.createElement('i');t.className='hsi-tendril';t.style.setProperty('--a',(i*360/7)+'deg');t.style.setProperty('--i',i);wrap.appendChild(t);}
+  } else if(fx==='battle_bolt'||fx==='mana_blast'){
+    for(let i=0;i<5;i++){const a=document.createElement('i');a.className='hsi-arc';a.style.setProperty('--a',(i*72)+'deg');wrap.appendChild(a);}
+  }
+  appendTokenLayerNode(wrap);
+  setTimeout(()=>wrap.remove(),fx==='doom_comet'?1100:930);
+}
+
+function spellFxDelayRun(ev,fn){
+  const delay=Math.max(0,Math.round(ev&&ev.delay||0));
+  if(delay>0) setTimeout(fn,delay); else fn();
+}
+function appendMawangSkillImpact(ev,px){
+  const size=px*Math.max(1.9,(ev.radius||1)*2.5);
+  const wrap=document.createElement('div');
+  wrap.className='mawang-skill-impact variant-'+(ev.variant||'hell-slash');
+  wrap.style.left=(ev.c*px+px/2)+'px';
+  wrap.style.top=(ev.r*px+px/2)+'px';
+  wrap.style.setProperty('--mwi-size',size+'px');
+  wrap.style.setProperty('--mwi-color',ev.color||'#ff8a9f');
+  const flash=document.createElement('i'); flash.className='mwi-flash'; wrap.appendChild(flash);
+  const ring=document.createElement('i'); ring.className='mwi-ring'; wrap.appendChild(ring);
+  const ring2=document.createElement('i'); ring2.className='mwi-ring r2'; wrap.appendChild(ring2);
+  const core=document.createElement('i'); core.className='mwi-core'; core.textContent=ev.icon||'👑'; wrap.appendChild(core);
+  const sigil=document.createElement('i'); sigil.className='mwi-sigil'; sigil.textContent=(ev.skillName||'').slice(0,2)||''; wrap.appendChild(sigil);
+  for(let i=0;i<4;i++){ const arc=document.createElement('i'); arc.className='mwi-arc a'+(i+1); arc.style.setProperty('--i',i); wrap.appendChild(arc); }
+  for(let i=0;i<10;i++){ const shard=document.createElement('i'); shard.className='mwi-shard'; shard.style.setProperty('--a',(i*36)+'deg'); shard.style.setProperty('--i',i); wrap.appendChild(shard); }
+  if((ev.variant||'')==='annihilation'){
+    for(let i=0;i<4;i++){ const slash=document.createElement('i'); slash.className='mwi-slash s'+(i+1); slash.style.setProperty('--a',(i*45)+'deg'); wrap.appendChild(slash); }
+    for(let i=0;i<8;i++){ const crack=document.createElement('i'); crack.className='mwi-crack c'+(i+1); crack.style.setProperty('--a',(i*45)+'deg'); wrap.appendChild(crack); }
+    const crown=document.createElement('i'); crown.className='mwi-crown'; crown.textContent='👑'; wrap.appendChild(crown);
+  }else if((ev.variant||'')==='execution-burst'){
+    for(let i=0;i<5;i++){ const skull=document.createElement('i'); skull.className='mwi-skull'; skull.style.setProperty('--a',(-40+i*20)+'deg'); wrap.appendChild(skull); }
+  }else{
+    for(let i=0;i<3;i++){ const crescent=document.createElement('i'); crescent.className='mwi-crescent cr'+(i+1); crescent.style.setProperty('--a',(-30+i*30)+'deg'); crescent.style.setProperty('--i',i); wrap.appendChild(crescent); }
+  }
+  appendTokenLayerNode(wrap);
+  setTimeout(()=>wrap.remove(),(ev.variant==='annihilation')?1200:860);
+}
+
+function appendMeleeSkillImpact(ev,px){
+  const size=px*Math.max(1.7,(ev.radius||1)*2.25);
+  const wrap=document.createElement('div');
+  const rot=((ev.variant||'').length*23)%360-180;
+  wrap.className='hero-melee-skill-impact wt-'+(ev.weaponType||'sword')+' variant-'+(ev.variant||'blade-burst');
+  wrap.style.left=(ev.c*px+px/2)+'px';
+  wrap.style.top=(ev.r*px+px/2)+'px';
+  wrap.style.setProperty('--msi-size',size+'px');
+  wrap.style.setProperty('--msi-color',ev.color||'#fff');
+  wrap.style.setProperty('--msi-accent',ev.accent||'#fff');
+  wrap.style.setProperty('--msi-rot',rot+'deg');
+  const flash=document.createElement('i'); flash.className='msi-flash'; wrap.appendChild(flash);
+  const ring=document.createElement('i'); ring.className='msi-ring'; wrap.appendChild(ring);
+  const ring2=document.createElement('i'); ring2.className='msi-ring r2'; wrap.appendChild(ring2);
+  const ring3=document.createElement('i'); ring3.className='msi-ring r3'; wrap.appendChild(ring3);
+  const core=document.createElement('i'); core.className='msi-core'; if(ev.icon) core.textContent=ev.icon; wrap.appendChild(core);
+  for(let i=0;i<3;i++){ const arc=document.createElement('i'); arc.className='msi-arc a'+(i+1); arc.style.setProperty('--i',i); wrap.appendChild(arc); }
+  for(let i=0;i<6;i++){ const line=document.createElement('i'); line.className='msi-line l'+(i+1); line.style.setProperty('--a',(i*60)+'deg'); line.style.setProperty('--i',i); wrap.appendChild(line); }
+  for(let i=0;i<10;i++){ const part=document.createElement('i'); part.className='msi-particle'; part.style.setProperty('--a',(i*36)+'deg'); part.style.setProperty('--i',i); wrap.appendChild(part); }
+  const label=document.createElement('i'); label.className='msi-sigil'; label.textContent=(ev.skillName||'').slice(0,1)||''; wrap.appendChild(label);
+  appendTokenLayerNode(wrap);
+  setTimeout(()=>wrap.remove(),980);
+}
+function appendSpellProjectile(ev,px){
+  const src=casterFxSpriteSrc(ev.fx||'');
+  if(!src) return;
+  const fromX=ev.fromC*px+px/2, fromY=ev.fromR*px+px/2;
+  const toX=ev.toC*px+px/2, toY=ev.toR*px+px/2;
+  const dx=toX-fromX, dy=toY-fromY;
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  const duration=Math.max(220,ev.duration||300);
+  const wrap=document.createElement('div');
+  wrap.className='spell-projectile fx-'+(ev.fx||'generic');
+  wrap.style.left=fromX+'px'; wrap.style.top=fromY+'px';
+  wrap.style.color=ev.color||'#fff';
+  wrap.style.setProperty('--angle',angle+'deg');
+  wrap.style.setProperty('--sp-duration',duration+'ms');
+  const img=document.createElement('i');
+  img.className='spell-projectile-sprite sprite-sheet sprite-loop'; img.setAttribute('aria-hidden','true');
+  img.style.backgroundImage=`url(${casterFxSpriteSheetSrc(ev.fx||'')||src})`; img.style.setProperty('--sprite-frames', casterFxSpriteSheetSrc(ev.fx||'')?6:1);
+  wrap.appendChild(img);
+  for(let i=0;i<3;i++){ const trail=document.createElement('i'); trail.className='spell-projectile-trail t'+(i+1); wrap.appendChild(trail); }
+  appendTokenLayerNode(wrap);
+  requestAnimationFrame(()=>{
+    wrap.style.transition=`left ${duration}ms cubic-bezier(.18,.72,.22,1), top ${duration}ms cubic-bezier(.18,.72,.22,1)`;
+    wrap.style.left=toX+'px'; wrap.style.top=toY+'px';
+  });
+  setTimeout(()=>{ if(wrap.isConnected) wrap.remove(); }, duration+80);
+}
+function appendSpellDrop(ev,px){
+  const src=casterFxSpriteSrc(ev.fx||'');
+  if(!src) return;
+  const toX=ev.toC*px+px/2, toY=ev.toR*px+px/2;
+  const fromY=-px*1.8;
+  const count=Math.max(1,ev.count||1);
+  const spread=Number(ev.spread||0);
+  const duration=Math.max(420,ev.duration||680);
+  const offsets=count===1?[0]:Array.from({length:count},(_,i)=>((i-(count-1)/2)/(Math.max(1,count-1)))*spread);
+  offsets.forEach((off,i)=>{
+    const wrap=document.createElement('div');
+    wrap.className='spell-drop fx-'+(ev.fx||'generic')+(ev.fx==='doom_comet'?' doom':'');
+    wrap.style.left=(toX+off*px)+'px'; wrap.style.top=fromY+'px';
+    wrap.style.color=ev.color||'#fff';
+    wrap.style.setProperty('--angle',ev.fx==='doom_comet' ? '-55deg' : '-48deg');
+    wrap.style.setProperty('--sp-duration',duration+'ms');
+    const img=document.createElement('i');
+    img.className='spell-drop-sprite sprite-sheet sprite-loop'; img.setAttribute('aria-hidden','true');
+    img.style.backgroundImage=`url(${casterFxSpriteSheetSrc(ev.fx||'')||src})`; img.style.setProperty('--sprite-frames', casterFxSpriteSheetSrc(ev.fx||'')?6:1);
+    wrap.appendChild(img);
+    const tail=document.createElement('i'); tail.className='spell-drop-tail'; wrap.appendChild(tail);
+    if(ev.fx==='meteor_shower'){ const ember=document.createElement('i'); ember.className='spell-drop-ember'; wrap.appendChild(ember); }
+    appendTokenLayerNode(wrap);
+    requestAnimationFrame(()=>{
+      wrap.style.transition=`left ${duration}ms cubic-bezier(.12,.62,.2,1), top ${duration}ms cubic-bezier(.12,.62,.2,1)`;
+      wrap.style.left=(toX+off*px)+'px'; wrap.style.top=(toY+(Math.abs(off)*px*.12))+'px';
+    });
+    setTimeout(()=>{ if(wrap.isConnected) wrap.remove(); }, duration+120+i*40);
+  });
+}
 // v59 · 힐러의 성스러운 황금색 물결 (마법진 대신): 바닥에서 파문이 퍼져 나가고 빛 입자가 떠오릅니다.
 function buildHolyWave(){
   const el=document.createElement('div');
@@ -1226,7 +1564,7 @@ function placeMagicCircle(el,r,c,sizeCells,p){
 }
 function mcEnsure(key,builder){
   let el=magicCircleEls[key];
-  if(!el||!el.isConnected){ el=builder(); els.tokenLayer.appendChild(el); magicCircleEls[key]=el; }
+  if(!el||!el.isConnected){ el=builder(); appendTokenLayerNode(el); magicCircleEls[key]=el; }
   return el;
 }
 // 몬스터 스킬의 착탄 중심: 표적 용사가 살아 있고 보이면 그 현재 위치, 아니면 시전 시작 때 본 위치
@@ -1250,12 +1588,14 @@ function syncMagicCircles(){
       continue;
     }
     const ht=heroTypeOf(h); if(!ht||!ht.caster) continue;
+    const custom=!!c.fx;
     const kF='F'+c.uid; active.add(kF);
-    placeMagicCircle(mcEnsure(kF,()=>buildMagicCircle(c.kind,'mc-foot',c.icon)),h.r,h.c,1.9,p);
-    if(c.area){
+    placeMagicCircle(mcEnsure(kF,()=>custom?buildCasterTelegraph(c,'cst-foot'):buildMagicCircle(c.kind,'mc-foot',c.icon)),h.r,h.c,1.9,p);
+    if(c.area || c.fx==='spirit_summon'){
       const kT='T'+c.uid; active.add(kT);
-      const ctr=spellCastCenter(h,h.skillTarget);
-      placeMagicCircle(mcEnsure(kT,()=>buildMagicCircle(c.kind,'mc-target',c.icon)),ctr.r,ctr.c,spellCircleCells(c.area),p);
+      const ctr=c.area?spellCastCenter(h,h.skillTarget):{r:h.r,c:h.c};
+      const cells=c.area?spellCircleCells(c.area):3.8;
+      placeMagicCircle(mcEnsure(kT,()=>custom?buildCasterTelegraph(c,'cst-target'):buildMagicCircle(c.kind,'mc-target',c.icon)),ctr.r,ctr.c,cells,p);
     }
   }
   // ── 몬스터: 저주/흑마법 = 보라색 마법진, 회복 = 황금색 물결 ──
@@ -1284,11 +1624,99 @@ function syncMagicCircles(){
   }
 }
 
+let _boardHitShakeUntil=0, _boardHitShakeStrong=false;
+function triggerBoardHitShake(strong=false,duration=260){
+  const board=els.frame||document.getElementById('boardWrap'); if(!board) return;
+  const t=performance.now();
+  // 다수의 동시 피격이 발생할 때 offsetWidth 강제 리플로우를 매 타격마다 만들지 않습니다.
+  // 이미 흔들리는 동안에는 더 강한 타격일 때만 한 번 업그레이드하고, 나머지는 현재 흔들림을 유지합니다.
+  if(t<_boardHitShakeUntil && (!strong||_boardHitShakeStrong)) return;
+  _boardHitShakeStrong=!!strong; _boardHitShakeUntil=t+duration;
+  board.classList.remove('board-hit-shake','board-hit-shake-strong');
+  void board.offsetWidth;
+  board.classList.add(strong?'board-hit-shake-strong':'board-hit-shake');
+  setTimeout(()=>{
+    if(performance.now()+8<_boardHitShakeUntil) return;
+    board.classList.remove('board-hit-shake','board-hit-shake-strong'); _boardHitShakeStrong=false;
+  },duration+12);
+}
 function processFxEvents(){
   if(!state || !state.fxEvents.length) return;
   const px=currentCellPx;
-  for(const ev of state.fxEvents){
-    if(ev.type==='obstacleSpecial'){
+  const events=state.fxEvents.splice(0,state.fxEvents.length);
+  const batch=document.createDocumentFragment();
+  const prevBatch=_tokenLayerBatchFragment;
+  _tokenLayerBatchFragment=batch;
+  try{
+  for(const ev of events){
+    if(ev.type==='spark'){
+      spellFxDelayRun(ev,()=>{
+        const el=document.createElement('div'); el.className='hitspark';
+        el.style.color=ev.color; el.style.left=(ev.c*px+px/2)+'px'; el.style.top=(ev.r*px+px/2)+'px';
+        appendTokenLayerNode(el); setTimeout(()=>el.remove(),340);
+      });
+    } else if(ev.type==='damageNumber'){
+      spellFxDelayRun(ev,()=>{
+        const el=document.createElement('div'); el.className='damage-number'+(ev.critical?' critical':'');
+        el.textContent=(ev.amount>0?'-':'')+Math.abs(Math.round(ev.amount||0)); el.style.color=ev.color||'#fff';
+        el.style.left=(ev.c*px+px/2+(Math.random()*10-5))+'px'; el.style.top=(ev.r*px+px/2-px*.18)+'px';
+        appendTokenLayerNode(el); setTimeout(()=>el.remove(),760);
+      });
+    } else if(ev.type==='floatText'){
+      spellFxDelayRun(ev,()=>{
+        const el=document.createElement('div'); el.className='floattext';
+        el.textContent=ev.text; el.style.color=ev.color;
+        el.style.left=(ev.c*px+px/2+(Math.random()*12-6))+'px'; el.style.top=(ev.r*px+px/2-px*.2)+'px';
+        appendTokenLayerNode(el); setTimeout(()=>el.remove(),760);
+      });
+    } else if(ev.type==='monsterUpgrade'){
+      const wrap=document.createElement('div'); wrap.className='upgradefx';
+      wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
+      const rune=document.createElement('div'); rune.className='upgrade-sigil'; wrap.appendChild(rune);
+      for(let i=0;i<10;i++){ const shard=document.createElement('i'); shard.className='upgrade-shard'; shard.style.setProperty('--a',(i*36+Math.random()*12)+'deg'); shard.style.setProperty('--d',(px*(1+Math.random()*1.15))+'px'); shard.style.setProperty('--s',(0.55+Math.random()*.55).toFixed(2)); wrap.appendChild(shard); }
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),850);
+    } else if(ev.type==='spell'){
+      const sx=ev.fromC*px+px/2, sy=ev.fromR*px+px/2, ex=ev.toC*px+px/2, ey=ev.toR*px+px/2;
+      const wrap=document.createElement('div'); wrap.className='spellfx '+(ev.spell||'arcane'); wrap.style.left=ex+'px'; wrap.style.top=ey+'px';
+      const dx=sx-ex, dy=sy-ey, baseAng=Math.atan2(dy,dx)*180/Math.PI;
+      const core=document.createElement('div'); core.className='core'; wrap.appendChild(core);
+      for(let i=0;i<2;i++){ const ring=document.createElement('div'); ring.className='ring r'+(i+1); ring.style.width=(px*(1.1+i*.55))+'px'; ring.style.height=(px*(1.1+i*.55))+'px'; wrap.appendChild(ring); }
+      for(let i=0;i<4;i++){ const beam=document.createElement('div'); beam.className='beam'; beam.style.width=(px*(1.7+Math.random()*1.2))+'px'; beam.style.setProperty('--angle',(baseAng+i*90+Math.random()*22)+'deg'); wrap.appendChild(beam); }
+      appendTokenLayerNode(wrap); wrap.animate([{opacity:0,transform:'scale(.65)'},{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(1.18)'}],{duration:430,easing:'ease-out'}); setTimeout(()=>wrap.remove(),470);
+    } else if(ev.type==='skillCast'){
+      const wrap=document.createElement('div'); wrap.className='skillfx '+(ev.spell||'arcane');
+      wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
+      const st=skillStyle(ev.spell); wrap.style.color=st.color;
+      for(let i=0;i<2;i++){ const ring=document.createElement('div'); ring.className='cast-ring r'+(i+1); ring.style.width=(px*(1.5+i*.65))+'px'; ring.style.height=(px*(1.5+i*.65))+'px'; wrap.appendChild(ring); }
+      const core=document.createElement('div'); core.className='cast-core'; if(!appendCasterFxSprite(core,'cast-sprite',ev.fx||'','once')) core.textContent=ev.icon||st.glyph; wrap.appendChild(core);
+      for(let i=0;i<8;i++){ const sh=document.createElement('i'); sh.className='shard'; sh.style.setProperty('--a',(i*45)+'deg'); wrap.appendChild(sh); }
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),Math.max(1200,(ev.duration||0)+120));
+    } else if(ev.type==='skillAoe'){
+      spellFxDelayRun(ev,()=>{
+        const wrap=document.createElement('div'); wrap.className='aoefx '+(ev.spell||'arcane')+(ev.fx?' fx-'+ev.fx:''); wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
+        const st=skillStyle(ev.spell); wrap.style.color=st.color;
+        const aura=document.createElement('div'); aura.className='aura'; const size=px*Math.max(1.4,(ev.radius||1)*2+1.1); aura.style.width=size+'px'; aura.style.height=size+'px'; wrap.appendChild(aura);
+        const core=document.createElement('div'); core.className='core'; if(!appendCasterFxSprite(core,'aoe-sprite',ev.fx||'','once')) core.textContent=ev.icon||st.glyph; wrap.appendChild(core);
+        appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),760);
+        if(Sound.spellImpact) Sound.spellImpact(ev.spell||'arcane',ev.fx||'',false);
+      });
+    } else if(ev.type==='spellImpact'){
+      spellFxDelayRun(ev,()=>{
+        const wrap=document.createElement('div'); wrap.className='spellfx impact '+(ev.spell||'arcane'); wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
+        const core=document.createElement('div'); core.className='core'; wrap.appendChild(core);
+        const ring=document.createElement('div'); ring.className='ring'; ring.style.width=(px*1.4)+'px'; ring.style.height=(px*1.4)+'px'; wrap.appendChild(ring);
+        appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),470);
+        if(Sound.spellImpact) Sound.spellImpact(ev.spell||'arcane','',false);
+      });
+    } else if(ev.type==='spellProjectile'){
+      appendSpellProjectile(ev,px);
+    } else if(ev.type==='spellDrop'){
+      appendSpellDrop(ev,px);
+    } else if(ev.type==='heroSpellImpact'){
+      spellFxDelayRun(ev,()=>appendHeroSpellImpact(ev,px));
+    } else if(ev.type==='heroMeleeSkillImpact'){
+      spellFxDelayRun(ev,()=>{ if(Sound.meleeSkillRelease) Sound.meleeSkillRelease(ev.weaponType||'sword'); appendMeleeSkillImpact(ev,px); });
+    } else if(ev.type==='obstacleSpecial'){
       const wrap=document.createElement('div'); wrap.className='ob-special '+(ev.ob||'');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
       wrap.style.setProperty('--sz',(px*(ev.ob==='frost'?1.05:1.25))+'px');
@@ -1323,7 +1751,7 @@ function processFxEvents(){
           wrap.appendChild(e);
         }
       }
-      els.tokenLayer.appendChild(wrap);
+      appendTokenLayerNode(wrap);
       setTimeout(()=>wrap.remove(),1200);
     } else if(ev.type==='obstacleImpact'){
       const wrap=document.createElement('div'); wrap.className='ob-hit '+(ev.ob||'');
@@ -1337,9 +1765,8 @@ function processFxEvents(){
       for(let i=0;i<count;i++){ const ch=document.createElement('i'); ch.className='hit-chunk'; const a=(Math.PI*2*i/count)+(Math.random()-.5)*.35; const d=px*(.38+Math.random()*.7)*(ev.strong?1.12:1); ch.style.setProperty('--dx',(Math.cos(a)*d)+'px'); ch.style.setProperty('--dy',(Math.sin(a)*d)+'px'); ch.style.setProperty('--delay',(Math.random()*55)+'ms'); wrap.appendChild(ch); }
       for(let i=0;i<5;i++){ const ln=document.createElement('i'); ln.className='hit-line'; const a=(360/5*i)+(Math.random()*18-9); ln.style.setProperty('--ang',a+'deg'); ln.style.setProperty('--travel',(px*(.3+Math.random()*.35))+'px'); ln.style.setProperty('--line',(px*(.38+Math.random()*.35))+'px'); wrap.appendChild(ln); }
       if(ev.label){ const lab=document.createElement('div'); lab.className='ob-hit-label'; lab.textContent=ev.label; wrap.appendChild(lab); }
-      els.tokenLayer.appendChild(wrap);
-      const board=document.getElementById('board-frame')||document.getElementById('boardWrap');
-      if(board){ board.classList.remove('board-hit-shake','board-hit-shake-strong'); void board.offsetWidth; board.classList.add(ev.strong?'board-hit-shake-strong':'board-hit-shake'); setTimeout(()=>board.classList.remove('board-hit-shake','board-hit-shake-strong'),260); }
+      appendTokenLayerNode(wrap);
+      triggerBoardHitShake(!!ev.strong,260);
       const tokenEl=ev.key?tokenEls[ev.key]:null;
       if(tokenEl){ const sw=tokenEl.querySelector('.spriteWrap'); if(sw){ sw.style.setProperty('--rx',((ev.recoilX||0)*px*.28)+'px'); sw.style.setProperty('--ry',((ev.recoilY||0)*px*.28)+'px'); sw.classList.remove('hero-ob-recoil'); void sw.offsetWidth; sw.classList.add('hero-ob-recoil'); } }
       setTimeout(()=>wrap.remove(),700);
@@ -1350,18 +1777,18 @@ function processFxEvents(){
       const wrap=document.createElement('div'); wrap.className='obstacle-fx '+(ev.ob||'');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px'; wrap.style.setProperty('--fxsize',(px*(ev.lv>=10?1.5:ev.lv>=5?1.3:1.05))+'px');
       const core=document.createElement('div'); core.className='fx-core'; core.textContent=ev.ob==='curse'?'☠':ev.ob==='statue'?'◉':ev.ob==='flame'?'🔥':ev.ob==='lightning'?'⚡':ev.ob==='pit'?'⛓':'✦'; wrap.appendChild(core);
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),700);
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),700);
     } else if(ev.type==='obstacleBreak'){
       const wrap=document.createElement('div'); wrap.className='obstacle-fx '+(ev.ob||'');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px'; wrap.style.setProperty('--fxsize',(px*1.15)+'px');
       const core=document.createElement('div'); core.className='fx-core'; core.textContent='💥'; wrap.appendChild(core);
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),650);
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),650);
     } else if(ev.type==='obstacleBurst'){
       const wrap=document.createElement('div'); wrap.className='obstacle-fx '+(ev.ob||'');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
       const core=document.createElement('div'); core.className='fx-core'; core.textContent=ev.text||'✦'; wrap.appendChild(core);
       for(let i=0;i<7;i++){ const p=document.createElement('i'); p.style.cssText=`position:absolute;width:4px;height:4px;border-radius:50%;background:currentColor;left:50%;top:50%;transform:rotate(${i*51}deg) translateX(${px*(.25+Math.random()*.35)}px);opacity:.75;`; wrap.appendChild(p); }
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),720);
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),720);
     } else if(ev.type==='punch'){
       const tokenEl=tokenEls[ev.key];
       if(tokenEl){
@@ -1404,96 +1831,74 @@ function processFxEvents(){
         }
       }
     } else if(ev.type==='battleHit'){
-      const wrap=document.createElement('div'); wrap.className='combat-impact melee-hit';
-      wrap.style.left=((ev.c+.5)*px)+'px'; wrap.style.top=((ev.r+.5)*px)+'px';
-      wrap.style.setProperty('--ci-size',(px*(ev.strong?1.35:.9))+'px');
-      wrap.style.setProperty('--ci-ring',(px*(ev.strong?1.05:.78))+'px');
-      wrap.style.setProperty('--ci-line',(px*(ev.strong?.72:.54))+'px');
-      wrap.style.setProperty('--ci-color',ev.color||'#ffcf6b');
-      const fl=document.createElement('div'); fl.className='ci-flash'; wrap.appendChild(fl);
-      const rg=document.createElement('div'); rg.className='ci-ring'; wrap.appendChild(rg);
-      const rg2=document.createElement('div'); rg2.className='ci-ring r2'; wrap.appendChild(rg2);
-      const slashCount=ev.strong?6:4;
-      for(let i=0;i<slashCount;i++){const sl=document.createElement('i');sl.className='ci-slash';sl.style.setProperty('--a',(i*(360/slashCount)+Math.random()*18)+'deg');sl.style.setProperty('--d',(i*12)+'ms');wrap.appendChild(sl);}
-      const dotCount=ev.strong?10:7;
-      for(let i=0;i<dotCount;i++){const dot=document.createElement('i');dot.className='ci-dot';dot.style.setProperty('--a',(i*360/dotCount)+'deg');dot.style.setProperty('--dist',(px*(.34+Math.random()*(ev.strong?.34:.25)))+'px');dot.style.setProperty('--d',(Math.random()*45)+'ms');wrap.appendChild(dot);}
-      els.tokenLayer.appendChild(wrap);setTimeout(()=>wrap.remove(),520);
-      if(ev.strong){const board=document.getElementById('board-frame');if(board){board.classList.remove('board-hit-shake');void board.offsetWidth;board.classList.add('board-hit-shake');setTimeout(()=>board.classList.remove('board-hit-shake'),220);}}
-    } else if(ev.type==='spark'){
-      const el=document.createElement('div'); el.className='hitspark';
-      el.style.color=ev.color; el.style.left=(ev.c*px+px/2)+'px'; el.style.top=(ev.r*px+px/2)+'px';
-      els.tokenLayer.appendChild(el);
-      setTimeout(()=>el.remove(),340);
-    } else if(ev.type==='damageNumber'){
-      const el=document.createElement('div'); el.className='damage-number'+(ev.critical?' critical':'');
-      el.textContent=(ev.amount>0?'-':'')+Math.abs(Math.round(ev.amount||0)); el.style.color=ev.color||'#fff';
-      el.style.left=(ev.c*px+px/2+(Math.random()*10-5))+'px'; el.style.top=(ev.r*px+px/2-px*.18)+'px';
-      els.tokenLayer.appendChild(el); setTimeout(()=>el.remove(),760);
-    } else if(ev.type==='floatText'){
-      const el=document.createElement('div'); el.className='floattext';
-      el.textContent=ev.text; el.style.color=ev.color;
-      el.style.left=(ev.c*px+px/2+(Math.random()*12-6))+'px'; el.style.top=(ev.r*px+px/2-px*0.2)+'px';
-      els.tokenLayer.appendChild(el);
-      setTimeout(()=>el.remove(),760);
-    } else if(ev.type==='monsterUpgrade') {
-      const wrap=document.createElement('div'); wrap.className='upgradefx';
-      wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
-      const rune=document.createElement('div'); rune.className='upgrade-sigil'; wrap.appendChild(rune);
-      for(let i=0;i<10;i++){
-        const shard=document.createElement('i'); shard.className='upgrade-shard';
-        shard.style.setProperty('--a',(i*36+Math.random()*12)+'deg');
-        shard.style.setProperty('--d',(px*(1.0+Math.random()*1.15))+'px');
-        shard.style.setProperty('--s',(0.55+Math.random()*.55).toFixed(2));
-        wrap.appendChild(shard);
-      }
-      els.tokenLayer.appendChild(wrap);
-      setTimeout(()=>wrap.remove(),850);
-    } else if(ev.type==='spell'){
-      const sx=ev.fromC*px+px/2, sy=ev.fromR*px+px/2, ex=ev.toC*px+px/2, ey=ev.toR*px+px/2;
-      const wrap=document.createElement('div'); wrap.className='spellfx '+(ev.spell||'arcane');
-      wrap.style.left=ex+'px'; wrap.style.top=ey+'px';
-      const dx=sx-ex, dy=sy-ey, baseAng=Math.atan2(dy,dx)*180/Math.PI;
-      const core=document.createElement('div'); core.className='core'; wrap.appendChild(core);
-      for(let i=0;i<2;i++){ const ring=document.createElement('div'); ring.className='ring r'+(i+1); ring.style.width=(px*(1.1+i*.55))+'px'; ring.style.height=(px*(1.1+i*.55))+'px'; wrap.appendChild(ring); }
-      for(let i=0;i<4;i++){ const beam=document.createElement('div'); beam.className='beam'; beam.style.width=(px*(1.7+Math.random()*1.2))+'px'; beam.style.setProperty('--angle',(baseAng+i*90+Math.random()*22)+'deg'); wrap.appendChild(beam); }
-      els.tokenLayer.appendChild(wrap);
-      wrap.animate([{opacity:0,transform:'scale(.65)'},{opacity:1,transform:'scale(1)'},{opacity:0,transform:'scale(1.18)'}],{duration:430,easing:'ease-out'});
-      setTimeout(()=>wrap.remove(),470);
-    } else if(ev.type==='skillCast'){
-      const wrap=document.createElement('div'); wrap.className='skillfx '+(ev.spell||'arcane');
-      wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
-      const st=skillStyle(ev.spell);
-      wrap.style.color=st.color;
-      if(ev.ring!==false){ for(let i=0;i<2;i++){const ring=document.createElement('div');ring.className='cast-ring r'+(i+1);ring.style.width=(px*(1.5+i*.65))+'px';ring.style.height=(px*(1.5+i*.65))+'px';wrap.appendChild(ring);} } // v58: 마법사는 마법진으로 대체
-      const core=document.createElement('div');core.className='cast-core';core.textContent=ev.icon||st.glyph;wrap.appendChild(core);
-      for(let i=0;i<8;i++){const sh=document.createElement('i');sh.className='shard';sh.style.setProperty('--a',(i*45)+'deg');wrap.appendChild(sh);}
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),Math.max(1200,ev.duration+120));
-    } else if(ev.type==='skillAoe'){
-      const wrap=document.createElement('div'); wrap.className='aoefx '+(ev.spell||'arcane'); wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
-      const st=skillStyle(ev.spell);
-      wrap.style.color=st.color;
-      const aura=document.createElement('div');aura.className='aura';const size=px*Math.max(1.4,ev.radius*2+1.1);aura.style.width=size+'px';aura.style.height=size+'px';wrap.appendChild(aura);
-      const core=document.createElement('div');core.className='core';core.textContent=ev.icon||st.glyph;wrap.appendChild(core);els.tokenLayer.appendChild(wrap);setTimeout(()=>wrap.remove(),760);
-    } else if(ev.type==='spellImpact'){
-      const wrap=document.createElement('div'); wrap.className='spellfx impact '+(ev.spell||'arcane'); wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
-      const core=document.createElement('div'); core.className='core'; wrap.appendChild(core);
-      const ring=document.createElement('div'); ring.className='ring'; ring.style.width=(px*1.4)+'px'; ring.style.height=(px*1.4)+'px'; wrap.appendChild(ring);
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),470);
+      spellFxDelayRun(ev,()=>{
+        const wrap=document.createElement('div');
+        const hitAngle=(ev.dr||ev.dc)?Math.atan2(ev.dr||0,ev.dc||1)*180/Math.PI:(Math.random()*360);
+        const perpAngle=hitAngle+90;
+        const weapon=ev.weaponType||'sword';
+        const critical=!!ev.critical;
+        if(Sound.meleeImpact){
+          const heroMeleeAudio=ev.attackerType==='mawang'||(typeof HERO_TYPES!=='undefined'&&Array.isArray(HERO_TYPES)&&HERO_TYPES.some(x=>x&&x.id===ev.attackerType));
+          Sound.meleeImpact(heroMeleeAudio?'sword':weapon,!!ev.strong,critical,ev.attackerType==='mawang');
+        }
+        wrap.className='combat-impact melee-hit'+(ev.strong?' heavy':'')+' wt-'+weapon+(critical?' critical':'')+(ev.skill?' skill-hit':'')+(ev.skillVariant?' sv-'+ev.skillVariant:'')+(ev.attackerType==='mawang'?' mawang-hit':'');
+        wrap.style.left=((ev.c+.5)*px)+'px'; wrap.style.top=((ev.r+.5)*px)+'px';
+        wrap.style.setProperty('--ci-size',(px*(critical?1.85:(ev.strong?1.52:1.02)))+'px');
+        wrap.style.setProperty('--ci-ring',(px*(critical?1.32:(ev.strong?1.14:.82)))+'px');
+        wrap.style.setProperty('--ci-line',(px*(critical?1.16:(ev.strong?.92:.62)))+'px');
+        wrap.style.setProperty('--ci-color',ev.color||'#ffcf6b');
+        wrap.style.setProperty('--ci-rot',hitAngle+'deg');
+        wrap.style.setProperty('--ci-perp',perpAngle+'deg');
+        wrap.style.setProperty('--ci-thrust',(px*(critical?1.18:.92))+'px');
+        const flash=document.createElement('div'); flash.className='ci-flash'; wrap.appendChild(flash);
+        const ring=document.createElement('div'); ring.className='ci-ring'; wrap.appendChild(ring);
+        const ring2=document.createElement('div'); ring2.className='ci-ring r2'; wrap.appendChild(ring2);
+        if(weapon==='blunt'){
+          const shock=document.createElement('div'); shock.className='ci-shock'; wrap.appendChild(shock);
+          const wave=document.createElement('div'); wave.className='ci-wave'; wrap.appendChild(wave);
+          const debris=ev.strong?10:7;
+          for(let i=0;i<debris;i++){ const ch=document.createElement('i'); ch.className='ci-chunk'; ch.style.setProperty('--d',(i*16)+'ms'); ch.style.setProperty('--a',((i*(360/debris))+Math.random()*16-8)+'deg'); wrap.appendChild(ch); }
+        }else if(weapon==='spear'){
+          const lance=document.createElement('div'); lance.className='ci-lance'; wrap.appendChild(lance);
+          const tail=document.createElement('div'); tail.className='ci-lance tail'; wrap.appendChild(tail);
+          for(let i=0;i<4;i++){ const dot=document.createElement('i'); dot.className='ci-dot'; dot.style.setProperty('--d',(i*22)+'ms'); wrap.appendChild(dot); }
+          for(let i=0;i<4;i++){ const spike=document.createElement('i'); spike.className='ci-spike'; spike.style.setProperty('--d',(i*18)+'ms'); spike.style.setProperty('--a',(hitAngle+(i<2?-24:24)+(i%2?16:-16))+'deg'); wrap.appendChild(spike); }
+        }else{
+          const swipe=document.createElement('div'); swipe.className='ci-swipe'; wrap.appendChild(swipe);
+          const swipe2=document.createElement('div'); swipe2.className='ci-swipe s2'; wrap.appendChild(swipe2);
+          const slashCount=critical?7:(ev.strong?6:4);
+          for(let i=0;i<slashCount;i++){ const sl=document.createElement('i'); sl.className='ci-slash'; sl.style.setProperty('--d',(i*16)+'ms'); sl.style.setProperty('--a',((i%2?perpAngle:hitAngle)+(i-(slashCount/2))*7)+'deg'); wrap.appendChild(sl); }
+        }
+        const sparkCount=critical?10:(ev.strong?8:6);
+        for(let i=0;i<sparkCount;i++){ const sp=document.createElement('i'); sp.className='ci-spike'; sp.style.setProperty('--d',(Math.random()*60)+'ms'); sp.style.setProperty('--a',((360/sparkCount)*i+Math.random()*14-7)+'deg'); wrap.appendChild(sp); }
+        if(critical){
+          const core=document.createElement('div'); core.className='ci-crit-core'; wrap.appendChild(core);
+          for(let i=0;i<6;i++){ const ray=document.createElement('i'); ray.className='ci-crit-ray'; ray.style.setProperty('--a',(i*60)+'deg'); wrap.appendChild(ray); }
+          const label=document.createElement('div'); label.className='ci-crit-label'; label.textContent='CRIT'; wrap.appendChild(label);
+        }
+        appendTokenLayerNode(wrap);
+        triggerBoardHitShake(critical||!!ev.strong,critical?320:260);
+        setTimeout(()=>wrap.remove(),critical?720:520);
+      });
     } else if(ev.type==='monsterSkillName'){
       const el=document.createElement('div'); el.className='floattext monster-skill-name'; el.textContent=ev.text;
-      el.style.color='#ffffff'; el.style.textShadow='0 0 8px rgba(183,107,242,.95), 0 0 14px rgba(224,182,74,.55)';
+      el.style.color=ev.color||'#ffffff'; el.style.textShadow='0 0 8px rgba(183,107,242,.95), 0 0 14px rgba(224,182,74,.55)';
       el.style.fontSize=Math.max(11,Math.round(px*.22))+'px'; el.style.fontWeight='900';
       el.style.left=(ev.c*px+px/2)+'px'; el.style.top=(ev.r*px+px*.05)+'px';
-      els.tokenLayer.appendChild(el); setTimeout(()=>el.remove(),1050);
+      appendTokenLayerNode(el); setTimeout(()=>el.remove(),1050);
     } else if(ev.type==='monsterSkillImpact'){
+      if(Sound.spellImpact) Sound.spellImpact(ev.spell||'arcane','monster-skill',true);
       const wrap=document.createElement('div'); wrap.className='aoefx monster-impact '+(ev.spell||'arcane');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';
       const st=skillStyle(ev.spell);
       wrap.style.color=st.color;
       const big=document.createElement('div'); big.className='aura'; const size=px*Math.max(1.6,(ev.radius||.9)*2+1.2); big.style.width=size+'px'; big.style.height=size+'px'; wrap.appendChild(big);
       const core=document.createElement('div'); core.className='core'; core.textContent=ev.icon||st.glyph; wrap.appendChild(core);
-      for(let i=0;i<14;i++){ const p=document.createElement('i'); p.className='shard'; p.style.setProperty('--a',(i*360/14)+'deg'); p.style.setProperty('--d',(px*(.8+Math.random()*1.7))+'px'); wrap.appendChild(p); }
-      els.tokenLayer.appendChild(wrap); setTimeout(()=>wrap.remove(),900);
+      for(let i=0;i<14;i++){ const sh=document.createElement('i'); sh.className='shard'; sh.style.setProperty('--a',(i*360/14)+'deg'); sh.style.setProperty('--d',(px*(.8+Math.random()*1.7))+'px'); wrap.appendChild(sh); }
+      appendTokenLayerNode(wrap); setTimeout(()=>wrap.remove(),900);
+    } else if(ev.type==='mawangSkillImpact'){
+      if(Sound.mawangSkill) Sound.mawangSkill(ev.variant||'hell-slash');
+      spellFxDelayRun(ev,()=>appendMawangSkillImpact(ev,px));
     } else if(ev.type==='projectile'){
       const fromX=ev.fromC*px+px/2, fromY=ev.fromR*px+px/2;
       const toX=ev.toC*px+px/2, toY=ev.toR*px+px/2;
@@ -1509,7 +1914,7 @@ function processFxEvents(){
       el.style.color=ev.color||'#e0e0e0';
       el.style.setProperty('--angle',angle+'deg');
       el.style.left=fromX+'px'; el.style.top=fromY+'px';
-      els.tokenLayer.appendChild(el);
+      appendTokenLayerNode(el);
       requestAnimationFrame(()=>{
         el.style.transition=`left ${duration}ms cubic-bezier(.18,.72,.22,1), top ${duration}ms cubic-bezier(.18,.72,.22,1)`;
         el.style.left=toX+'px'; el.style.top=toY+'px';
@@ -1517,9 +1922,13 @@ function processFxEvents(){
       setTimeout(()=>{
         if(!el.isConnected) return;
         el.remove();
+        if(kind==='magic' && ev.owner==='monster' && Sound.spellImpact){
+          const mk=ev.special==='frost'?'ice':ev.special==='lifesteal'?'dark':ev.special==='splash'?'fire':ev.special==='curse'?'curse':'arcane';
+          Sound.spellImpact(mk,'monster-projectile',false);
+        } else if(Sound.projectileImpact) Sound.projectileImpact(kind,ev.owner||'hero');
         const hit=document.createElement('div'); hit.className='projectile-impact';
         hit.style.left=toX+'px'; hit.style.top=toY+'px'; hit.style.color=ev.color||'#fff';
-        els.tokenLayer.appendChild(hit);
+        appendTokenLayerNode(hit);
         setTimeout(()=>hit.remove(),380);
       },duration+12);
     } else if(ev.type==='coreHit'){
@@ -1538,7 +1947,7 @@ function processFxEvents(){
       const fl=document.createElement('div'); fl.className='flash';
       fl.style.width=(size*0.55)+'px'; fl.style.height=(size*0.55)+'px';
       wrap.appendChild(r1); wrap.appendChild(r2); wrap.appendChild(fl);
-      els.tokenLayer.appendChild(wrap);
+      appendTokenLayerNode(wrap);
       setTimeout(()=>wrap.remove(), 640);
     } else if(ev.type==='wallBreak'){
       const cx=ev.c*px+px/2, cy=ev.r*px+px/2;
@@ -1557,12 +1966,15 @@ function processFxEvents(){
         chunk.style.animationDelay=(Math.random()*0.06)+'s';
         wrap.appendChild(chunk);
       }
-      els.tokenLayer.appendChild(wrap);
+      appendTokenLayerNode(wrap);
       setTimeout(()=>wrap.remove(), 700);
       els.boardInner.classList.remove('shake'); void els.boardInner.offsetWidth; els.boardInner.classList.add('shake');
     }
   }
-  state.fxEvents.length=0;
+  } finally {
+    _tokenLayerBatchFragment=prevBatch;
+    if(batch.childNodes.length) appendTokenLayerNode(batch);
+  }
 }
 
 let panelPointerActive=false;

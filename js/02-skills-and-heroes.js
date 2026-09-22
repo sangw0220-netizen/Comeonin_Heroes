@@ -165,6 +165,13 @@ function findHeroForMawang(m){
   }
   return {hero:best,dist:bestD};
 }
+function pushMawangSkillImpact(variant,r,c,opts={}){
+  state.fxEvents.push(Object.assign({type:'mawangSkillImpact',variant,r,c},opts));
+}
+function pushMawangSkillName(r,c,text,color='#ff9bb0'){
+  state.fxEvents.push({type:'monsterSkillName',r,c,text,color});
+}
+
 function mawangAttackHero(m,h,dist){
   const now=performance.now();
   const st=mawangCurrentStats();
@@ -179,7 +186,7 @@ function mawangAttackHero(m,h,dist){
   m.lastAttackAt=now;
   m.attackCooldown=Math.max(.12,st.attackInterval);
   if(h.hp<=0)h.killerMawang=true;
-  state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:crit?'#ffd166':'#e84b64'});
+  state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:crit?'#ffd166':'#e84b64',critical:crit});
   state.fxEvents.push({type:'spark',r:h.r,c:h.c,color:crit?'#fff0a6':'#ff6873'});
   if(dist<=1){
     const dR=Math.sign(h.r-m.r), dC=Math.sign(h.c-m.c);
@@ -190,19 +197,28 @@ function mawangAttackHero(m,h,dist){
       state.fxEvents.push(
         {type:'punch',key:'mawang',dr:dR,dc:dC,mode:'attacker'},
         {type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'},
-        {type:'battleHit',r:h.r,c:h.c,color:'#b21f4c',strong:crit||dmg>Math.max(12,h.maxHp*.12),damage:dmg}
+        {type:'battleHit',r:h.r,c:h.c,color:'#b21f4c',strong:crit||dmg>Math.max(12,h.maxHp*.12),damage:dmg,dr:dR,dc:dC,weaponType:'sword',critical:crit,attackerType:'mawang'}
       );
     }else{
-      state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#b21f4c',strong:crit||dmg>Math.max(12,h.maxHp*.12),damage:dmg});
+      state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#b21f4c',strong:crit||dmg>Math.max(12,h.maxHp*.12),damage:dmg,dr:dR,dc:dC,weaponType:'sword',critical:crit,attackerType:'mawang'});
     }
   } else state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:'#d84b72',owner:'mawang',typeId:'mawang',kind:'blade'});
   if(crit) state.fxEvents.push({type:'floatText',r:h.r,c:h.c,text:'CRIT!',color:'#ffd166'});
+  if(h.hp>0 && h.hp<=h.maxHp*.3){
+    pushMawangSkillImpact('execution-burst',h.r,h.c,{icon:'☠',skillName:'처형의 기세',radius:0.82,color:'#ffb0b9'});
+  }
   if(mawangHasSkill('hell_slash') && Math.random()<.10+mawangSkillRate('hell_slash',.04)){
+    pushMawangSkillName(h.r,h.c,'🔥 지옥참격','#ff9db4');
+    pushMawangSkillImpact('hell-slash',h.r,h.c,{icon:'🔥',skillName:'지옥참격',radius:1.12,color:'#ff7b8f'});
     for(const o of state.heroes){
       if(o===h||o.hp<=0)continue;
       if(Math.abs(o.r-h.r)+Math.abs(o.c-h.c)<=1){
-        const splash=Math.max(1,Math.round(dmg*.45)); o.hp-=splash; if(o.hp<=0)o.killerMawang=true;
+        const splash=Math.max(1,Math.round(dmg*.45));
+        o.hp-=splash;
+        if(o.hp<=0)o.killerMawang=true;
+        const dR=Math.sign(o.r-m.r), dC=Math.sign(o.c-m.c);
         state.fxEvents.push({type:'floatText',r:o.r,c:o.c,text:'-'+splash,color:'#f46a85'});
+        state.fxEvents.push({type:'battleHit',r:o.r,c:o.c,color:'#d83a63',strong:splash>Math.max(10,o.maxHp*.1),damage:splash,dr:dR,dc:dC,weaponType:'sword',critical:false,attackerType:'mawang',skill:true,skillVariant:'hell-slash'});
       }
     }
   }
@@ -219,7 +235,18 @@ function mawangAutoAnnihilation(m){
   m.skillTimers.annihilation=now+20000/(1-mawangSkillRate('swift_mind',.04));
   const st=mawangCurrentStats();
   const dmg=Math.max(5,Math.round(st.atk*3.5*st.skillPower));
-  for(const h of state.heroes){ if(h.hp<=0)continue; if(Math.abs(h.r-target.r)+Math.abs(h.c-target.c)<=1){h.hp-=dmg;if(h.hp<=0)h.killerMawang=true;state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff5b73'});} }
+  pushMawangSkillName(target.r,target.c,'👑 멸절의 일격','#ffd3dc');
+  pushMawangSkillImpact('annihilation',target.r,target.c,{icon:'👑',skillName:'멸절의 일격',radius:1.45,color:'#ff7a92'});
+  for(const h of state.heroes){
+    if(h.hp<=0)continue;
+    if(Math.abs(h.r-target.r)+Math.abs(h.c-target.c)<=1){
+      h.hp-=dmg;
+      if(h.hp<=0)h.killerMawang=true;
+      const dR=Math.sign(h.r-m.r), dC=Math.sign(h.c-m.c);
+      state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff5b73'});
+      state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#d13155',strong:true,damage:dmg,dr:dR,dc:dC,weaponType:'sword',critical:false,attackerType:'mawang',skill:true,skillVariant:'annihilation'});
+    }
+  }
   state.fxEvents.push({type:'monsterSkillImpact',r:target.r,c:target.c,spell:'dark',radius:1.2,icon:'☠'});
   addLog(`<span class="hl-gold">👑 멸절의 일격</span> — 마왕의 광역 참격이 폭발했습니다.`);
   Sound.magic('dark');
@@ -406,7 +433,7 @@ const TRAP_RESEARCH_CATEGORY={
   frost:'control', web:'control', curse:'control'
 };
 const TRAP_MASTERY_META={
-  attack:{icon:'🔥',name:'파괴의 계승',desc:'공격형 함정(가시·화염·번개·독) 연구를 3/6/9회 진행하면 해당 함정들의 피해가 추가로 강해집니다.'},
+  attack:{icon:'🔥',name:'파괴의 계승',desc:'공격형 함정(가시·용암·번개·독) 연구를 3/6/9회 진행하면 해당 함정들의 피해가 추가로 강해집니다.'},
   defense:{icon:'🛡️',name:'요새의 계승',desc:'방어형 함정(철벽·구덩이·수호진) 연구를 3/6/9회 진행하면 내구도·효과·주변 몬스터 방어력이 강화됩니다.'},
   control:{icon:'☠️',name:'제어의 계승',desc:'제어형 함정(빙판·거미둥지·저주) 연구를 3/6/9회 진행하면 지속시간·효과가 강화되고, 제어당한 적은 피해를 더 받습니다.'}
 };
@@ -420,22 +447,22 @@ const TRAP_RESEARCH_TIERS={
     {name:'처형의 가시',desc:'체력 20% 이하 용사에게 주는 피해 +20%'}
   ],
   flame:[
-    {name:'화염 증폭',desc:'화상 피해 +5%'},
-    {name:'불씨 잔류',desc:'화상 지속시간 +1초'},
-    {name:'고열',desc:'화상 상태 용사에게 주는 직접 피해 +10%'},
-    {name:'지옥불',desc:'화상 상태 용사가 죽으면 주변 1칸에 화염 피해'}
+    {name:'용암 농축',desc:'용암 지속 피해 +5%'},
+    {name:'고열 지대',desc:'용암 지속 피해 추가 강화'},
+    {name:'용융 핵',desc:'용암 위 적에게 더 강한 지속 피해'},
+    {name:'지옥 용암',desc:'용암 피해로 사망하면 주변 1칸에 작은 폭발'}
   ],
   lightning:[
-    {name:'전류 증폭',desc:'번개 피해 +4%'},
-    {name:'연쇄 회로',desc:'첫 대상에게 주는 피해 +8%'},
-    {name:'과전류',desc:'번개에 맞은 용사는 2초 동안 번개 피해 +10%'},
+    {name:'전류 증폭',desc:'전격 피해 +4%'},
+    {name:'전압 상승',desc:'전격 피해 추가 강화'},
+    {name:'과전류',desc:'십자 영역 전격 피해 강화'},
     {name:'낙뢰 공명',desc:'한 번에 3명 이상 맞히면 다음 낙뢰 피해 +25%'}
   ],
   poison:[
-    {name:'맹독 정제',desc:'독 피해 +5%'},
-    {name:'독성 잔류',desc:'중독 지속시간 +1초'},
-    {name:'농축 맹독',desc:'첫 접촉 시 추가 피해 +6'},
-    {name:'역병의 원천',desc:'중독으로 사망한 용사 주변 1칸에 중독 전염'}
+    {name:'맹독 정제',desc:'1초당 독 피해 +5%'},
+    {name:'독성 농축',desc:'5초 중독의 틱 피해 추가 강화'},
+    {name:'농축 맹독',desc:'독 피해 추가 강화'},
+    {name:'역병의 원천',desc:'독으로 사망한 용사 주변 1칸에 약한 중독 전염'}
   ],
   barricade:[
     {name:'강철 보강',desc:'내구도 +6%'},
@@ -444,10 +471,10 @@ const TRAP_RESEARCH_TIERS={
     {name:'철벽 진지',desc:'범위 내 몬스터가 받는 피해 -10%'}
   ],
   pit:[
-    {name:'깊은 구덩이',desc:'구속 지속시간 +0.3초'},
-    {name:'불안정 지반',desc:'구덩이에서 벗어난 용사 이동속도 -15%(2초)'},
-    {name:'심연의 압력',desc:'구속 시 피해 +15%'},
-    {name:'함몰의 심연',desc:'벗어난 용사가 40% 확률로 짧게 재구속'}
+    {name:'깊은 심연',desc:'보스 영웅이 구덩이에 밀릴 때 받는 피해 증가'},
+    {name:'붕괴 가장자리',desc:'보스 심연 충격의 경직 시간이 증가'},
+    {name:'심연의 압력',desc:'보스 영웅의 심연 피해 추가 증가'},
+    {name:'무저갱',desc:'보스 영웅의 심연 피해가 최대치로 강화'}
   ],
   statue:[
     {name:'수호 문양',desc:'방어 보너스 +4%'},
@@ -456,16 +483,16 @@ const TRAP_RESEARCH_TIERS={
     {name:'마왕의 성소',desc:'범위 내 몬스터가 치명적 피해를 1회 20% HP로 생존'}
   ],
   frost:[
-    {name:'냉기 강화',desc:'감속 효과 +5%'},
-    {name:'한기',desc:'둔화 지속시간 +0.5초'},
-    {name:'동상',desc:'접촉 시 감속 효과 추가 -10%'},
-    {name:'영구동토',desc:'이미 감속된 용사가 다시 밟으면 짧은 빙결'}
+    {name:'냉기 강화',desc:'빙판 이동속도 감소 효과 강화'},
+    {name:'결빙 표면',desc:'빙판 감속 효과 추가 강화'},
+    {name:'동상',desc:'고레벨 빙판의 감속 효과 강화'},
+    {name:'영구동토',desc:'빙판의 최대 감속 효과 강화'}
   ],
   web:[
-    {name:'점착액 강화',desc:'감속 효과 +5%'},
-    {name:'거미줄 증식',desc:'지속시간 +1초'},
-    {name:'포획',desc:'15% 확률로 0.5초 이동 정지'},
-    {name:'거미왕의 은총',desc:'속박 중인 용사가 받는 피해 +20%'}
+    {name:'점착액 강화',desc:'거미둥지 감속 효과 강화'},
+    {name:'거미줄 증식',desc:'거미둥지 감속 효과 추가 강화'},
+    {name:'독니 포획',desc:'기절 시 부여되는 5초 독 피해 강화'},
+    {name:'거미왕의 독',desc:'기절 시 부여되는 독 피해 추가 강화'}
   ],
   curse:[
     {name:'저주 강화',desc:'공격력 감소 효과 +4%'},
@@ -873,7 +900,7 @@ function awardRunSouls(){
 }
 
 const V18_BUILD_CARDS=[
-  {id:'venomPact',icon:'☠️',name:'맹독의 계약',desc:'독가스 주변 몬스터 공격력 +20%.',rarity:'빌드',cls:'nature',tag:'poison'},
+  {id:'venomPact',icon:'☠️',name:'맹독의 계약',desc:'독늪 주변 몬스터 공격력 +20%.',rarity:'빌드',cls:'nature',tag:'poison'},
   {id:'frostChain',icon:'❄️',name:'빙결 연쇄',desc:'냉기결정 주변 몬스터가 공격 시 둔화 적에게 +25% 피해.',rarity:'빌드',cls:'arcane',tag:'frost'},
   {id:'fortressDoctrine',icon:'🧱',name:'요새 교리',desc:'돌기둥 근처 몬스터 최대 HP +30%.',rarity:'빌드',cls:'legendary',tag:'fort'},
   {id:'swarmDoctrine',icon:'👥',name:'군세 교리',desc:'주변 몬스터가 2마리 이상이면 공격력 +18%.',rarity:'빌드',cls:'arcane',tag:'swarm'},
@@ -1049,7 +1076,7 @@ function freshState(){
     phase:'placeCore', corePlaced:false, buildTimer:buildTimeForWave(1), invasionTimer:0,
     spawnCooldown:2, spawnInterval:SPAWN_INTERVAL_START,
     wave:0, waveHeroesTotal:0, waveHeroesSpawned:0, bossSpawnedThisWave:false, bossesSpawnedThisWave:0,
-    nextWaveRiskMul:1, nextWaveRewardMul:1,
+    nextWaveRiskMul:1, nextWaveRewardMul:1, villageRaidEffects:[],
     stageEvent:null, stageEventText:'', stageEventHistory:[], stageEventLastId:null, stageHeroAtkMul:1, stageHeroHpMul:1, stageSpawnMul:1, stageMonsterAtkMul:1, stageCoreDmgMul:1, stageWaveGoldBonus:0,
     killCount:0, selected:null, deathFx:[], fxEvents:[],
     running:false, gameOver:false,
@@ -1153,8 +1180,8 @@ const els={
   debugCloseBtn:document.getElementById('debugCloseBtn'),
 };
 
-/* ---------------- procedural audio ----------------
- * 외부 음원 파일 없이 Web Audio API로 BGM/효과음을 생성합니다.
+/* ---------------- hybrid game audio ----------------
+ * 실제 OGG BGM/SFX + Web Audio 합성 fallback을 함께 사용합니다.
  * 첫 사용자 클릭(start/사운드 버튼)에서 AudioContext를 활성화합니다.
  */
 const Sound = (()=>{
@@ -1164,6 +1191,36 @@ const Sound = (()=>{
   let ctx=null, master=null, musicGain=null, sfxGain=null, ambienceGain=null;
   let musicTimer=null, musicStep=0, unlocked=false, muted=false, stageIndex=0;
   let last={};
+  const sampleBuffers=new Map(), sampleLoading=new Map(), sampleLastVariant=new Map();
+  const bgmBuffers=new Map(), bgmLoading=new Map(); // victory/defeat stinger용 Web Audio 버퍼
+  let bgmSource=null, bgmSourceGain=null, currentBgmKey='', wantedBgmKey='', musicStarted=false, bgmTransitionId=0;
+  let bgmMedia=null, bgmMediaPrimed=false, bgmMediaFadeToken=0, bgmDuckTimer=null;
+  const MUSIC_BUS_LEVEL=.42;
+  const BGM_MEDIA_MASTER=.52;
+  const BGM_SAMPLE_BASE='assets/audio/bgm/';
+  const BGM_FILES={
+    prepare:'user_dungeon.ogg', battle:'battle_invasion.ogg', late:'battle_late.ogg',
+    mawang:'mawang_theme.ogg', boss:'boss_encounter.ogg', village:'user_village_raid.ogg',
+    victory:'victory_stinger.ogg', defeat:'defeat_stinger.ogg'
+  };
+  const BGM_FALLBACK_FILES={
+    prepare:'user_dungeon.mp3', battle:'battle_invasion.mp3', late:'battle_late.mp3',
+    mawang:'mawang_theme.mp3', boss:'boss_encounter.mp3', village:'user_village_raid.mp3',
+    victory:'victory_stinger.mp3', defeat:'defeat_stinger.mp3'
+  };
+  // v69 · 사용자 제공 BGM 2곡. 던전/마을습격에서만 전환하며 SFX에 따른 덕킹은 하지 않습니다.
+  const DUNGEON_BGM_KEY='prepare';
+  const VILLAGE_BGM_KEY='village';
+  const BGM_VOLUMES={prepare:.34,village:.30};
+  const SFX_SAMPLE_BASE='assets/audio/sfx/';
+  const SFX_SAMPLE_KEYS=new Set([
+    'ui_click','sword_swing','sword_hit','spear_swing','spear_hit','blunt_swing','blunt_hit','critical',
+    'arrow_launch','arrow_hit','bullet_launch','bullet_hit',
+    'magic_cast_arcane','magic_impact_arcane','magic_cast_fire','magic_impact_fire','magic_cast_ice','magic_impact_ice',
+    'magic_cast_holy','magic_impact_holy','magic_cast_dark','magic_impact_dark','magic_cast_nature','magic_impact_nature',
+    'magic_cast_wind','magic_impact_wind','magic_cast_spirit','magic_impact_spirit','magic_cast_curse','magic_impact_curse',
+    'heal','buff','curse','mawang_attack','mawang_hell_slash','mawang_annihilation','mawang_execution','death'
+  ]);
   const now=()=>performance.now();
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const STAGES=[
@@ -1182,14 +1239,190 @@ const Sound = (()=>{
       const comp=ctx.createDynamicsCompressor();
       comp.threshold.value=-18; comp.knee.value=10; comp.ratio.value=3.2; comp.attack.value=.004; comp.release.value=.18;
       master.connect(comp); comp.connect(ctx.destination);
-      musicGain=ctx.createGain(); musicGain.gain.value=.26; musicGain.connect(master);
-      sfxGain=ctx.createGain(); sfxGain.gain.value=1.72; sfxGain.connect(master);
+      musicGain=ctx.createGain(); musicGain.gain.value=MUSIC_BUS_LEVEL; musicGain.connect(master);
+      sfxGain=ctx.createGain(); sfxGain.gain.value=1.12; sfxGain.connect(master);
       ambienceGain=ctx.createGain(); ambienceGain.gain.value=.12; ambienceGain.connect(master);
     }
     if(ctx.state==='suspended') ctx.resume();
     unlocked=true; return true;
   }
-  function setMuted(v){ muted=!!v; ensure(); if(master) master.gain.setTargetAtTime(muted?0:.88,ctx.currentTime,.035); }
+  async function resumeAudioContext(){
+    if(!ensure()||!ctx) return false;
+    if(ctx.state==='suspended'){
+      try{ await ctx.resume(); }catch(_){ }
+    }
+    return ctx.state==='running';
+  }
+  function setMuted(v){
+    muted=!!v; ensure();
+    if(master) master.gain.setTargetAtTime(muted?0:.88,ctx.currentTime,.035);
+    if(bgmMedia){
+      bgmMedia.muted=muted;
+      if(muted){ try{bgmMedia.pause();}catch(_){ } }
+      else if(musicStarted){ primeBgmMedia(); syncMusic(true); }
+    }
+    if(!muted&&musicStarted) resumeAudioContext();
+  }
+  function samplePath(key,idx){ return `${SFX_SAMPLE_BASE}${key}_${String(idx).padStart(2,'0')}.ogg`; }
+  async function loadSampleKey(key){
+    if(!SFX_SAMPLE_KEYS.has(key)||!ensure()) return false;
+    if(sampleBuffers.has(key)) return true;
+    if(sampleLoading.has(key)) return sampleLoading.get(key);
+    const job=(async()=>{
+      try{
+        const bufs=[];
+        for(let i=1;i<=3;i++){
+          const res=await fetch(samplePath(key,i),{cache:'force-cache'});
+          if(!res.ok) throw new Error(`SFX ${key} ${res.status}`);
+          const arr=await res.arrayBuffer();
+          bufs.push(await ctx.decodeAudioData(arr.slice(0)));
+        }
+        sampleBuffers.set(key,bufs); return true;
+      }catch(err){ console.warn('[Sound] sample load failed:',key,err); return false; }
+      finally{ sampleLoading.delete(key); }
+    })();
+    sampleLoading.set(key,job); return job;
+  }
+  function preloadCoreSamples(){
+    ['ui_click','sword_swing','sword_hit','spear_swing','spear_hit','blunt_swing','blunt_hit','critical','arrow_launch','arrow_hit','bullet_launch','bullet_hit','mawang_attack'].forEach(k=>loadSampleKey(k));
+  }
+  async function loadBgmKey(key){
+    if(!BGM_FILES[key]||!ensure()) return false;
+    if(bgmBuffers.has(key)) return true;
+    if(bgmLoading.has(key)) return bgmLoading.get(key);
+    const job=(async()=>{
+      try{
+        const candidates=[BGM_FILES[key],BGM_FALLBACK_FILES[key]].filter(Boolean);
+        let lastErr=null;
+        for(const file of candidates){
+          try{
+            const res=await fetch(BGM_SAMPLE_BASE+file,{cache:'force-cache'});
+            if(!res.ok) throw new Error(`BGM ${key} ${file} ${res.status}`);
+            const arr=await res.arrayBuffer();
+            const decoded=await ctx.decodeAudioData(arr.slice(0));
+            bgmBuffers.set(key,decoded);
+            return true;
+          }catch(err){ lastErr=err; }
+        }
+        throw lastErr||new Error(`BGM ${key} decode failed`);
+      }catch(err){ console.warn('[Sound] BGM load failed:',key,err); return false; }
+      finally{ bgmLoading.delete(key); }
+    })();
+    bgmLoading.set(key,job); return job;
+  }
+  function bgmMediaFile(key){
+    const probe=document.createElement('audio');
+    const ogg=probe.canPlayType&&probe.canPlayType('audio/ogg; codecs="vorbis"');
+    if(ogg&&BGM_FILES[key]) return BGM_FILES[key];
+    return BGM_FALLBACK_FILES[key]||BGM_FILES[key];
+  }
+  function ensureBgmMedia(){
+    if(bgmMedia) return bgmMedia;
+    const a=document.createElement('audio');
+    a.preload='auto'; a.loop=true; a.playsInline=true; a.setAttribute('playsinline',''); a.setAttribute('webkit-playsinline','');
+    a.volume=0; a.muted=false;
+    a.addEventListener('error',()=>console.warn('[Sound] BGM media error:',a.currentSrc||a.src,a.error));
+    a.addEventListener('playing',()=>{ bgmMediaPrimed=true; });
+    bgmMedia=a;
+    return a;
+  }
+  function bgmTargetVolume(key){ return BGM_VOLUMES[key]??BGM_VOLUMES.prepare; }
+  function setBgmMediaSrc(key){
+    const a=ensureBgmMedia(), file=bgmMediaFile(key);
+    if(!file) return false;
+    const rel=BGM_SAMPLE_BASE+file;
+    if(a.dataset.bgmKey!==key){
+      a.dataset.bgmKey=key;
+      a.src=rel;
+      a.load();
+    }
+    return true;
+  }
+  function fadeBgmMedia(to,dur=.28,onDone){
+    const a=ensureBgmMedia(), token=++bgmMediaFadeToken, from=Number.isFinite(a.volume)?a.volume:0;
+    const start=performance.now(), ms=Math.max(1,dur*1000), target=clamp(to,0,1);
+    const step=()=>{
+      if(token!==bgmMediaFadeToken) return;
+      const t=Math.min(1,(performance.now()-start)/ms), k=t*t*(3-2*t);
+      try{ a.volume=clamp(from+(target-from)*k,0,1); }catch(_){ }
+      if(t<1) requestAnimationFrame(step); else if(onDone) onDone();
+    };
+    requestAnimationFrame(step);
+  }
+  function primeBgmMedia(){
+    if(muted) return;
+    const a=ensureBgmMedia(), key=desiredBgmKey(), vol=bgmTargetVolume(key);
+    if(a.dataset.bgmKey!==key) setBgmMediaSrc(key);
+    try{ a.volume=musicStarted?vol:0; }catch(_){ }
+    const promise=a.play();
+    if(promise&&typeof promise.then==='function'){
+      promise.then(()=>{ bgmMediaPrimed=true; if(musicStarted&&!muted) a.volume=vol; }).catch(err=>console.warn('[Sound] mobile BGM unlock blocked:',err));
+    }else bgmMediaPrimed=true;
+  }
+  function preloadBgm(){
+    // 던전 BGM을 우선 준비하고, 마을습격 진입 시에만 마을 BGM으로 전환합니다.
+    ensureBgmMedia();
+    setBgmMediaSrc(DUNGEON_BGM_KEY);
+  }
+  function desiredBgmKey(){
+    return state&&state.phase==='village' ? VILLAGE_BGM_KEY : DUNGEON_BGM_KEY;
+  }
+  function switchBgm(key,_fade=.55,_force=false){
+    if(!musicStarted||muted) return;
+    key=key||desiredBgmKey();
+    wantedBgmKey=key;
+    const a=ensureBgmMedia(), vol=bgmTargetVolume(key);
+    if(a.dataset.bgmKey!==key) setBgmMediaSrc(key);
+    a.loop=true; a.muted=false;
+    try{ a.volume=vol; }catch(_){ }
+    const p=a.play();
+    const after=()=>{
+      bgmMediaPrimed=true;
+      currentBgmKey=key;
+      try{ a.volume=vol; }catch(_){ }
+    };
+    if(p&&typeof p.then==='function') p.then(after).catch(err=>{
+      console.warn('[Sound] BGM play blocked:',key,err);
+      currentBgmKey='';
+    }); else after();
+  }
+  function syncMusic(force=false){
+    if(!musicStarted||muted) return;
+    const a=ensureBgmMedia(), key=desiredBgmKey(), vol=bgmTargetVolume(key);
+    if(a.dataset.bgmKey!==key||a.paused||force||currentBgmKey!==key){
+      switchBgm(key,0,force);
+    }else{
+      // UI/SFX/전투 상태로는 볼륨을 변경하지 않고, 현재 장소의 고정 BGM 볼륨을 유지합니다.
+      if(Math.abs(a.volume-vol)>.001) a.volume=vol;
+      if(a.muted) a.muted=false;
+    }
+  }
+  function duckMusic(_depth=.55,_dur=.20){
+    // 단일 BGM 모드에서는 의도적으로 아무 동작도 하지 않습니다.
+  }
+  function playBgmStinger(_key,_vol=.42){
+    // 승리/패배 등 상황별 음악 삽입을 사용하지 않습니다. 기존 SFX 피드백만 유지합니다.
+  }
+  function pickVariant(key){
+    const prev=sampleLastVariant.get(key)||0; let n=1+Math.floor(Math.random()*3);
+    if(n===prev) n=(n%3)+1; sampleLastVariant.set(key,n); return n;
+  }
+  function playSample(key,{vol=.62,rate=1,pan=0,delay=0}={}){
+    if(muted||!SFX_SAMPLE_KEYS.has(key)||!ensure()) return false;
+    const idx=pickVariant(key), bufs=sampleBuffers.get(key);
+    if(bufs&&bufs[idx-1]){
+      const src=ctx.createBufferSource(), g=ctx.createGain(); src.buffer=bufs[idx-1]; src.playbackRate.value=Math.max(.82,Math.min(1.18,rate));
+      g.gain.value=Math.max(.0001,vol); let out=g; src.connect(g);
+      if(ctx.createStereoPanner){ const p=ctx.createStereoPanner(); p.pan.value=Math.max(-1,Math.min(1,pan)); g.connect(p); out=p; }
+      out.connect(sfxGain); src.start(ctx.currentTime+Math.max(0,delay)); return true;
+    }
+    loadSampleKey(key);
+    try{
+      const a=new Audio(samplePath(key,idx)); a.preload='auto'; a.volume=Math.max(0,Math.min(1,vol*.72)); a.playbackRate=Math.max(.86,Math.min(1.14,rate));
+      if(delay>0) setTimeout(()=>a.play().catch(()=>{}),delay*1000); else a.play().catch(()=>{});
+      return true;
+    }catch(_){ return false; }
+  }
   function toggle(){setMuted(!muted);return muted;}
   function tone(freq,dur=.12,type='sine',vol=.08,slide=0,when=0,bus='sfx',filterType=null,filterFreq=null){
     if(!ensure()||muted) return;
@@ -1220,33 +1453,154 @@ const Sound = (()=>{
     const ints=kind==='major'?[1,1.25,1.5]:kind==='power'?[1,1.498]:[1,1.189,1.498];
     ints.forEach((m,i)=>tone(root*m,.38,'triangle',vol*(i?0.75:1),.998,when+i*.012,'sfx','lowpass',1700));
   }
-  function startMusic(){
-    if(!ensure()||muted||musicTimer) return;
-    musicStep=0;
-    const tick=()=>{
-      if(!ctx||muted) return;
-      const s=STAGES[stageIndex%STAGES.length], sem=s.scale[musicStep%s.scale.length];
-      const root=s.root*Math.pow(2,sem/12), bar=musicStep%16;
-      tone(root,.46,'triangle',.052,.997,0,'music','lowpass',1700);
-      if(bar%4===0) tone(s.root/2,.72,'sine',.045,.992,.02,'music','lowpass',700);
-      if(bar%4===2) tone(s.root*1.498,.28,'triangle',.024,1.002,.05,'music','lowpass',2200);
-      if(bar%8===7) tone(s.root*2,.18,'sine',.018,.9,.08,'music','highpass',900);
-      if(bar%4===0) noise(.035,.012,1200,0,6500);
-      musicStep=(musicStep+1)%64;
-    };
-    tick(); musicTimer=setInterval(tick,560);
+  // v64 · 전투 SFX 레이어. 한 번의 공격을 transient(찰칵/베기) + body(충격) + tail(잔향)로 분리합니다.
+  const pitchJitter=(v,amt=.035)=>v*(1+(Math.random()*2-1)*amt);
+  function airWhoosh(power=1,low=false,when=0){
+    noise(.075+power*.025,.032*power,low?520:1200,when,low?4200:10000);
+    tone(pitchJitter(low?170:330),.09+power*.025,'triangle',.022*power,low?.52:.68,when+.004,'sfx',low?'lowpass':'highpass',low?1600:850);
   }
-  function stopMusic(){if(musicTimer){clearInterval(musicTimer);musicTimer=null;}}
+  function lowBody(power=1,pitch=72,when=0){
+    tone(pitchJitter(pitch,.025),.16+power*.04,'sine',.075*power,.36,when,'sfx','lowpass',420);
+    noise(.07+power*.025,.032*power,70,when+.002,1400);
+  }
+  function weaponSwing(type='sword',power=1,evil=false){
+    const key=(type==='spear'?'spear':type==='blunt'?'blunt':'sword')+'_swing';
+    if(playSample(key,{vol:.46*power,rate:pitchJitter(1,.025)})) return;
+    if(type==='spear'){ airWhoosh(.9*power,false,0); tone(pitchJitter(620),.07,'triangle',.024*power,1.35,.01,'sfx','highpass',650); }
+    else if(type==='blunt'){ airWhoosh(1.1*power,true,0); tone(pitchJitter(115),.12,'sawtooth',.038*power,.58,.012,'sfx','lowpass',1000); }
+    else{ airWhoosh(power,false,0); noise(.055,.028*power,1350,.012,9800); tone(pitchJitter(evil?215:330),.07,'triangle',.020*power,.58,.008,'sfx','bandpass',1150); }
+  }
+  function weaponImpact(type='sword',strong=false,critical=false,evil=false){
+    duckMusic(critical?.34:(strong?.48:.62),critical?.30:.19);
+    const p=(strong?1.16:1)*(critical?1.22:1), key=(type==='spear'?'spear':type==='blunt'?'blunt':'sword')+'_hit';
+    const played=playSample(key,{vol:.52*p,rate:pitchJitter(1,.022)});
+    if(critical && cooldown('critical_sample',85)) playSample('critical',{vol:.50,rate:pitchJitter(1,.018),delay:.008});
+    if(played) return;
+    if(type==='spear'){ noise(.085,.07*p,1050,0,8200); noise(.035,.045*p,360,.012,3500); lowBody(.58*p,92,.014); }
+    else if(type==='blunt'){ lowBody(1.18*p,56,0); noise(.13,.07*p,100,0,2300); noise(.035,.03*p,480,.012,3200); }
+    else{ noise(.095,.078*p,980,0,8800); noise(.065,.050*p,330,.012,3600); lowBody(.58*p,70,.016); }
+  }
+  function projectileElement(kind){
+    if(kind==='ice') return 'ice';
+    if(kind==='dark') return 'dark';
+    if(kind==='fire') return 'fire';
+    if(kind==='holy') return 'holy';
+    if(kind==='magic') return 'arcane';
+    return '';
+  }
+  function projectileLaunch(kind='arrow',owner='hero'){
+    const evil=owner==='monster'||owner==='mawang', elem=projectileElement(kind);
+    if(kind==='bullet' && playSample('bullet_launch',{vol:.50,rate:pitchJitter(1,.025)})) return;
+    if(elem && playSample('magic_cast_'+elem,{vol:.34,rate:pitchJitter(1,.02)})) return;
+    if(!elem&&kind!=='bullet' && playSample('arrow_launch',{vol:.43,rate:pitchJitter(1,.035)})) return;
+    if(kind==='bullet'){ tone(pitchJitter(190),.055,'square',.05,.42); noise(.045,.06,900,0,9000); lowBody(.5,82,.012); }
+    else if(elem){ tone(pitchJitter(evil?280:520),.10,'triangle',.04,1.45); noise(.045,.025,1800,.01,9000); }
+    else { airWhoosh(.72,false,0); tone(pitchJitter(evil?410:650),.07,'triangle',.025,1.2,.01,'sfx','highpass',600); }
+  }
+  function projectileHit(kind='arrow',owner='hero'){
+    duckMusic(.72,.13);
+    if(!cooldown('proj_hit_'+kind,45)) return;
+    const elem=projectileElement(kind);
+    const key=kind==='bullet'?'bullet_hit':elem?'magic_impact_'+elem:'arrow_hit';
+    if(playSample(key,{vol:kind==='bullet'?.50:.44,rate:pitchJitter(1,.028)})) return;
+    if(kind==='bullet'){ noise(.07,.075,760,0,6500); lowBody(.48,78,.006); }
+    else if(elem){ tone(260,.12,'triangle',.05,.62); noise(.07,.04,800,0,7600); }
+    else { noise(.065,.055,900,0,7200); lowBody(.34,96,.008); }
+  }
+  function magicSampleKind(kind){
+    if(kind==='heal') return 'holy';
+    if(kind==='wraith') return 'dark';
+    if(kind==='song') return 'buff';
+    if(['arcane','fire','ice','holy','dark','nature','wind','spirit','curse'].includes(kind)) return kind;
+    return 'arcane';
+  }
+  function magicCastSound(kind='arcane',cast=2){
+    if(kind==='steel'){ weaponSwing('sword',.82,false); return; }
+    if(kind==='bullet'){ projectileLaunch('bullet','hero'); return; }
+    if(kind==='song'){ if(playSample('buff',{vol:.42,rate:pitchJitter(1,.015)})) return; }
+    const sk=magicSampleKind(kind), sampleKey='magic_cast_'+sk;
+    if(SFX_SAMPLE_KEYS.has(sampleKey) && playSample(sampleKey,{vol:.40+(cast>=2.5?.05:0),rate:pitchJitter(1,.018)})) return;
+    if(kind==='steel'){ weaponSwing('sword',.78,false); tone(520,.09,'triangle',.02,1.22,.04); return; }
+    if(kind==='bullet'){ projectileLaunch('bullet','hero'); tone(330,.10,'triangle',.02,1.18,.045); return; }
+    if(kind==='wind'){ airWhoosh(.85,false); tone(610,.15,'sine',.028,1.28,.035); return; }
+    if(kind==='song'){ chord(390,'major',.028); tone(780,.24,'sine',.025,1.08,.07); return; }
+    const base={fire:165,ice:720,dark:92,curse:105,holy:520,nature:390,spirit:310,arcane:360,wraith:110}[kind]||360;
+    const bright=(kind==='holy'||kind==='ice'||kind==='nature'||kind==='spirit');
+    tone(pitchJitter(base),.16,'triangle',.055,bright?1.28:.72,0,'sfx',bright?'highpass':'lowpass',bright?240:1800);
+    tone(pitchJitter(base*1.5),.28,'sine',.032,1.02,.05,'sfx','bandpass',Math.max(260,base*1.2));
+    noise(.08,.018,bright?1600:420,.03,bright?9500:3200);
+    if(cast>=2.5) tone(pitchJitter(base*.5),.42,'sine',.024,1.08,.11,'sfx','lowpass',950);
+  }
+  function magicImpactSound(kind='arcane',fx='',strong=false){
+    duckMusic(strong?.44:.60,strong?.28:.18);
+    if(!cooldown('magicImpact_'+kind+(strong?'_s':''),55)) return;
+    if(kind==='steel'){ weaponImpact('sword',strong,false,false); return; }
+    if(kind==='bullet'){ projectileHit('bullet','hero'); return; }
+    if(kind==='song'){ if(playSample('buff',{vol:.40,rate:pitchJitter(1,.015)})) return; }
+    const sk=magicSampleKind(kind), sampleKey='magic_impact_'+sk;
+    if(SFX_SAMPLE_KEYS.has(sampleKey) && playSample(sampleKey,{vol:strong?.58:.45,rate:pitchJitter(1,.02)})) return;
+    const p=strong?1.28:1;
+    if(kind==='steel'){ weaponImpact('sword',strong,false,false); return; }
+    if(kind==='bullet'){ projectileHit('bullet','hero'); return; }
+    if(kind==='wind'){ airWhoosh(.72*p,false); noise(.065,.04*p,1800,0,9800); return; }
+    if(kind==='song'){ chord(440,'major',.025); tone(880,.16,'sine',.024,1.12,.035); return; }
+    if(kind==='nature'){ tone(420,.18,'triangle',.04*p,1.34); tone(630,.22,'sine',.028*p,1.08,.035); noise(.055,.018,1550,0,8500); return; }
+    if(kind==='fire'){
+      lowBody(.9*p,62); noise(.18,.065*p,250,0,5200); tone(190,.15,'sawtooth',.05*p,.44,.02);
+    }else if(kind==='ice'){
+      noise(.11,.06*p,2200,0,11000); tone(1250,.14,'sine',.045*p,.46); tone(760,.18,'triangle',.028*p,.58,.02);
+    }else if(kind==='holy'){
+      tone(640,.18,'sine',.05*p,1.36); tone(960,.22,'triangle',.036*p,.82,.025); noise(.065,.025*p,1800,0,10000);
+    }else if(kind==='dark'||kind==='curse'||kind==='wraith'){
+      lowBody(.85*p,54); tone(105,.24,'triangle',.06*p,.48); noise(.13,.045*p,260,0,3600);
+    }else if(kind==='wind'){
+      airWhoosh(1.05*p,false); noise(.08,.035*p,1900,0,10000);
+    }else{
+      tone(310,.14,'triangle',.055*p,.62); tone(620,.10,'sine',.025*p,1.3,.02); noise(.075,.04*p,900,0,8500);
+    }
+    if(fx==='doom_comet'||fx==='meteor_shower') lowBody(1.25*p,48,.02);
+  }
+  function mawangSkillSound(variant){
+    duckMusic(variant==='annihilation'?.28:.40,variant==='annihilation'?.38:.27);
+    const sampleKey=variant==='annihilation'?'mawang_annihilation':variant==='hell-slash'?'mawang_hell_slash':variant==='execution-burst'?'mawang_execution':'';
+    if(sampleKey && playSample(sampleKey,{vol:variant==='annihilation'?.70:.58,rate:pitchJitter(1,.012)})) return;
+    if(variant==='annihilation'){
+      lowBody(1.65,44); airWhoosh(1.35,true,.015); noise(.20,.095,150,.02,4200); tone(96,.34,'sawtooth',.09,.30,.035,'sfx','lowpass',1200); tone(520,.11,'square',.042,.44,.08);
+    }else if(variant==='hell-slash'){
+      airWhoosh(1.28,false); lowBody(.78,62,.012); tone(132,.16,'sawtooth',.045,.36,.025,'sfx','lowpass',1350); noise(.10,.052,520,.018,6200);
+    }else if(variant==='execution-burst'){
+      lowBody(1.1,52); tone(104,.22,'triangle',.06,.42,.018); noise(.09,.042,360,.02,4200);
+    }else{
+      lowBody(1.0,58); noise(.09,.045,420,0,5000);
+    }
+  }
+  function startMusic(){
+    if(muted) return;
+    ensure(); musicStarted=true; preloadBgm();
+    // 첫 사용자 제스처에서 현재 장소의 BGM을 바로 재생하고 이후 계속 루프합니다.
+    primeBgmMedia();
+    syncMusic(true);
+    resumeAudioContext();
+  }
+  function stopMusic(){
+    // 게임오버/웨이브 전환 등 내부 이벤트로는 BGM을 중단하지 않습니다.
+    // 사용자가 직접 음소거했을 때만 setMuted()가 일시정지합니다.
+    if(!muted){ musicStarted=true; syncMusic(); }
+  }
   function setStageMusic(index){
     stageIndex=Math.max(0,Math.floor(index||0));
-    if(musicTimer){stopMusic();startMusic();}
-    // brief musical handoff when the map changes
-    tone(STAGES[stageIndex%STAGES.length].root*2,.32,'sine',.035,1.25,.02,'music');
+    // 스테이지 변화만으로는 음악을 전환하지 않습니다. 마을습격 진입/복귀에서만 전환합니다.
+    if(musicStarted&&!muted) syncMusic();
   }
   function cooldown(key,ms){const t=now();if((last[key]||0)>t-ms)return false;last[key]=t;return true;}
   const api={
-    unlock(){ensure();},setMuted,toggle,startMusic,stopMusic,setStageMusic,cooldown,
-    ui(){click();},
+    unlock(){
+      ensure(); preloadCoreSamples(); preloadBgm();
+      primeBgmMedia();
+      resumeAudioContext();
+      if(musicStarted&&!muted) syncMusic(true);
+    },setMuted,toggle,startMusic,stopMusic,setStageMusic,syncMusic,duckMusic,cooldown,
+    ui(){if(!cooldown('ui_click',34)) return; if(!playSample('ui_click',{vol:.30,rate:pitchJitter(1,.012)})) click();},
     dig(){if(cooldown('dig',170)){noise(.13,.075,320,0,5200);tone(92,.10,'sawtooth',.028,.72);}},
     digBreak(){thump(.14,72);tone(155,.18,'triangle',.055,.48);noise(.12,.06,450);},
     wallBuild(){thump(.10,105);tone(210,.16,'square',.045,.68,.02);noise(.08,.035,260);},
@@ -1254,22 +1608,18 @@ const Sound = (()=>{
     monsterSpawn(){tone(74,.34,'sawtooth',.085,1.85);tone(148,.26,'triangle',.045,1.15,.08);noise(.18,.035,180,0,2800);},
     spawn(){this.monsterSpawn();},
     heroSpawn(){tone(260,.28,'triangle',.06,.62);tone(520,.34,'sine',.042,1.22,.08);chord(330,'major',.025,.12);},
-    heroAttack(){if(cooldown('heroAtk',90)){noise(.055,.055,900,0,7000);tone(245,.11,'square',.045,.64);}},
-    heroRanged(){if(cooldown('heroRanged',100)){tone(690,.12,'triangle',.05,1.55);noise(.06,.025,1500,0,9000);}},
-    monsterAttack(){if(cooldown('monsterAtk',90)){tone(125,.14,'sawtooth',.06,.52);noise(.06,.035,180);}},
+    heroAttack(type='sword'){if(cooldown('heroAtk_sword',72)) weaponSwing('sword',1,false);},
+    heroRanged(kind='arrow'){if(cooldown('heroRanged_'+kind,78)) projectileLaunch(kind,'hero');},
+    monsterAttack(type='blunt'){if(cooldown('monsterAtk_'+type,82)) weaponSwing(type,.92,true);},
     mawangAttack(){
-      if(cooldown('mawangAtk',80)){
-        // 마왕 전용 근접 타격음: 저음 충격 + 금속성 베기 + 짧은 노이즈를 겹쳐 무게감 있게 만듭니다.
-        thump(.19,68);
-        noise(.065,.095,760,0,9500);
-        tone(175,.12,'sawtooth',.085,.34,.008);
-        tone(320,.09,'square',.045,.58,.022);
+      if(cooldown('mawangAtk',68)){
+        if(!playSample('mawang_attack',{vol:.58,rate:pitchJitter(1,.016)})){ weaponSwing('sword',1.32,true); tone(76,.18,'sine',.055,.46,.012,'sfx','lowpass',700); }
       }
     },
-    monsterRanged(){if(cooldown('monsterRanged',100)){tone(390,.13,'triangle',.052,.66);tone(780,.09,'sine',.025,1.2,.035);}},
-    hit(){if(cooldown('hit',60)){noise(.065,.075,600,0,9000);tone(108,.10,'square',.048,.62);}},
-    critical(){tone(68,.25,'sawtooth',.10,.32);noise(.15,.07,700,0,9000);tone(420,.16,'triangle',.035,1.5,.04);},
-    death(){noise(.32,.095,100,0,3200);tone(98,.46,'sine',.07,.42);tone(61,.72,'triangle',.055,.55,.18);},
+    monsterRanged(kind='arrow'){if(cooldown('monsterRanged_'+kind,82)) projectileLaunch(kind,'monster');},
+    hit(type='blunt',strong=false){if(cooldown('hit_'+type,42)) weaponImpact(type,strong,false,false);},
+    critical(type='sword'){if(cooldown('critical_'+type,70)) weaponImpact(type,true,true,false);},
+    death(){if(!playSample('death',{vol:.52,rate:pitchJitter(1,.025)})){noise(.32,.095,100,0,3200);tone(98,.46,'sine',.07,.42);tone(61,.72,'triangle',.055,.55,.18);}},
     trap(id){
       /* 장애물별 컨셉 사운드: 짧고 강한 고유 음색으로 전투 판독성을 높입니다.
          - frost  : 기존 빙판 사운드 유지
@@ -1370,21 +1720,22 @@ const Sound = (()=>{
     },
     coreHit(){tone(58,.28,'sine',.085,.44);noise(.10,.055,90,0,1800);},
     waveStart(){tone(165,.22,'triangle',.07,.76);tone(247,.26,'triangle',.052,.82,.10);tone(330,.42,'sine',.055,.98,.22);noise(.035,.018,1200,.22,5000);},
-    waveClear(){tone(330,.16,'triangle',.055,1.08);tone(440,.18,'triangle',.06,1.06,.10);tone(554.37,.22,'triangle',.055,1.03,.20);tone(659.25,.48,'sine',.075,1,.32);},
+    waveClear(){duckMusic(.50,.32);if(cooldown('victory_bgm_stinger',900))playBgmStinger('victory',.34);tone(659.25,.32,'sine',.032,1,.08);},
     card(){tone(740,.08,'sine',.05,1.12);tone(1046,.14,'triangle',.045,1.02,.06);},
     level(){tone(330,.11,'triangle',.045,1.22);tone(495,.14,'triangle',.055,1.16,.08);tone(660,.25,'sine',.065,1,.16);},
     expand(){thump(.16,62);tone(124,.34,'square',.055,.48,.04);tone(248,.30,'triangle',.045,1.06,.18);tone(372,.36,'sine',.035,1.0,.28);},
-    gameOver(){tone(220,.28,'sine',.075,.78);tone(165,.34,'sine',.065,.68,.22);tone(110,.62,'triangle',.075,.50,.48);noise(.22,.035,100,.55,1500);},
-    magic(kind='arcane'){
-      const map={fire:[155,.14,'sawtooth',.085,2.8],ice:[980,.20,'sine',.07,.38],dark:[88,.24,'triangle',.085,.52],holy:[560,.20,'sine',.06,1.75],arcane:[390,.15,'triangle',.065,1.95]};
-      const a=map[kind]||map.arcane;if(cooldown('magic_'+kind,75)){tone(a[0],a[1],a[2],a[3],a[4]);tone(a[0]*1.8,a[1]*.8,'sine',a[3]*.42,.78,.035);noise(.055,a[3]*.20,1200,.03,7000);}
-    },
-    skill(kind='arcane',cast=2){
-      const base=kind==='fire'?135:kind==='ice'?820:kind==='dark'?82:kind==='holy'?500:kind==='steel'?190:360;
-      const dur=Math.min(5,Math.max(2,cast));
-      if(cooldown('skill_'+kind,120)){tone(base,.14,'triangle',.075,1.32);tone(base*1.5,dur*.30,'sine',.045,1.015,.08);tone(base*2.05,.22,'triangle',.065,1.20,Math.max(.14,dur-.40));noise(.07,.025,900,Math.max(.12,dur-.45),7000);}
-    },
-    defeatTransition(){tone(300,.23,'triangle',.06,.58);tone(180,.50,'sine',.065,.38,.12);noise(.34,.05,70,.18,1800);},
+    gameOver(){duckMusic(.28,.42);tone(110,.48,'triangle',.045,.50,.20);noise(.18,.026,100,.25,1500);},
+    magic(kind='arcane',fx=''){magicImpactSound(kind,fx,false);},
+    heal(){if(!playSample('heal',{vol:.43,rate:pitchJitter(1,.015)})) magicImpactSound('holy','',false);},
+    buff(){if(!playSample('buff',{vol:.42,rate:pitchJitter(1,.015)})) magicCastSound('song',1.2);},
+    curse(){if(!playSample('curse',{vol:.46,rate:pitchJitter(1,.018)})) magicImpactSound('curse','',false);},
+    skill(kind='arcane',cast=2){if(cooldown('skill_'+kind,105)) magicCastSound(kind,cast);},
+    meleeSkillRelease(type='sword'){if(cooldown('meleeSkillRelease_sword',70)) weaponSwing('sword',1.06,false);},
+    meleeImpact(type='sword',strong=false,critical=false,evil=false){weaponImpact(type,strong,critical,evil);},
+    projectileImpact(kind='arrow',owner='hero'){projectileHit(kind,owner);},
+    spellImpact(kind='arcane',fx='',strong=false){magicImpactSound(kind,fx,strong);},
+    mawangSkill(variant='hell-slash'){if(cooldown('mawangSkill_'+variant,90)) mawangSkillSound(variant);},
+    defeatTransition(){duckMusic(.30,.38);if(cooldown('defeat_bgm_stinger',1000))playBgmStinger('defeat',.42);tone(180,.36,'sine',.04,.38,.10);noise(.22,.028,70,.14,1800);},
     feed(){tone(285,.08,'triangle',.04,1.13);tone(430,.15,'sine',.035,1.02,.06);},
   };
   return api;

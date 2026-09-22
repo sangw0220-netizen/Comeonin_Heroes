@@ -7,8 +7,14 @@ if(els.soundBtn){
     if(!muted) Sound.startMusic();
   });
 }
-window.addEventListener('pointerdown',()=>{ Sound.unlock(); },{once:true});
-window.addEventListener('keydown',()=>{ Sound.unlock(); },{once:true});
+// 모바일 브라우저는 화면 전환/백그라운드 복귀 후 오디오를 다시 잠글 수 있으므로
+// 첫 입력뿐 아니라 이후 사용자 제스처에서도 가볍게 재활성화를 시도합니다.
+const resumeGameAudio=()=>{ try{ Sound.unlock(); }catch(_){ } };
+window.addEventListener('pointerdown',resumeGameAudio,{passive:true});
+window.addEventListener('touchend',resumeGameAudio,{passive:true});
+window.addEventListener('keydown',resumeGameAudio);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) resumeGameAudio(); });
+window.addEventListener('pageshow',resumeGameAudio);
 
 const STAGE_BACKGROUNDS = [
   {icon:'🌲', title:'1~10단계 · 어둠의 숲', sub:'잠든 숲의 고대 유적'},
@@ -112,6 +118,35 @@ function isDiggable(r,c){
 }
 function monsterAt(r,c){ return state.monsters.find(m=>m.r===r&&m.c===c) || null; }
 
+/* v67 · 전투 공간 인덱스
+   한 진영이 같은 논리 틱 동안 움직이지 않는 구간에만 사용합니다.
+   대상 선택의 동률 규칙은 기존 배열 순서를 유지합니다. */
+function buildCombatSpatialIndex(list){
+  const cells=Array.from({length:GRID*GRID},()=>null);
+  for(let i=0;i<list.length;i++){
+    const e=list[i]; if(!e||!Number.isFinite(e.r)||!Number.isFinite(e.c))continue;
+    const r=Math.max(0,Math.min(GRID-1,e.r|0)),c=Math.max(0,Math.min(GRID-1,e.c|0)),k=r*GRID+c;
+    (cells[k]||(cells[k]=[])).push({e,i});
+  }
+  return {list,cells};
+}
+function prepareHeroCombatSpatialIndex(){ if(state){state._heroCombatSpatial=buildCombatSpatialIndex(state.heroes||[]);state._heroCombatSpatialDirty=false;} }
+function prepareMonsterCombatSpatialIndex(){ if(state){state._monsterCombatSpatial=buildCombatSpatialIndex(state.monsters||[]);state._monsterCombatSpatialDirty=false;} }
+function markHeroCombatSpatialDirty(){ if(state)state._heroCombatSpatialDirty=true; }
+function markMonsterCombatSpatialDirty(){ if(state)state._monsterCombatSpatialDirty=true; }
+function getHeroCombatSpatialIndex(){ if(!state)return null;if(state._heroCombatSpatialDirty)prepareHeroCombatSpatialIndex();return state._heroCombatSpatial; }
+function getMonsterCombatSpatialIndex(){ if(!state)return null;if(state._monsterCombatSpatialDirty)prepareMonsterCombatSpatialIndex();return state._monsterCombatSpatial; }
+function clearCombatSpatialIndexes(){ if(state){state._heroCombatSpatial=null;state._monsterCombatSpatial=null;state._heroCombatSpatialDirty=false;state._monsterCombatSpatialDirty=false;} }
+function combatSpatialCandidates(index,r,c,range){
+  if(!index||!index.cells||range==null) return null;
+  const out=[],rr0=Math.max(0,Math.floor(r-range)),rr1=Math.min(GRID-1,Math.ceil(r+range)),cc0=Math.max(0,Math.floor(c-range)),cc1=Math.min(GRID-1,Math.ceil(c+range));
+  for(let rr=rr0;rr<=rr1;rr++) for(let cc=cc0;cc<=cc1;cc++){
+    if(Math.abs(rr-r)+Math.abs(cc-c)>range) continue;
+    const bucket=index.cells[rr*GRID+cc]; if(bucket) for(const item of bucket) out.push(item);
+  }
+  return out;
+}
+
 /* ---------------- mobile viewport height fix ---------------- */
 function setVh(){ document.documentElement.style.setProperty('--vh', (window.innerHeight*0.01)+'px'); }
 setVh();
@@ -153,6 +188,44 @@ function applyBoardSize(){
   els.frame.classList.toggle('zoomed', zoomed);
   els.boardInner.classList.toggle('zoomed', zoomed);
 }
+
+// v73: 모바일에서 하단 패널이 접히거나 펼쳐져 보드 영역의 실제 크기가 바뀌면
+// 기존 cell 크기를 그대로 두지 않고 새 viewport에 맞춰 다시 계산합니다.
+// 수동 줌 상태에서는 현재 보고 있던 지점이 갑자기 튀지 않도록 중심 좌표를 보존합니다.
+let _boardLayoutResizeRaf=0;
+function refitBoardForLayoutChange(){
+  if(!els?.frame || !els?.boardInner) return;
+  const oldPx=Math.max(1,currentCellPx||1);
+  const wasZoomed=isZoomedNow();
+  const centerCol=(els.frame.scrollLeft + els.frame.clientWidth/2)/oldPx;
+  const centerRow=(els.frame.scrollTop + els.frame.clientHeight/2)/oldPx;
+  applyBoardSize();
+  if(wasZoomed){
+    const newPx=Math.max(1,currentCellPx||1);
+    els.frame.scrollLeft=Math.max(0,centerCol*newPx-els.frame.clientWidth/2);
+    els.frame.scrollTop=Math.max(0,centerRow*newPx-els.frame.clientHeight/2);
+  }
+}
+function scheduleBoardLayoutRefit(delay=0){
+  const run=()=>{
+    if(_boardLayoutResizeRaf) cancelAnimationFrame(_boardLayoutResizeRaf);
+    _boardLayoutResizeRaf=requestAnimationFrame(()=>{
+      _boardLayoutResizeRaf=0;
+      refitBoardForLayoutChange();
+    });
+  };
+  if(delay>0) setTimeout(run,delay); else run();
+}
+
+// panel collapse 외에도 모바일 주소창/회전/레이아웃 변화로 board-frame 높이가 변할 수 있으므로
+// 실제 viewport 크기 변경을 관찰해 자동으로 재맞춤합니다.
+if(typeof ResizeObserver==='function'){
+  const _boardFrameResizeObserver=new ResizeObserver(()=>{
+    if(window.matchMedia('(max-width:600px)').matches) scheduleBoardLayoutRefit();
+  });
+  if(els?.frame) _boardFrameResizeObserver.observe(els.frame);
+}
+
 function centerZoomOnCore(){
   requestAnimationFrame(()=>{
     const px=currentCellPx;
@@ -235,19 +308,91 @@ function showToolInfo(tool){
   state.selected={kind:'tool', tool};
   renderUI();
 }
+
+// v64: 하단 도구 패널은 현재 도구 선택 상태와 별개로 접고 펼칠 수 있습니다.
+// 패널을 접어도 activeTool은 유지되므로, 플레이 화면에 집중하면서도
+// 몬스터/장애물 배치나 명령 상태는 그대로 이어집니다.
+function isBottomToolPanelCollapsed(){
+  return !!(els.panelWrap && els.panelWrap.classList.contains('tool-panel-collapsed'));
+}
+function setBottomToolPanelCollapsed(collapsed){
+  if(!els.panelWrap) return;
+  const isCollapsed=!!collapsed;
+  els.panelWrap.classList.toggle('tool-panel-collapsed',isCollapsed);
+  els.panelWrap.setAttribute('aria-hidden',isCollapsed?'true':'false');
+
+  const activeTool=state&&state.activeTool;
+  els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>{
+    b.setAttribute('aria-expanded',String(!isCollapsed && b.dataset.tool===activeTool));
+  });
+
+  // 패널은 max-height/transform 애니메이션으로 약 0.22초 동안 움직입니다.
+  // 첫 프레임 + 전환 종료 시점에 보드를 다시 맞춰, 접힌 공간을 즉시 게임 화면이 사용하게 합니다.
+  if(window.matchMedia('(max-width:600px)').matches){
+    scheduleBoardLayoutRefit();
+    scheduleBoardLayoutRefit(80);
+    scheduleBoardLayoutRefit(240);
+  }
+}
+
+const panelCollapseHandle=document.getElementById('panelCollapseHandle');
+if(panelCollapseHandle){
+  panelCollapseHandle.addEventListener('click',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(isBottomToolPanelCollapsed()) return;
+    Sound.ui();
+    setBottomToolPanelCollapsed(true);
+  });
+}
+
 els.toolbar.querySelectorAll('button[data-tool]').forEach(btn=>{
+  let ignoreClickUntil=0;
   const activateTool=(e)=>{
     if(e){ e.preventDefault(); e.stopPropagation(); }
     Sound.ui();
-    els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
     const tool=btn.dataset.tool;
-    if(state){ state.activeTool=tool; showToolInfo(tool); }
-    else pendingTool=tool;
+
+    if(state){
+      const sameToolPanel=state.activeTool===tool &&
+        state.selected?.kind==='tool' && state.selected.tool===tool;
+
+      // 이미 열려 있는 같은 도구 버튼을 다시 누르면 패널만 접습니다.
+      // 접힌 상태에서 같은 버튼을 누르면 기존 패널을 그대로 다시 펼칩니다.
+      if(sameToolPanel){
+        setBottomToolPanelCollapsed(!isBottomToolPanelCollapsed());
+        return;
+      }
+
+      // 다른 도구로 전환하거나, 타일/몬스터 상세 화면에서 도구 버튼을 누르면
+      // 패널을 열고 해당 도구 패널을 보여줍니다.
+      setBottomToolPanelCollapsed(false);
+      els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activeTool=tool;
+      showToolInfo(tool);
+    } else {
+      els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      pendingTool=tool;
+      setBottomToolPanelCollapsed(false);
+    }
   };
-  btn.addEventListener('click',activateTool);
+  btn.addEventListener('click',(e)=>{
+    // 터치 pointerup 직후 브라우저가 합성 click을 한 번 더 보내는 경우가 있어
+    // 토글이 두 번 실행되지 않도록 해당 click만 무시합니다.
+    if(performance.now()<ignoreClickUntil){
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    activateTool(e);
+  });
   btn.addEventListener('pointerup',(e)=>{
-    if(e.pointerType==='touch' || e.pointerType==='pen') activateTool(e);
+    if(e.pointerType==='touch' || e.pointerType==='pen'){
+      ignoreClickUntil=performance.now()+500;
+      activateTool(e);
+    }
   });
 });
 let pendingTool='dig';
@@ -391,8 +536,18 @@ function obstacleBreakTime(obId,h,tile){
   return base*durabilityMul*(ht?.digTimeMul||1);
 }
 const OBSTACLE_FOOTPRINT_SIZE=2;
-function obstacleAnchor(r,c){
-  return {r:Math.max(0,Math.min(GRID-OBSTACLE_FOOTPRINT_SIZE,r)),c:Math.max(0,Math.min(GRID-OBSTACLE_FOOTPRINT_SIZE,c))};
+const OBSTACLE_FOOTPRINT_KIND={
+  flame:'single',poison:'single',barricade:'single',frost:'single',
+  pit:'square2',web:'square2',lightning:'cross'
+};
+function obstacleFootprintKind(obId,tile=null){
+  if(tile?.wasBridge) return 'square2';
+  return OBSTACLE_FOOTPRINT_KIND[obId]||'square2';
+}
+function obstacleAnchor(r,c,obId=null){
+  const id=obId||state?.selectedObstacleType||state?.grid?.[r]?.[c]?.obstacle||'';
+  if(obstacleFootprintKind(id)==='square2') return {r:Math.max(0,Math.min(GRID-2,r)),c:Math.max(0,Math.min(GRID-2,c))};
+  return {r,c};
 }
 function obstacleRootPos(r,c){
   const t=state?.grid?.[r]?.[c]; if(!t?.obstacle) return null;
@@ -402,14 +557,35 @@ function obstacleRootPos(r,c){
 }
 function obstacleRootTile(r,c){const root=obstacleRootPos(r,c);return root?state.grid[root.r][root.c]:null;}
 function isObstacleRoot(r,c){const t=state?.grid?.[r]?.[c];return !!t?.obstacle&&(t.obstacleRootR??r)===r&&(t.obstacleRootC??c)===c;}
-function obstacleFootprintCells(r,c){
-  const root=obstacleAnchor(r,c),cells=[];
-  for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++)cells.push([rr,cc]);
-  return {root,cells};
+function obstacleFootprintCells(r,c,obId=null){
+  const existing=state?.grid?.[r]?.[c]?.obstacle;
+  const existingRoot=existing?obstacleRootPos(r,c):null;
+  if(existingRoot){ r=existingRoot.r;c=existingRoot.c;obId=state.grid[r][c].obstacle; }
+  const id=obId||state?.selectedObstacleType||existing||'';
+  const root=obstacleAnchor(r,c,id),kind=obstacleFootprintKind(id,state?.grid?.[root.r]?.[root.c]);
+  let cells=[];
+  if(kind==='single') cells=[[root.r,root.c]];
+  else if(kind==='cross') cells=[[root.r,root.c],[root.r-1,root.c],[root.r+1,root.c],[root.r,root.c-1],[root.r,root.c+1]];
+  else for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++)cells.push([rr,cc]);
+  return {root,cells,kind};
 }
-function canPlaceObstacleAt(r,c){
+function obstacleFootprintLabel(obId){ const k=obstacleFootprintKind(obId); return k==='single'?'1×1':k==='cross'?'십자형 5칸':'2×2'; }
+function obstacleVisualFootprint(obId,tile=null){
+  const kind=obstacleFootprintKind(obId,tile);
+  return kind==='square2'?2:(kind==='cross'?3:1);
+}
+function obstacleVisualBox(obId,tile=null){
+  const kind=obstacleFootprintKind(obId,tile);
+  if(kind==='cross') return {w:3,h:3,x:-1,y:-1,clip:'polygon(33.333% 0%, 66.667% 0%, 66.667% 33.333%, 100% 33.333%, 100% 66.667%, 66.667% 66.667%, 66.667% 100%, 33.333% 100%, 33.333% 66.667%, 0% 66.667%, 0% 33.333%, 33.333% 33.333%)'};
+  if(kind==='single') return {w:1,h:1,x:0,y:0,clip:'inset(0 round 5px)'};
+  return {w:2,h:2,x:0,y:0,clip:'inset(0 round 5px)'};
+}
+function obstacleFxCenter(rootR,rootC,obId,tile=null){ return obstacleFootprintKind(obId,tile)==='square2'?{r:rootR+.5,c:rootC+.5}:{r:rootR,c:rootC}; }
+function canPlaceObstacleAt(r,c,obId=null){
   if(!state||!inBounds(r,c)) return false;
-  const {cells}=obstacleFootprintCells(r,c);
+  const id=obId||state.selectedObstacleType||'';
+  const {cells,kind}=obstacleFootprintCells(r,c,id);
+  if(kind==='cross' && cells.some(([rr,cc])=>!inBounds(rr,cc))) return false;
   for(const [rr,cc] of cells){
     const t=state.grid[rr]?.[cc];
     if(!t||t.type!=='floor'||t.isEntrance||t.rubbleWall||t.obstacle)return false;
@@ -420,20 +596,30 @@ function canPlaceObstacleAt(r,c){
 function syncObstacleFootprint(rootR,rootC){
   const root=state?.grid?.[rootR]?.[rootC]; if(!root?.obstacle) return;
   if(typeof physicalDef==='function' && physicalDef(root.obstacle)) return;
-  for(let rr=rootR;rr<rootR+2;rr++)for(let cc=rootC;cc<rootC+2;cc++){
-    const t=state.grid[rr][cc]; t.obstacle=root.obstacle;t.obstacleRootR=rootR;t.obstacleRootC=rootC;
+  // 같은 루트를 가리키던 과거 점유 셀을 먼저 비워 형태 변경/붕락교 변환 시 고아 셀이 남지 않게 합니다.
+  for(let rr=0;rr<GRID;rr++)for(let cc=0;cc<GRID;cc++){
+    if(rr===rootR&&cc===rootC) continue;
+    const t=state.grid[rr]?.[cc];
+    if(t?.obstacle && t.obstacleRootR===rootR && t.obstacleRootC===rootC){
+      t.obstacle=null;delete t.obstacleRootR;delete t.obstacleRootC;delete t.obstacleLevel;delete t.obstacleHp;delete t.obstacleMaxHp;
+    }
+  }
+  const {cells}=obstacleFootprintCells(rootR,rootC,root.obstacle);
+  for(const [rr,cc] of cells){
+    const t=state.grid[rr]?.[cc]; if(!t) continue;
+    t.obstacle=root.obstacle;t.obstacleRootR=rootR;t.obstacleRootC=rootC;
     t.obstacleLevel=root.obstacleLevel||1;t.obstacleHp=root.obstacleHp??0;t.obstacleMaxHp=root.obstacleMaxHp??0;
+    if(root.wasBridge){t.wasBridge=true;t.bridgeCollapsed=!!root.bridgeCollapsed;}
   }
 }
 function clearObstacleFootprint(r,c){
   const root=obstacleRootPos(r,c); if(!root)return false;
   const rootTile=state.grid[root.r][root.c];
   if(typeof physicalDef==='function' && physicalDef(rootTile.obstacle)) return clearPhysicalTrap(root.r,root.c);
-  // Snapshot before clearing the root: comparing against a mutated root left 3 orphan cells.
   const clearedId=rootTile.obstacle;
-  for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++){
+  for(let rr=0;rr<GRID;rr++)for(let cc=0;cc<GRID;cc++){
     const t=state.grid[rr]?.[cc];
-    if(t?.obstacle===clearedId&&(t.obstacleRootR??root.r)===root.r&&(t.obstacleRootC??root.c)===root.c){
+    if(t?.obstacle===clearedId&&(t.obstacleRootR??rr)===root.r&&(t.obstacleRootC??cc)===root.c){
       t.obstacle=null;delete t.obstacleRootR;delete t.obstacleRootC;delete t.obstacleLevel;delete t.obstacleHp;delete t.obstacleMaxHp;delete t.statueCooldown;delete t.obstacleFxAt;
     }
   }
@@ -444,14 +630,14 @@ function placeObstacle(r,c,obId,free=false){
   if(!state || state.phase!=='build') return false;
   if(state.contractNoObstacleWaves>0 && !free){ addLog('<span class="hl-red">⛓️ 침묵의 맹약</span> — 이번 준비 단계엔 새 함정을 설치할 수 없습니다.'); return false; }
   const ob=OBSTACLE_TYPES.find(o=>o.id===obId); if(!ob||obId==='__wall__') return false;
-  const {root}=obstacleFootprintCells(r,c); if(!canPlaceObstacleAt(root.r,root.c)) return false;
+  const {root}=obstacleFootprintCells(r,c,obId); if(!canPlaceObstacleAt(root.r,root.c,obId)) return false;
   if(!free&&state.gold<obstaclePlaceCost(ob))return false;
   if(!free)state.gold-=obstaclePlaceCost(ob);
   const tile=state.grid[root.r][root.c];tile.obstacle=obId;tile.obstacleRootR=root.r;tile.obstacleRootC=root.c;tile.obstacleLevel=1;tile.obstacleHp=obstacleMaxHpFor(ob,1);tile.obstacleMaxHp=obstacleMaxHpFor(ob,1);
   syncObstacleFootprint(root.r,root.c);
   state.obstaclePlacements=(state.obstaclePlacements||0)+1;Sound.obstacle();
-  state.fxEvents.push({type:'spawnBurst',r:root.r,c:root.c,color:'rgba(224,182,74,.9)',footprint:2});
-  addLog(`<span class="hl">${ob.name}</span>을(를) 2×2 빈 바닥에 ${free?'무료로 ':''}설치했습니다.`);
+  state.fxEvents.push({type:'spawnBurst',r:root.r,c:root.c,color:'rgba(224,182,74,.9)',footprint:obstacleVisualFootprint(obId,tile)});
+  addLog(`<span class="hl">${ob.name}</span>을(를) ${obstacleFootprintLabel(obId)} 빈 바닥에 ${free?'무료로 ':''}설치했습니다.`);
   dungeonStructureInvalidate();return true;
 }
 function upgradeObstacle(r,c){
@@ -460,8 +646,8 @@ function upgradeObstacle(r,c){
   const tile=state.grid[root.r]?.[root.c];if(!tile?.obstacle)return false;const ob=OBSTACLE_TYPES.find(o=>o.id===tile.obstacle);if(!ob)return false;
   const lv=obstacleLevel(tile);if(lv>=OBSTACLE_LEVEL_MAX)return false;const cost=obstacleUpgradeCost(ob,lv);if(state.gold<cost)return false;
   state.gold-=cost;tile.obstacleLevel=lv+1;tile.obstacleMaxHp=obstacleMaxHpFor(ob,tile.obstacleLevel);tile.obstacleHp=tile.obstacleMaxHp;syncObstacleFootprint(root.r,root.c);
-  Sound.level();state.fxEvents.push({type:'monsterUpgrade',r:root.r,c:root.c,tier:tile.obstacleLevel,footprint:2});state.fxEvents.push({type:'floatText',r:root.r,c:root.c,text:'장애물 Lv.'+tile.obstacleLevel+' 강화!',color:'#e0b64a'});
-  addLog(`<span class="hl-gold">${ob.name}</span>이(가) Lv.${tile.obstacleLevel}로 강화되었습니다! 범위 ${obstacleRange(ob.id,tile)}칸`);dungeonStructureInvalidate();return true;
+  Sound.level();state.fxEvents.push({type:'monsterUpgrade',r:root.r,c:root.c,tier:tile.obstacleLevel,footprint:obstacleVisualFootprint(ob.id,tile)});state.fxEvents.push({type:'floatText',r:root.r,c:root.c,text:'장애물 Lv.'+tile.obstacleLevel+' 강화!',color:'#e0b64a'});
+  addLog(`<span class="hl-gold">${ob.name}</span>이(가) Lv.${tile.obstacleLevel}로 강화되었습니다! ${['flame','lightning','poison','barricade','pit','frost','web'].includes(ob.id)?'효과가 강화됩니다.':'범위 '+obstacleRange(ob.id,tile)+'칸'}`);dungeonStructureInvalidate();return true;
 }
 function clearObstacle(r,c){
   if(!state||state.phase!=='build')return;const tile=state.grid[r][c];if(tile.obstacle&&clearObstacleFootprint(r,c)){dungeonStructureInvalidate();addLog('장애물을 제거했습니다.');}
@@ -664,7 +850,7 @@ function createMonsterEntity(r,c,typeId,opts={}){
   const now=performance.now();
   const id=state.monsterSeq++;
   const m={id,r,c,typeId,tier,hp,maxHp:hp,atk,def,invested:opts.invested!=null?opts.invested:mt.cost,
-    range:mt.range||1,special:mt.special||null,role:mt.role||null,role2:mt.role2||null,debuffOnHit:!!mt.debuffOnHit,kills:0,
+    range:mt.range||1,special:mt.special||null,role:mt.role||null,role2:mt.role2||null,debuffOnHit:!!mt.debuffOnHit,kills:0,levelProgress:0,
     moveCooldown:opts.moveCooldown!=null?opts.moveCooldown:Math.random()*0.5,lastAttackAt:0,spawnedAt:now};
   state.monsters.push(m);
   state._archetypeDirty=true;
@@ -857,6 +1043,8 @@ function startGame(){
   state=freshState();
   state.mawang=createMawangEntity(CORE_R,CORE_C);
   state.activeTool=pendingTool;
+  // 새 게임은 항상 하단 도구 패널이 열린 상태로 시작합니다.
+  setBottomToolPanelCollapsed(false);
   state.running=true;
   state.gameSessionId=session;
   state.startedAt=performance.now();
@@ -1080,15 +1268,64 @@ function expandDungeon(){
 /* ---------------- entities continued below ---------------- */
 /* ---------------- entities ---------------- */
 const WANDER_RETARGET_SEC=16;
-// 웨이브 1~10 사이 용사(적) 체력/공격력을 완화해 초반 여유를 줍니다. 웨이브1은 약 60%, 웨이브10부터는 100%.
+// v67 · 1~10웨이브 초보 보호 구간.
+// 초반에는 HP/공격력뿐 아니라 방어력·용사 수·스폰 압력까지 함께 낮춥니다.
+// 11웨이브 이후 기존 난이도 곡선은 그대로 유지합니다.
 function earlyWaveEnemyMul(wave){
-  if(wave>=10) return .90;
-  const w=Math.max(1,wave);
-  return 0.55+(w-1)*(.90-.55)/9;
+  const w=Math.max(1,wave|0);
+  if(w>10) return .90;
+  return 0.45+(w-1)*(.72-.45)/9;
+}
+function earlyWaveDefenseMul(wave){
+  const w=Math.max(1,wave|0);
+  if(w>10) return 1;
+  return 0.52+(w-1)*(.76-.52)/9;
+}
+function earlyWaveCountMul(wave){
+  return wave<=10 ? .68 : 1;
+}
+function earlyWaveSpawnIntervalMul(wave){
+  return wave<=10 ? 1.24 : 1;
 }
 function heroBaseStats(wave){
   const mul=earlyWaveEnemyMul(wave);
   return { hp:Math.round((22+wave*7)*mul), atk:+((4+wave*1.4)*mul).toFixed(2), reward:8+wave*3.0 };
+}
+
+/* v65 · 마을 습격 후속 효과
+   마을에서 파괴한 시설은 다음 5웨이브 동안 용사 원정대 구성/능력치에 영향을 줍니다. */
+const VILLAGE_RAID_CASTER_IDS=new Set(['mage','archmage','ice_mage','spirit_caller','curse_caster','battle_mage','imperial_magus']);
+function villageRaidWaveMods(wave){
+  const w=Math.max(1,Math.floor(Number(wave)||1));
+  const active=(state&&Array.isArray(state.villageRaidEffects)?state.villageRaidEffects:[]).filter(e=>w>=(e.startWave||0)&&w<=(e.untilWave||0));
+  const mods={heroCountMul:1,heroHpMul:1,heroAtkMul:1,heroDefMul:1,rewardMul:1,spawnIntervalMul:1,casterChanceMul:1,active};
+  for(const e of active){
+    if(e.kind==='heroCountMul') mods.heroCountMul*=e.value;
+    else if(e.kind==='heroHpMul') mods.heroHpMul*=e.value;
+    else if(e.kind==='heroAtkMul') mods.heroAtkMul*=e.value;
+    else if(e.kind==='heroDefMul') mods.heroDefMul*=e.value;
+    else if(e.kind==='rewardMul') mods.rewardMul*=e.value;
+    else if(e.kind==='spawnIntervalMul') mods.spawnIntervalMul*=e.value;
+    else if(e.kind==='casterChanceMul') mods.casterChanceMul*=e.value;
+  }
+  mods.heroCountMul=Math.max(.55,mods.heroCountMul);
+  mods.heroHpMul=Math.max(.70,mods.heroHpMul);
+  mods.heroAtkMul=Math.max(.72,mods.heroAtkMul);
+  mods.heroDefMul=Math.max(.55,mods.heroDefMul);
+  mods.spawnIntervalMul=Math.min(1.45,mods.spawnIntervalMul);
+  mods.casterChanceMul=Math.max(.20,mods.casterChanceMul);
+  return mods;
+}
+function villageRaidPruneEffects(wave){
+  if(!state||!Array.isArray(state.villageRaidEffects)) return;
+  state.villageRaidEffects=state.villageRaidEffects.filter(e=>(e.untilWave||0)>=wave);
+}
+function villageRaidAdjustHeroType(type,pool,isBoss){
+  if(!type||isBoss) return type;
+  const mods=villageRaidWaveMods(state?.wave||1);
+  if(!VILLAGE_RAID_CASTER_IDS.has(type.id)||mods.casterChanceMul>=.999||Math.random()<mods.casterChanceMul) return type;
+  const alt=(pool||[]).filter(h=>h&&!VILLAGE_RAID_CASTER_IDS.has(h.id));
+  return alt.length?alt[Math.floor(Math.random()*alt.length)]:type;
 }
 function rerollWanderTarget(h){
   h.wanderR=Math.floor(Math.random()*GRID);
@@ -1099,8 +1336,8 @@ function partySizeForWave(wave, remaining){
   let maxParty=1;
   if(wave>=20) maxParty=5;
   else if(wave>=15) maxParty=4;
-  else if(wave>=10) maxParty=4;
-  else if(wave>=6) maxParty=3;
+  else if(wave>=11) maxParty=4;
+  else if(wave===10) maxParty=3;
   else if(wave>=3) maxParty=2;
   return Math.max(1,Math.min(5,maxParty,remaining));
 }
@@ -1153,7 +1390,7 @@ function pickPartyEdgeSpawnCells(count){
 /* ---------------- v18.1+ 용사 조합 / 웨이브 패턴 / 정예 시스템 ---------------- */
 const HERO_ENCOUNTER_PATTERNS=[
   {id:'balanced', name:'왕국 정찰대', minWave:1, types:['swordsman','archer','miner'], speedMul:1.0},
-  {id:'arcane', name:'마법 원정대', minWave:3, types:['mage','priest','archer'], speedMul:.96},
+  {id:'arcane', name:'마법 원정대', minWave:6, types:['mage','priest','archer'], speedMul:.98},
   {id:'holy', name:'성기사 원정대', minWave:5, types:['shieldbearer','paladin','priest'], speedMul:1.05},
   {id:'assault', name:'돌격대', minWave:6, types:['berserker','swordsman','assassin'], speedMul:.90},
   {id:'hunter', name:'사냥꾼 분대', minWave:7, types:['hunter','archer','gunslinger'], speedMul:1.02},
@@ -1212,7 +1449,7 @@ function bossCountForWave(wave){
    - 같은 용사를 구간 안에서 두 번 적어도 풀은 집합이므로 한 번으로 취급합니다.
    ========================================================================== */
 const HERO_WAVE_POOLS_BASE=[
-  {from:0,  to:5,   ids:['swordsman','archer','mage']},
+  {from:0,  to:5,   ids:['swordsman','archer']},
   {from:6,  to:10,  ids:['swordsman','archer','mage','miner']},
   {from:11, to:15,  ids:['swordsman','archer','mage','miner','paladin','assassin','priest']},
   {from:16, to:20,  ids:['swordsman','archer','mage','miner','paladin','assassin','priest','berserker','shieldbearer','hunter']},
@@ -1320,12 +1557,11 @@ function applyPartySynergy(heroMembers, patternId, isBossWave=false){
   if(isBossWave) addLog(`<span class="hl-red">☠️ ${patternId||'특수'} 원정군이 보스를 호위합니다.</span>`);
 }
 
-/* v62 · 초반 마법사 약화.
-   마법사는 5칸 밖에서 3×3 범위 마법을 쓰기 때문에, 몬스터(HP 44~84)가 뭉쳐 있는 초반에 특히 강했습니다.
-   초반(holdUntil 웨이브까지)에는 공격력을 mul 배로 낮추고, fullAt 웨이브까지 서서히 원래 강도로 되돌립니다.
-   (마법사는 웨이브 0~20 에만 등장하는 초반 전용 영웅이라, 이 조정은 후반 밸런스에 영향을 주지 않습니다.)
-   조정하려면 아래 값만 바꾸면 됩니다. */
-const EARLY_MAGE_NERF={mul:0.70, holdUntil:5, fullAt:15};
+/* v64 · 초반 마법사 난이도 완화.
+   기본 마법사는 1~5웨이브에서 제외하고 6웨이브부터 등장합니다.
+   6~10웨이브에는 공격력을 추가로 낮춘 상태를 유지하고, 20웨이브까지 서서히 회복합니다.
+   기본 주문/아케인 버스트/메테오/혜성의 피해량과 재사용 주기도 함께 완화해 첫 등장부터 광역 마법이 과도하게 강하지 않도록 조정했습니다. */
+const EARLY_MAGE_NERF={mul:0.78, holdUntil:10, fullAt:20};
 function earlyCasterAtkMul(type,level){
   if(!type||type.id!=='mage') return 1;
   const n=EARLY_MAGE_NERF;
@@ -1349,14 +1585,15 @@ function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, for
     spawnTile.breached=!isMainSpawn;
   }
   const pool=heroPoolTypesForWave(state.wave); // v50: 웨이브 구간별 등장 풀 사용
-  const type=(forcedTypeId&&HERO_TYPES.find(h=>h.id===forcedTypeId))||pool[Math.floor(Math.random()*pool.length)];
+  let type=(forcedTypeId&&HERO_TYPES.find(h=>h.id===forcedTypeId))||pool[Math.floor(Math.random()*pool.length)];
+  type=villageRaidAdjustHeroType(type,pool,isBoss);
+  const raidMods=villageRaidWaveMods(state.wave);
   const b=heroBaseStats(state.wave);
   const majorBoss=(state.wave%10===0&&isBoss);
-  // v38.3: 10/20/30웨이브의 초기 보스는 현재보다 약 30% 낮은 전투 능력으로 조정합니다.
-  // v38.4: 10웨이브 보스 HP만 현재(v38.3) 대비 추가 50% 감소합니다.
-  // 40웨이브 이후의 보스 배율은 기존 값을 그대로 유지합니다.
-  const earlyMajorBossNerf=majorBoss && state.wave<=30 ? 0.70 : 1;
-  const earlyMajorBossHpNerf=(majorBoss && state.wave===10) ? 0.35 : earlyMajorBossNerf;
+  // v67: 첫 보스인 10웨이브 성기사단장은 초반 보호 구간에 맞춰 한 단계 더 약화합니다.
+  // 20/30웨이브와 40웨이브 이후 보스 배율은 기존 값을 유지합니다.
+  const earlyMajorBossNerf=(majorBoss && state.wave===10) ? 0.55 : (majorBoss && state.wave<=30 ? 0.70 : 1);
+  const earlyMajorBossHpNerf=(majorBoss && state.wave===10) ? 0.30 : earlyMajorBossNerf;
   const level=Math.min(99,Math.max(1,state.wave+(isBoss?2:0)+(majorBoss?2:0)+(elite?1:0)));
   const coward=Math.random()<0.18;
   const now=performance.now();
@@ -1364,10 +1601,10 @@ function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, for
   const midwaveMul=midwaveDifficultyScale();
   const hero={
     id, r:e.r, c:e.c, spawnR:e.r, spawnC:e.c, typeId:type.id, range:type.range,
-    hp:Math.round(b.hp*type.hpMult*(isBoss?(majorBoss?4.5:3):(elite?1.75:1))*((state.stageHeroHpMul||1))*midwaveMul*(bossProfile?.bonus?.hp||1)*earlyMajorBossHpNerf),
-    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf),
-    def:Math.max(1,Math.round(level*HERO_DEF_PER_LEVEL*midwaveMul*earlyMajorBossNerf)),
-    reward:Math.round(b.reward*type.rewardMult*(isBoss?(majorBoss?6:4):(elite?2.2:1))*(state.stageEvent?.id==='redmoon'?1.2:(state.stageEvent?.id==='panic'?1.15:1))),
+    hp:Math.round(b.hp*type.hpMult*(isBoss?(majorBoss?4.5:3):(elite?1.75:1))*((state.stageHeroHpMul||1))*midwaveMul*(bossProfile?.bonus?.hp||1)*earlyMajorBossHpNerf*raidMods.heroHpMul),
+    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf*raidMods.heroAtkMul),
+    def:Math.max(1,Math.round(level*HERO_DEF_PER_LEVEL*earlyWaveDefenseMul(state.wave)*midwaveMul*earlyMajorBossNerf*raidMods.heroDefMul)),
+    reward:Math.round(b.reward*type.rewardMult*(isBoss?(majorBoss?6:4):(elite?2.2:1))*(state.stageEvent?.id==='redmoon'?1.2:(state.stageEvent?.id==='panic'?1.15:1))*raidMods.rewardMul),
     isBoss, majorBoss, elite:false, bossProfileId:null, partySynergy:1, level, coward, fleeing:false, escaped:false, fleeTarget:null, fleeTicks:0, fleeCooldown:0,
     partyId, partyLeaderId:partyLeaderId||id, partyRole:(partyLeaderId&&partyLeaderId!==id)?'member':'leader',
     digging:false, digKind:null, digProgress:0, digTargetR:null, digTargetC:null,
@@ -1417,7 +1654,8 @@ function spawnHeroParty(remaining){
   for(let i=0;i<cells.length;i++){
     // 보스는 파티의 뒤쪽 슬롯부터 배정하여 일반 용사/보스가 자연스럽게 섞이도록 합니다.
     const isBoss=!!(bossProfile && bossSlotsForParty>0 && i>=cells.length-bossSlotsForParty);
-    const isElite=!isBoss && ((state.wave%5===0 && i===cells.length-1) || (state.wave%7===0 && i===0 && size>=3));
+    // 1~10웨이브는 정예 배율을 제거해 초반 갑작스러운 난이도 스파이크를 막습니다.
+    const isElite=!isBoss && state.wave>=11 && ((state.wave%5===0 && i===cells.length-1) || (state.wave%7===0 && i===0 && size>=3));
     let forcedId;
 
     if(isBoss){
@@ -1460,7 +1698,11 @@ function spawnHeroParty(remaining){
   return members.length;
 }
 
-function findAdjacentHero(r,c){ for(const h of state.heroes){ if(Math.abs(h.r-r)+Math.abs(h.c-c)<=1) return h; } return null; }
+function findAdjacentHero(r,c){
+  const spatial=typeof getHeroCombatSpatialIndex==='function'?getHeroCombatSpatialIndex():state?._heroCombatSpatial,candidates=combatSpatialCandidates(spatial,r,c,1);
+  if(candidates){ let best=null,bestIdx=Infinity; for(const item of candidates){const h=item.e;if(Math.abs(h.r-r)+Math.abs(h.c-c)<=1&&item.i<bestIdx){best=h;bestIdx=item.i;}} return best; }
+  for(const h of state.heroes){ if(Math.abs(h.r-r)+Math.abs(h.c-c)<=1) return h; } return null;
+}
 
 /* ---------------- 디버그 모드: 웨이브/골드/단계 제한 없이 즉시 스폰 ---------------- */
 function debugSpawnHero(typeId){
@@ -1520,7 +1762,7 @@ function debugSpawnMonster(typeId){
   state.monsters.push({
     id, r, c, typeId, tier:1,
     hp:mt.hp, maxHp:mt.hp, atk:mt.atk, def:mt.def, invested:mt.cost,
-    range:mt.range||1, special:mt.special||null, role:mt.role||null, role2:mt.role2||null, debuffOnHit:!!mt.debuffOnHit, kills:0,
+    range:mt.range||1, special:mt.special||null, role:mt.role||null, role2:mt.role2||null, debuffOnHit:!!mt.debuffOnHit, kills:0, levelProgress:0,
     moveCooldown:Math.random()*0.5, lastAttackAt:0, spawnedAt:now,
   });
   state.totalMonsterSpawns=(state.totalMonsterSpawns||0)+1;
@@ -1673,10 +1915,19 @@ function losBlocked(r1,c1,r2,c2){
   return false;
 }
 function findMonsterInRange(r,c,range){
-  let best=null,bestD=Infinity;
-  for(const m of state.monsters){
-    const d=Math.abs(m.r-r)+Math.abs(m.c-c);
-    if(d<=range && d<bestD && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; }
+  let best=null,bestD=Infinity,bestIdx=Infinity;
+  const spatial=typeof getMonsterCombatSpatialIndex==='function'?getMonsterCombatSpatialIndex():state?._monsterCombatSpatial;
+  const candidates=combatSpatialCandidates(spatial,r,c,range);
+  if(candidates){
+    for(const item of candidates){
+      const m=item.e,d=Math.abs(m.r-r)+Math.abs(m.c-c);
+      if(d<=range && (d<bestD||(d===bestD&&item.i<bestIdx)) && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; bestIdx=item.i; }
+    }
+  }else{
+    for(let i=0;i<state.monsters.length;i++){
+      const m=state.monsters[i],d=Math.abs(m.r-r)+Math.abs(m.c-c);
+      if(d<=range && d<bestD && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; bestIdx=i; }
+    }
   }
   return {monster:best, dist:bestD};
 }
@@ -1687,12 +1938,15 @@ function findMonsterForHero(h){
   const ht=heroTypeOf(h);
   const priority=ht&&ht.targetPriority;
   if(!priority) return findMonsterInRange(h.r,h.c,range);
-  let best=null,bestD=Infinity,bestVal=null;
-  for(const m of state.monsters){
-    const d=Math.abs(m.r-h.r)+Math.abs(m.c-h.c);
+  let best=null,bestD=Infinity,bestVal=null,bestIdx=Infinity;
+  const spatial=typeof getMonsterCombatSpatialIndex==='function'?getMonsterCombatSpatialIndex():state?._monsterCombatSpatial;
+  const candidates=combatSpatialCandidates(spatial,h.r,h.c,range);
+  const scan=candidates||state.monsters.map((e,i)=>({e,i}));
+  for(const item of scan){
+    const m=item.e,d=Math.abs(m.r-h.r)+Math.abs(m.c-h.c);
     if(d>range||m.hp<=0||losBlocked(h.r,h.c,m.r,m.c)) continue;
     const val = priority==='lowestHp' ? m.hp : (priority==='highestHp' ? -m.hp : d);
-    if(best===null || val<bestVal || (val===bestVal&&d<bestD)){ best=m; bestVal=val; bestD=d; }
+    if(best===null || val<bestVal || (val===bestVal&&d<bestD) || (val===bestVal&&d===bestD&&item.i<bestIdx)){ best=m; bestVal=val; bestD=d; bestIdx=item.i; }
   }
   return {monster:best, dist:bestD};
 }
@@ -1715,15 +1969,24 @@ function monsterCanEngageHeroByCommand(m,h){
 }
 
 function findHeroInMonsterRange(m){
-  const range=m.range||1; let best=null,bestD=Infinity;
+  const range=m.range||1; let best=null,bestD=Infinity,bestIdx=Infinity;
   // 명령의 활동 범위를 먼저 적용한 뒤 도발자를 최우선 타겟으로 선택합니다.
-  const taunter=state.heroes.filter(h=>monsterCanEngageHeroByCommand(m,h)&&h.tauntUntil&&performance.now()<h.tauntUntil&&Math.abs(h.r-m.r)+Math.abs(h.c-m.c)<=4)
-    .sort((a,b)=>(Math.abs(a.r-m.r)+Math.abs(a.c-m.c))-(Math.abs(b.r-m.r)+Math.abs(b.c-m.c)))[0];
-  if(taunter) return {hero:taunter,dist:Math.abs(taunter.r-m.r)+Math.abs(taunter.c-m.c)};
-  for(const h of state.heroes){
+  let taunter=null,taunterDist=Infinity,taunterIdx=Infinity; const tauntNow=performance.now();
+  const spatial=typeof getHeroCombatSpatialIndex==='function'?getHeroCombatSpatialIndex():state?._heroCombatSpatial;
+  const tauntCandidates=combatSpatialCandidates(spatial,m.r,m.c,4)||state.heroes.map((e,i)=>({e,i}));
+  for(const item of tauntCandidates){
+    const h=item.e;
+    if(!monsterCanEngageHeroByCommand(m,h)||!h.tauntUntil||tauntNow>=h.tauntUntil) continue;
+    const td=Math.abs(h.r-m.r)+Math.abs(h.c-m.c);
+    if(td<=4&&(td<taunterDist||(td===taunterDist&&item.i<taunterIdx))){taunter=h;taunterDist=td;taunterIdx=item.i;}
+  }
+  if(taunter) return {hero:taunter,dist:taunterDist};
+  const candidates=combatSpatialCandidates(spatial,m.r,m.c,range)||state.heroes.map((e,i)=>({e,i}));
+  for(const item of candidates){
+    const h=item.e;
     if(!monsterCanEngageHeroByCommand(m,h)) continue;
     const d=Math.abs(h.r-m.r)+Math.abs(h.c-m.c);
-    if(d<=range&&d<bestD&&!losBlocked(m.r,m.c,h.r,h.c)){best=h;bestD=d;}
+    if(d<=range&&(d<bestD||(d===bestD&&item.i<bestIdx))&&!losBlocked(m.r,m.c,h.r,h.c)){best=h;bestD=d;bestIdx=item.i;}
   }
   return {hero:best,dist:bestD};
 }
@@ -1798,7 +2061,7 @@ function processMonsterTick(m,dt){
     m.fearMoveCooldown=(m.fearMoveCooldown||0)-dt;
     if(m.fearMoveCooldown<=0){
       m.fearMoveCooldown=.35;
-      const src=state.heroes.filter(h=>h.hp>0).sort((a,b)=>(Math.abs(a.r-m.r)+Math.abs(a.c-m.c))-(Math.abs(b.r-m.r)+Math.abs(b.c-m.c)))[0];
+      let src=null,srcD=Infinity; for(const hero of state.heroes){if(hero.hp<=0)continue;const d=Math.abs(hero.r-m.r)+Math.abs(hero.c-m.c);if(d<srcD){src=hero;srcD=d;}}
       if(src){
         const choices=neighbors4(m.r,m.c).filter(([r,c])=>{
           const t=state.grid[r]?.[c];
@@ -1894,7 +2157,7 @@ function processMonsterTick(m,dt){
     // 저주+저체력 용사가 몬스터에게 받는 피해를 추가로 늘립니다.
     if(h.obstacleWebLv5 && h.webRootUntil && performance.now()<h.webRootUntil) dmg=Math.round(dmg*1.2);
     if(h.obstacleCurseLv5 && h.obstacleCurseUntil && performance.now()<h.obstacleCurseUntil && h.hp<=h.maxHp*0.25) dmg=Math.round(dmg*1.15);
-    if((m.range||1)>1) Sound.monsterRanged(); else Sound.monsterAttack();
+    if((m.range||1)>1) Sound.monsterRanged(rangedProjectileKind('monster',m.typeId,m.special)); else Sound.monsterAttack(monsterMeleeAudioType(m));
     h.hp-=dmg; m.lastAttackAt=performance.now();
     if(dist<=1){
       const dR=Math.sign(h.r-m.r),dC=Math.sign(h.c-m.c); const back=Math.max(1,h.atk-m.def); m.hp-=back;
@@ -1908,13 +2171,13 @@ function processMonsterTick(m,dt){
         }
       }else if(meleeFxReady){
         m.lastMeleeFxAt=now;
-        state.fxEvents.push({type:'punch',key:'m'+m.id,dr:dR,dc:dC,mode:'attacker'},{type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'},{type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg});
+        state.fxEvents.push({type:'punch',key:'m'+m.id,dr:dR,dc:dC,mode:'attacker'},{type:'punch',key:'h'+h.id,dr:dR,dc:dC,mode:'defender'},{type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg,dr:dR,dc:dC,weaponType:monsterMeleeAudioType(m),attackerType:m.typeId});
       }else{
-        state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg});
+        state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#ff6873',strong:dmg>Math.max(8,h.maxHp*.10),damage:dmg,dr:dR,dc:dC,weaponType:monsterMeleeAudioType(m),attackerType:m.typeId});
       }
     }else state.fxEvents.push({type:'projectile',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,color:monsterProjectileColor(m.typeId),owner:'monster',typeId:m.typeId,special:m.special,kind:rangedProjectileKind('monster',m.typeId,m.special)});
       if((m.range||1)>1 || m.special==='lifesteal' || m.special==='frost' || m.special==='splash') state.fxEvents.push({type:'spell',fromR:m.r,fromC:m.c,toR:h.r,toC:h.c,spell:(m.special==='frost'?'ice':m.special==='lifesteal'?'dark':m.special==='splash'?'fire':m.special==='curse'?'dark':'arcane')});
-      if((m.range||1)>1 || m.special==='lifesteal' || m.special==='frost' || m.special==='splash') Sound.magic(m.special==='frost'?'ice':m.special==='lifesteal'?'dark':m.special==='splash'?'fire':m.special==='curse'?'dark':'arcane');
+      // 원거리/마법 일반 공격은 발사음은 monsterRanged(), 실제 착탄음은 projectile 도착 시점에 재생합니다.
     state.fxEvents.push({type:'spark',r:h.r,c:h.c,color:'#ff6873'},{type:'spark',r:m.r,c:m.c,color:'#ffd166'},{type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff6873'});
     if(h.hp<=0)h.killerMonsterId=m.id;
     if(state.archetypeActive && state.archetypeActive.shadowExec && h.hp>0 && h.hp<=h.maxHp*0.25 && m.special!=='execute'){
@@ -1982,9 +2245,9 @@ function processMonsterTick(m,dt){
   if(targetGoals.length){
     const goals=new Set(targetGoals.map(([r,c])=>r+'_'+c));
     const q=[[m.r,m.c]], came=new Map(), seen=new Set([m.r+'_'+m.c]);
-    let found=null;
-    while(q.length){
-      const [cr,cc]=q.shift();
+    let found=null,qHead=0;
+    while(qHead<q.length){
+      const [cr,cc]=q[qHead++];
       if(goals.has(cr+'_'+cc)){ found=[cr,cc]; break; }
       for(const [nr,nc] of neighbors4(cr,cc)){
         if(!passable(nr,nc)) continue;

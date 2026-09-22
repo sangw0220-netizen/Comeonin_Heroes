@@ -252,9 +252,10 @@
   /* 2x2 장애물 설치 미리보기는 루트 셀에서만 하나의 외곽광을 표시합니다.
      4개 셀에 각각 강한 테두리를 그리면 실제 설치 크기보다 밝고 복잡하게 보입니다. */
   .cell.obstacle-target::before{
-    inset:2px;
-    width:calc(200% - 4px);
-    height:calc(200% - 4px);
+    left:calc((var(--ob-target-x,0) * 100%) + 2px);
+    top:calc((var(--ob-target-y,0) * 100%) + 2px);
+    width:calc((100% * var(--ob-target-w,2)) - 4px);
+    height:calc((100% * var(--ob-target-h,2)) - 4px);
     border:1px solid rgba(224,182,74,.55);
     background:rgba(224,182,74,.045);
     box-shadow:
@@ -262,6 +263,7 @@
       0 0 4px rgba(224,182,74,.20),
       0 0 9px rgba(224,182,74,.10);
     opacity:.46;
+    clip-path:var(--ob-target-clip, inset(0 round 3px));
   }
   .cell.wall-target::before{
     border:1px solid rgba(139,107,242,.62);
@@ -343,9 +345,10 @@
     z-index:1;
   }
   .cell.has-obstacle.obstacle-root::before{
-    inset:2px;
-    width:calc(200% - 4px);
-    height:calc(200% - 4px);
+    left:calc((var(--ob-box-x,0) * 100%) + 2px);
+    top:calc((var(--ob-box-y,0) * 100%) + 2px);
+    width:calc((100% * var(--ob-box-w,2)) - 4px);
+    height:calc((100% * var(--ob-box-h,2)) - 4px);
     border:1.8px solid var(--ob-glow);
     border-radius:5px;
     box-shadow:
@@ -354,6 +357,7 @@
       0 0 12px color-mix(in srgb, var(--ob-glow) 48%, transparent);
     opacity:.84;
     animation:obstacleBorderPulse 2.4s ease-in-out infinite;
+    clip-path:var(--ob-box-clip, inset(0 round 5px));
   }
   .cell.has-obstacle.obstacle-attack::before{box-shadow:inset 0 0 5px color-mix(in srgb,var(--ob-glow) 45%,transparent),0 0 7px color-mix(in srgb,var(--ob-glow) 58%,transparent);}
   .cell.has-obstacle.obstacle-defense::before{border-style:solid;}
@@ -463,15 +467,25 @@
   @keyframes battleRecoil{0%{transform:translate(0,0) scale(1) rotate(0)}14%{transform:translate(var(--preRX,0px),var(--preRY,0px)) scale(1.04,.96) rotate(var(--preRR,0deg))}36%{transform:translate(var(--hitRX,0px),var(--hitRY,0px)) scale(.88,1.10) rotate(var(--hitRR,0deg))}64%{transform:translate(var(--nearRX,0px),var(--nearRY,0px)) scale(1.03,.98) rotate(var(--nearRR,0deg))}100%{transform:translate(0,0) scale(1) rotate(0)}}
   @keyframes tokenHitReact{0%{filter:brightness(1) saturate(1);transform:scale(1)}16%{filter:brightness(2.2) saturate(1.25);transform:scale(1.13,.88)}38%{filter:brightness(1.25);transform:scale(.90,1.08)}100%{filter:none;transform:scale(1)}}
   .combat-impact{position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:0;height:0;pointer-events:none;z-index:26;}
-  .combat-impact .ci-flash{position:absolute;left:50%;top:50%;width:var(--ci-size);height:var(--ci-size);border-radius:50%;transform:translate(-50%,-50%) scale(.15);background:radial-gradient(circle,#fff 0%,rgba(255,236,180,.96) 13%,rgba(255,108,96,.55) 35%,transparent 70%);opacity:0;animation:combatFlash .28s ease-out forwards;}
-  .combat-impact .ci-ring{position:absolute;left:50%;top:50%;width:var(--ci-ring);height:var(--ci-ring);border:2px solid rgba(255,238,200,.9);border-radius:50%;transform:translate(-50%,-50%) scale(.18);opacity:0;animation:combatRing .42s cubic-bezier(.12,.75,.2,1) forwards;}
-  .combat-impact .ci-ring.r2{border-color:var(--ci-color);animation-delay:.035s;}
-  .combat-impact .ci-slash{position:absolute;left:50%;top:50%;width:var(--ci-line);height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,#fff,var(--ci-color),transparent);box-shadow:0 0 7px var(--ci-color);transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.1);opacity:0;animation:combatSlash .32s cubic-bezier(.1,.8,.22,1) forwards;animation-delay:var(--d);}
-  .combat-impact .ci-dot{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:var(--ci-color);box-shadow:0 0 6px var(--ci-color);transform:translate(-50%,-50%);opacity:0;animation:combatDot .44s ease-out forwards;animation-delay:var(--d);}
-  @keyframes combatFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.1)}15%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.25)}}
-  @keyframes combatRing{0%{opacity:.95;transform:translate(-50%,-50%) scale(.18)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.55)}}
-  @keyframes combatSlash{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.08)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(1)}}
+  .combat-impact .ci-flash{position:absolute;left:50%;top:50%;width:var(--ci-size);height:var(--ci-size);border-radius:50%;transform:translate(-50%,-50%) scale(.12);background:radial-gradient(circle,#fff 0%,rgba(255,246,216,.98) 9%,color-mix(in srgb,var(--ci-color) 92%,#fff 8%) 25%,rgba(255,108,96,.42) 48%,transparent 76%);opacity:0;mix-blend-mode:screen;animation:combatFlash .30s ease-out forwards;}
+  .combat-impact .ci-ring{position:absolute;left:50%;top:50%;width:var(--ci-ring);height:var(--ci-ring);border:2px solid rgba(255,238,200,.9);border-radius:50%;transform:translate(-50%,-50%) scale(.15);opacity:0;animation:combatRing .42s cubic-bezier(.12,.75,.2,1) forwards;}
+  .combat-impact .ci-ring.r2{border-color:var(--ci-color);animation-delay:.04s;filter:blur(.25px)}
+  .combat-impact .ci-shock{position:absolute;left:50%;top:50%;width:calc(var(--ci-ring)*1.15);height:calc(var(--ci-ring)*.42);border-radius:999px;transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scale(.25);opacity:0;background:radial-gradient(circle,rgba(255,255,255,.86) 0 10%,color-mix(in srgb,var(--ci-color) 76%,#fff 24%) 34%,transparent 72%);filter:blur(1px);animation:combatShock .30s cubic-bezier(.15,.85,.2,1) forwards;}
+  .combat-impact .ci-swipe{position:absolute;left:50%;top:50%;width:calc(var(--ci-line)*1.35);height:8px;border-radius:999px;background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.98) 22%,var(--ci-color) 54%,transparent 100%);box-shadow:0 0 10px color-mix(in srgb,var(--ci-color) 80%,transparent);transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scaleX(.08) skewX(-22deg);opacity:0;transform-origin:center;animation:combatSwipe .26s cubic-bezier(.12,.84,.16,1) forwards;}
+  .combat-impact .ci-swipe.s2{width:calc(var(--ci-line)*1.05);height:5px;transform:translate(-50%,-50%) rotate(calc(var(--ci-perp,90deg) - 12deg)) scaleX(.08);opacity:0;animation-delay:.03s;filter:blur(.3px)}
+  .combat-impact .ci-spike{position:absolute;left:50%;top:50%;width:var(--len,20px);height:3px;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,.98),var(--ci-color),transparent);box-shadow:0 0 7px var(--ci-color);transform-origin:left center;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.18);opacity:0;animation:combatSpike .34s ease-out forwards;animation-delay:var(--d);}
+  .combat-impact .ci-slash{position:absolute;left:50%;top:50%;width:var(--ci-line);height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,#fff,var(--ci-color),transparent);box-shadow:0 0 7px var(--ci-color);transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.1);opacity:0;animation:combatSlash .34s cubic-bezier(.1,.8,.22,1) forwards;animation-delay:var(--d);}
+  .combat-impact .ci-dot{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:var(--ci-color);box-shadow:0 0 6px var(--ci-color);transform:translate(-50%,-50%);opacity:0;animation:combatDot .46s ease-out forwards;animation-delay:var(--d);}
+  .combat-impact .ci-chunk{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:1px;background:linear-gradient(135deg,#fff,var(--ci-color));box-shadow:0 0 6px color-mix(in srgb,var(--ci-color) 78%,transparent);transform:translate(-50%,-50%) rotate(0deg) scale(.25);opacity:0;animation:combatChunk .42s cubic-bezier(.12,.7,.18,1) forwards;animation-delay:var(--d)}
+  .combat-impact.heavy .ci-chunk{width:8px;height:8px}
+  @keyframes combatFlash{0%{opacity:0;transform:translate(-50%,-50%) scale(.08)}14%{opacity:1;transform:translate(-50%,-50%) scale(.92)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.34)}}
+  @keyframes combatRing{0%{opacity:.95;transform:translate(-50%,-50%) scale(.15)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.68)}}
+  @keyframes combatShock{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scale(.18)}18%{opacity:.95}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scale(1.06)}}
+  @keyframes combatSwipe{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scaleX(.06) skewX(-22deg)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ci-rot,0deg)) scaleX(1.08) skewX(-8deg)}}
+  @keyframes combatSpike{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.15)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) translateX(8px) scaleX(1)}}
+  @keyframes combatSlash{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(.08)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) scaleX(1.05)}}
   @keyframes combatDot{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) translateX(0) scale(.4)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a)) translateX(var(--dist)) scale(.7)}}
+  @keyframes combatChunk{0%{opacity:0;transform:translate(-50%,-50%) rotate(0deg) scale(.2)}16%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--rot)) scale(.12)}}
   @keyframes punch{
     0%{transform:translate(0,0) scale(1) rotate(0deg);}
     16%{transform:translate(calc(var(--lx,0)*-0.32px),calc(var(--ly,0)*-0.32px)) scale(.88) rotate(calc(var(--lx,0)*-0.05deg));}
@@ -684,8 +698,11 @@
   @keyframes statusAuraPulse{0%,100%{transform:translate(-50%,-50%) scale(.98);filter:brightness(.95)}50%{transform:translate(-50%,-50%) scale(1.04);filter:brightness(1.18)}}
 
   /* 근접 공격의 충돌 지점은 원거리 투사체와 명확히 구별되도록 레드 계열로 통일합니다. */
-  .combat-impact.melee-hit .ci-flash{background:radial-gradient(circle,#fff 0%,rgba(255,210,215,.98) 13%,rgba(255,68,84,.72) 36%,transparent 72%);}
+  .combat-impact.melee-hit .ci-flash{background:radial-gradient(circle,#fff 0%,rgba(255,210,215,.98) 10%,rgba(255,68,84,.84) 34%,transparent 72%);}
   .combat-impact.melee-hit .ci-ring{border-color:#ff4f63;box-shadow:0 0 8px rgba(255,79,99,.72);}
+  .combat-impact.melee-hit .ci-swipe,.combat-impact.melee-hit .ci-spike,.combat-impact.melee-hit .ci-chunk{color:#ff4f63;}
+  .combat-impact.melee-hit.heavy .ci-ring{box-shadow:0 0 12px rgba(255,79,99,.96);}
+  .combat-impact.melee-hit.heavy .ci-flash{filter:drop-shadow(0 0 10px rgba(255,79,99,.72));}
 
   .spawnfx{position:absolute;pointer-events:none;z-index:7;}
   .spawnfx .ring{position:absolute;left:50%;top:50%;border-radius:50%;transform:translate(-50%,-50%) scale(.15);opacity:0;box-sizing:border-box;}
@@ -761,6 +778,7 @@
   .shop-item .si-info b{color:var(--text);font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .shop-item .si-info .si-desc{display:none;}
   .shop-item .si-cost{position:absolute;top:5px;right:6px;font-size:9.5px;color:var(--gold);font-weight:800;white-space:nowrap;background:rgba(10,7,18,.55);border-radius:6px;padding:1px 4px;}
+  .shop-item .si-size{position:absolute;top:5px;left:6px;font-size:8.5px;font-weight:900;line-height:1;padding:2px 5px;border-radius:6px;background:rgba(10,7,18,.62);color:#d9e7ff;border:1px solid rgba(120,190,255,.36);letter-spacing:.01em;white-space:nowrap;pointer-events:none;z-index:1;box-shadow:0 0 6px rgba(70,120,255,.08);}
   .shop-item.wall-builder{flex:0 0 128px;width:128px;border-color:rgba(224,182,74,.55);background:linear-gradient(180deg,#2a2345,#1a1430);}
   .shop-item.grade-c{border-color:#e9e9f2;box-shadow:0 0 6px rgba(233,233,242,.25);}
   .shop-item.grade-b{border-color:#5fd08a;box-shadow:0 0 6px rgba(95,208,138,.3);}
@@ -987,6 +1005,7 @@
     .shop-item .si-info{font-size:8.8px;line-height:1.15;overflow:hidden;}
     .shop-item .si-info b{font-size:10px;margin-bottom:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .shop-item .si-cost{font-size:8.5px;line-height:1;top:4px;right:4px;}
+    .shop-item .si-size{top:4px;left:4px;font-size:7.4px;padding:2px 4px;}
     .shop-item.selected{box-shadow:0 0 0 1px var(--gold),0 0 7px rgba(224,182,74,.18);}
     .monster-mini{gap:7px;margin-bottom:3px;}
     .monster-mini img.mm-icon{width:34px;height:34px;}
@@ -1029,6 +1048,7 @@
 @keyframes obHitLabel{0%{opacity:0;transform:translateX(-50%) translateY(5px) scale(.65)}18%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.08)}100%{opacity:0;transform:translateX(-50%) translateY(-18px) scale(.9)}}
 .board-hit-shake{animation:boardHitShake .18s steps(2,end)}
 .board-hit-shake-strong{animation:boardHitShakeStrong .24s steps(3,end)}
+.board-hit-freeze{box-shadow:0 0 0 1px rgba(255,255,255,.26), 0 0 18px rgba(255,112,128,.26) inset;filter:saturate(1.08) contrast(1.02);}
 @keyframes boardHitShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-2px,1px)}40%{transform:translate(2px,-1px)}60%{transform:translate(-1px,-2px)}80%{transform:translate(1px,1px)}}
 @keyframes boardHitShakeStrong{0%,100%{transform:translate(0,0) scale(1)}18%{transform:translate(-4px,2px) scale(1.002)}36%{transform:translate(4px,-2px)}54%{transform:translate(-3px,-2px)}72%{transform:translate(2px,2px)}90%{transform:translate(-1px,0)}}
 .hero-ob-recoil{animation:heroObRecoil .16s steps(2,end)}

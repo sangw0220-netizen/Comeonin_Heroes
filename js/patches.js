@@ -239,6 +239,16 @@
     hiddenThisRun=true;
     hide();
   }
+  // 웨이브가 시작되면 전투 화면을 가리지 않도록 튜토리얼을 이번 판에서 즉시 숨깁니다.
+  // 완료 처리(localStorage)는 하지 않으므로, 아직 튜토리얼을 끝내지 않은 유저는 다음 새 게임에서 다시 볼 수 있습니다.
+  window.hideFirstPlayTutorialForWave=function(){
+    if(current>0 || startPending){
+      startPending=false;
+      skipThisRun();
+    }else{
+      hide();
+    }
+  };
 
   /* v40.1: 팝업 위치를 화면 하단에 고정된 값이 아니라, 현재 툴바 윗변을 기준으로
      매번 다시 계산합니다. 이전에는 CSS의 고정 bottom 값을 썼는데, 몬스터/장애물
