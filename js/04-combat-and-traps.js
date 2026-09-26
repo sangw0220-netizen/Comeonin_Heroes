@@ -995,7 +995,7 @@ function processHeroTick(h,dt){
 
     // 사냥꾼(정밀 사격): 사거리 안의 적에게 일반 공격 피해 +15%.
     if(heroType&&heroType.rangedBonus) dmg=Math.round(dmg*(1+heroType.rangedBonus));
-    // 검성(일섬): 몬스터 최대 HP의 5%만큼 추가 피해(최대 30, 최고 HP 우선 타겟).
+    // 검성(일섬): 몬스터 최대 HP의 5%만큼 추가 피해(최대 30). 타겟은 다른 영웅과 동일하게 가장 가까운 적을 우선합니다.
     if(heroType&&heroType.maxHpDmgPct){
       const bonus=Math.min(heroType.maxHpDmgCap||9999, Math.round((m.maxHp||m.hp)*heroType.maxHpDmgPct));
       dmg+=bonus;
@@ -1243,7 +1243,7 @@ function processHeroTick(h,dt){
       // 광부/숙련형은 장애물을 직접 처리하는 편을 선호합니다.
       if(ht.digTimeMul && ht.digTimeMul<1) return Math.max(1.3,danger*0.58);
       // 사냥꾼은 위험을 빨리 발견하고, 함정이 많은 길을 적극 회피합니다.
-      if(ht.targetPriority==='lowestHp' || h.typeId==='hunter') return danger+1.3;
+      if(h.typeId==='hunter') return danger+1.3;
       // 방패병/팔라딘은 안전한 우회를 조금 덜 선호하지만, 고위험 함정은 피합니다.
       if(h.typeId==='shieldbearer'||h.typeId==='paladin') return danger*0.88;
       return danger;

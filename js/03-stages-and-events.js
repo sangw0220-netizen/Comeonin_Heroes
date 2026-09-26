@@ -2005,44 +2005,34 @@ function findMonsterInRange(r,c,range){
   const candidates=combatSpatialCandidates(spatial,r,c,range);
   if(candidates){
     for(const item of candidates){
-      const m=item.e,d=Math.abs(m.r-r)+Math.abs(m.c-c);
+      const m=item.e;
+      if(!m||m.hp<=0) continue;
+      const d=Math.abs(m.r-r)+Math.abs(m.c-c);
       if(d<=range && (d<bestD||(d===bestD&&item.i<bestIdx)) && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; bestIdx=item.i; }
     }
   }else{
     for(let i=0;i<state.monsters.length;i++){
-      const m=state.monsters[i],d=Math.abs(m.r-r)+Math.abs(m.c-c);
-      if(d<=range && d<bestD && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; bestIdx=i; }
+      const m=state.monsters[i];
+      if(!m||m.hp<=0) continue;
+      const d=Math.abs(m.r-r)+Math.abs(m.c-c);
+      if(d<=range && (d<bestD||(d===bestD&&i<bestIdx)) && !losBlocked(r,c,m.r,m.c)){ bestD=d; best=m; bestIdx=i; }
     }
   }
   return {monster:best, dist:bestD};
 }
-// 사냥꾼(HP 최저 우선), 검성(HP 최고 우선) 등 특수 타겟팅 영웅을 위한 선택 함수.
-// 우선순위가 없는 일반 영웅은 기존과 동일하게 가장 가까운 적을 선택합니다.
+// 모든 영웅의 일반 공격 대상은 동일하게 "가장 가까운 살아있는 몬스터"를 우선합니다.
+// 거리 동률이면 state.monsters의 기존 순서를 유지해 매 틱 타겟이 흔들리지 않게 합니다.
 function findMonsterForHero(h){
-  const range=h.range||1;
-  const ht=heroTypeOf(h);
-  const priority=ht&&ht.targetPriority;
-  if(!priority) return findMonsterInRange(h.r,h.c,range);
-  let best=null,bestD=Infinity,bestVal=null,bestIdx=Infinity;
-  const spatial=typeof getMonsterCombatSpatialIndex==='function'?getMonsterCombatSpatialIndex():state?._monsterCombatSpatial;
-  const candidates=combatSpatialCandidates(spatial,h.r,h.c,range);
-  const scan=candidates||state.monsters.map((e,i)=>({e,i}));
-  for(const item of scan){
-    const m=item.e,d=Math.abs(m.r-h.r)+Math.abs(m.c-h.c);
-    if(d>range||m.hp<=0||losBlocked(h.r,h.c,m.r,m.c)) continue;
-    const val = priority==='lowestHp' ? m.hp : (priority==='highestHp' ? -m.hp : d);
-    if(best===null || val<bestVal || (val===bestVal&&d<bestD) || (val===bestVal&&d===bestD&&item.i<bestIdx)){ best=m; bestVal=val; bestD=d; bestIdx=item.i; }
-  }
-  return {monster:best, dist:bestD};
+  return findMonsterInRange(h.r,h.c,h.range||1);
 }
 function pushDeathFx(r,c,color){ state.deathFx.push({r,c,color,start:performance.now()}); }
 
 function monsterCanEngageHeroByCommand(m,h){
   if(!m||!h||h.hp<=0) return false;
   const command=normalizeMonsterCommand(state?.monsterCommand);
-  // v87: 도발/피격 어그로도 명령의 활동구역을 무시하지 못합니다.
-  // 공격/중립 공격형은 입구 안전구역과 전진선 안에서만 교전하고,
-  // 수비형은 핵 방어구역 안에서만 교전합니다.
+  // 평상시에는 명령별 활동구역을 지킵니다.
+  // 단, 직접 공격받아 생성된 피격 어그로(provokedByHeroId)는 아래 전투/이동 로직에서
+  // 이 제한보다 우선하여 공격자를 추적합니다. 어그로가 끝나면 다시 명령 범위로 복귀합니다.
   const defensive=command==='defense' || (command==='neutral' && isMonsterDefensiveType(m));
   if(!defensive) return heroInsideMonsterAttackZone(h);
   const monsterCoreDist=Math.abs(m.r-CORE_R)+Math.abs(m.c-CORE_C);
@@ -2052,7 +2042,8 @@ function monsterCanEngageHeroByCommand(m,h){
 
 function findHeroInMonsterRange(m){
   const range=m.range||1; let best=null,bestD=Infinity,bestIdx=Infinity;
-  // 명령의 활동 범위를 먼저 적용한 뒤 도발자를 최우선 타겟으로 선택합니다.
+  // 도발은 기존처럼 최우선입니다. 도발 대상이 없다면, 직접 자신을 공격한 영웅을
+  // 명령 활동반경과 무관하게 반격 대상으로 삼습니다.
   let taunter=null,taunterDist=Infinity,taunterIdx=Infinity; const tauntNow=performance.now();
   const spatial=typeof getHeroCombatSpatialIndex==='function'?getHeroCombatSpatialIndex():state?._heroCombatSpatial;
   const tauntCandidates=combatSpatialCandidates(spatial,m.r,m.c,4)||state.heroes.map((e,i)=>({e,i}));
@@ -2063,6 +2054,13 @@ function findHeroInMonsterRange(m){
     if(td<=4&&(td<taunterDist||(td===taunterDist&&item.i<taunterIdx))){taunter=h;taunterDist=td;taunterIdx=item.i;}
   }
   if(taunter) return {hero:taunter,dist:taunterDist};
+
+  const provoked=(typeof heroAggroTarget==='function')?heroAggroTarget(m):null;
+  if(provoked){
+    const pd=Math.abs(provoked.r-m.r)+Math.abs(provoked.c-m.c);
+    if(pd<=range && !losBlocked(m.r,m.c,provoked.r,provoked.c)) return {hero:provoked,dist:pd};
+  }
+
   const candidates=combatSpatialCandidates(spatial,m.r,m.c,range)||state.heroes.map((e,i)=>({e,i}));
   for(const item of candidates){
     const h=item.e;
@@ -2310,13 +2308,16 @@ function processMonsterTick(m,dt){
   const defenseBehavior=monsterUsesDefenseBehavior(m);
   const coreDistance=Math.abs(m.r-CORE_R)+Math.abs(m.c-CORE_C);
   let chaseTarget=null, chaseDist=Infinity;
+  // 직접 피해를 준 영웅은 공격 사거리/명령 방어선 밖에 있어도 일시적으로 최우선 추적합니다.
+  // markHeroAggro()의 시간이 끝나거나 공격자가 죽으면 자동으로 기존 명령 AI로 복귀합니다.
   const provoked=(typeof heroAggroTarget==='function')?heroAggroTarget(m):null;
-  if(provoked && monsterCanEngageHeroByCommand(m,provoked)){
+  const retaliating=!!provoked;
+  if(provoked){
     chaseTarget=provoked;
     chaseDist=Math.abs(provoked.r-m.r)+Math.abs(provoked.c-m.c);
   }
   for(const hero of state.heroes){
-    if(provoked && chaseTarget===provoked) break;
+    if(retaliating && chaseTarget===provoked) break;
     if(hero.hp<=0 || !monsterCanEngageHeroByCommand(m,hero)) continue;
     if(!defenseBehavior && !monsterAttackChaseSlotAvailable(m,hero)) continue;
     const d=Math.abs(hero.r-m.r)+Math.abs(hero.c-m.c);
@@ -2330,7 +2331,7 @@ function processMonsterTick(m,dt){
   }
 
   // 이전 버전에서 이미 입구 근처까지 나간 공격형 몬스터도 새 명령 규칙에 맞춰 전선 안으로 복귀시킵니다.
-  if(!defenseBehavior && !monsterCellAllowedByAttackCommand(m.r,m.c)){
+  if(!retaliating && !defenseBehavior && !monsterCellAllowedByAttackCommand(m.r,m.c)){
     const retreatGoals=neighbors4(CORE_R,CORE_C).filter(([r,c])=>{
       const t=state.grid[r]?.[c];
       return t&&(t.type==='floor'||t.type==='core')&&t.obstacle!=='barricade'&&!monsterAt(r,c);
@@ -2357,9 +2358,11 @@ function processMonsterTick(m,dt){
       : pathStepToGoal(m,targetGoals);
     if(cur){
       const nextCoreDist=Math.abs(cur[0]-CORE_R)+Math.abs(cur[1]-CORE_C);
-      const moveAllowed=defenseBehavior
-        ? (nextCoreDist<=MONSTER_COMMAND_DEFENSE_LEASH_RADIUS || (coreDistance>MONSTER_COMMAND_DEFENSE_LEASH_RADIUS && nextCoreDist<coreDistance))
-        : monsterCellAllowedByAttackCommand(cur[0],cur[1]);
+      const moveAllowed=retaliating
+        ? passable(cur[0],cur[1])
+        : (defenseBehavior
+          ? (nextCoreDist<=MONSTER_COMMAND_DEFENSE_LEASH_RADIUS || (coreDistance>MONSTER_COMMAND_DEFENSE_LEASH_RADIUS && nextCoreDist<coreDistance))
+          : monsterCellAllowedByAttackCommand(cur[0],cur[1]));
       if(moveAllowed){
         m.r=cur[0]; m.c=cur[1];
         return;
@@ -2371,6 +2374,7 @@ function processMonsterTick(m,dt){
   const floorN=neighbors4(m.r,m.c).filter(([r,c])=>{
     if(!passable(r,c)) return false;
     const nextCoreDist=Math.abs(r-CORE_R)+Math.abs(c-CORE_C);
+    if(retaliating) return true;
     return defenseBehavior
       ? (nextCoreDist<=MONSTER_COMMAND_DEFENSE_LEASH_RADIUS || (coreDistance>MONSTER_COMMAND_DEFENSE_LEASH_RADIUS && nextCoreDist<coreDistance))
       : monsterCellAllowedByAttackCommand(r,c);

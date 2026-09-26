@@ -1,6 +1,14 @@
 "use strict";
 function monsterBuildInfoHtml(m){const a=monsterBuildAffinity(m);if(!a)return `<div class="panel-hint" style="margin-top:6px;color:#8c8c9e;">🧬 현재 빌드와 아직 연결되지 않은 몬스터입니다.</div>`;const meta=BUILD_TAG_META[a.tag]||{icon:'◆',name:a.tag};const st=buildStageInfo(a.tag);const mult=monsterBuildCombatMultiplier(m);const cd=monsterBuildSkillCooldownMul(m);return `<div class="panel-hint" style="margin-top:6px;border:1px solid rgba(224,182,74,.18);"><b style="color:var(--gold)">${meta.icon} 빌드 각성</b><br>${meta.name} · ${st.stage}/5 · <b>${st.name}</b><br><span style="color:#c9b9ff">Lv.${m.tier>=10?'10':m.tier>=5?'5':'1'} 연계 전투 보정 ×${mult.toFixed(2)}</span>${cd<1?`<br><span style="color:#8de0b5">스킬 재사용 ${Math.round((1-cd)*100)}% 감소</span>`:''}</div>`;}
 function obstacleCardSizeText(obId){
+  if(typeof physicalDef==='function'){
+    const def=physicalDef(obId);
+    if(def){
+      const ps=typeof physicalPlacementSize==='function'?physicalPlacementSize(obId):(def.placementSize||def.physicalSize||[1,1]);
+      if(def.mount==='wall') return ps[0]===1&&ps[1]===1?'벽 1칸':`벽 ${ps[0]}×${ps[1]}`;
+      return `${ps[0]}×${ps[1]}`;
+    }
+  }
   if(typeof isWallMountedObstacle==='function'&&isWallMountedObstacle(obId)) return '벽 1칸';
   const kind=typeof obstacleFootprintKind==='function' ? obstacleFootprintKind(obId) : 'square2';
   return kind==='single' ? '1×1' : kind==='cross' ? '3×3 십자' : '2×2';

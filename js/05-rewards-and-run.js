@@ -117,10 +117,92 @@ function rewardEffectHtml(item,copy){
     return `<div class="rc-effect-line rc-${tone}"><span class="rc-effect-mark">${icon}</span><span>${part}</span></div>`;
   }).join('');
 }
+const REWARD_CARD_ICON_MAP={
+  rcRepair:'heal_heart',
+  rcAmbush:'shadow_horde',
+  rcReflect:'shield_reflect',
+  rcOverload:'trap_upgrade',
+  rcLootRaid:'treasure',
+  rcNecroCall:'portal',
+  rcTotalWar:'shadow_horde',
+  rcSoulPact:'soul_orb',
+  relicTrapRevive:'trap_upgrade',
+  relicCorpseRevive:'skeleton_archer',
+  relicRavenousTrap:'chain_burst',
+  relicSymbiosis:'heal_heart',
+  relicVeteran:'lightning_rock',
+  relicRecoilingWall:'barricade',
+  relicSmugglersEye:'treasure',
+  relicMarksman:'skeleton_archer',
+  relicCoreBastion:'shield_reflect',
+  relicLastStand:'demon_rage',
+  relicSniperLegion:'skeleton_archer',
+  relicGlacialPrison:'ice_crystal',
+  relicPackFury:'demon_rage',
+  relicUnbrokenLine:'barricade',
+  relicPlagueZone:'poison_skull',
+  relicChainBlast:'chain_burst',
+  relicBerserkCult:'demon_rage',
+  relicShadowExec:'contract_scroll',
+  relicSanctuary:'sanctuary',
+  relicPitMaze:'abyss_pit',
+  relicAuraResonance:'sanctuary',
+  relicMazeArchitect:'barricade',
+  relicGoldMerc:'treasure',
+  relicFireCurse:'fireball',
+  relicUndeadPact:'blood_drop',
+  contractSilence:'contract_scroll',
+  contractIsolation:'portal',
+  contractBerserk:'demon_rage',
+  contractCursed:'curse_book',
+  contractAmbition:'treasure',
+  contractEliteSummon:'shadow_horde',
+  contractBloodOath:'blood_drop'
+};
+function rewardTypeKey(typeClass){
+  return typeClass==='card-type'?'tactical':typeClass==='relic-type'?'relic':'contract';
+}
+function rewardIconAsset(item,typeClass){
+  const name=REWARD_CARD_ICON_MAP[item.id]||(
+    typeClass==='card-type'?'soul_orb':typeClass==='relic-type'?'portal':'contract_scroll'
+  );
+  return `assets/images/ui/reward_cards/${name}.png`;
+}
+function rewardRarityTier(item,typeClass){
+  const rarity=String(item.rarity||'');
+  if(/고대|전설/.test(rarity)) return 'legendary';
+  if(/아키타입|빌드/.test(rarity)) return 'epic';
+  if(/위험|투자|희귀/.test(rarity)) return 'rare';
+  if(typeClass==='contract-type' && /제약/.test(rarity)) return 'common';
+  return 'common';
+}
 function rewardChoiceHtml(item,typeClass,typeLabel){
-  const kind=typeClass==='card-type'?'🃏':typeClass==='relic-type'?'💠':'☠️';
   const copy=rewardUiCopy(item);
-  return `<div class="reward-choice reward-choice-simple ${typeClass}" data-reward-type="${typeLabel}" data-reward-id="${item.id}"><div class="rc-head"><span class="rc-kind">${kind} ${typeLabel}</span><span class="rc-rarity">${item.rarity||''}</span></div><div class="rc-icon">${item.icon}</div><div class="rc-name">${copy.name}</div>${item.tag?`<div class="rc-tag">🔗 ${item.tag.toUpperCase()} 빌드 연계</div>`:''}<div class="rc-effect rc-effect-simple">${rewardEffectHtml(item,copy)}</div><div class="rc-arrow">선택하기 ›</div></div>`;
+  const originalName=(copy.name&&copy.name!==item.name)?item.name:'';
+  const flavor=item.desc||item.effect||'';
+  const effectHtml=rewardEffectHtml(item,copy)||'<div class="rc-effect-line rc-neutral"><span class="rc-effect-mark">&#9679;</span><span>즉시 적용되는 효과입니다.</span></div>';
+  const typeKey=rewardTypeKey(typeClass);
+  const rarityTier=rewardRarityTier(item,typeClass);
+  const iconPath=rewardIconAsset(item,typeClass);
+  return `<div class="reward-choice reward-choice-card reward-choice-illustrated ${typeClass}" data-reward-type="${typeLabel}" data-reward-id="${item.id}" data-card-theme="${typeKey}" data-rarity-tier="${rarityTier}">
+    <div class="rc-frame-bg" aria-hidden="true"></div>
+    <div class="rc-card-rim"></div>
+    <div class="rc-card-top">
+      <div class="rc-head"><span class="rc-kind">${typeLabel}</span><span class="rc-rarity">${item.rarity||''}</span></div>
+      <div class="rc-artbox"><div class="rc-artshine"></div><img class="rc-icon-img" src="${iconPath}" alt="${copy.name}"></div>
+      <div class="rc-titlebox">
+        <div class="rc-name">${copy.name}</div>
+        ${originalName?`<div class="rc-subname">${originalName}</div>`:''}
+        ${item.tag?`<div class="rc-tag">🔗 ${item.tag.toUpperCase()} 빌드 연계</div>`:''}
+      </div>
+      <div class="rc-flavor">${flavor}</div>
+    </div>
+    <div class="rc-bottom">
+      <div class="rc-effect-title">효과</div>
+      <div class="rc-effect rc-effect-simple">${effectHtml}</div>
+    </div>
+    <div class="rc-arrow">선택</div>
+  </div>`;
 }
 function openRewardSelect(){
   if(!state||!els.cardOverlay)return;
@@ -901,7 +983,10 @@ function renderMapCells(){
         el.style.removeProperty('--ob-target-clip');
       }
       if(state && state.activeTool==='obstacle' && state.selectedObstacleType && state.phase==='build' && cls.includes('obstacle-target')){
-        const _targetBox=(typeof obstacleVisualBox==='function'?obstacleVisualBox(state.selectedObstacleType):{w:2,h:2,x:0,y:0,clip:'inset(0 round 3px)'});
+        const _isPhysicalTarget=typeof physicalDef==='function'&&physicalDef(state.selectedObstacleType);
+        const _targetBox=(_isPhysicalTarget&&typeof physicalPlacementVisualBox==='function')
+          ? physicalPlacementVisualBox(r,c,state.selectedObstacleType,state.physicalDirection??1)
+          : (typeof obstacleVisualBox==='function'?obstacleVisualBox(state.selectedObstacleType):{w:2,h:2,x:0,y:0,clip:'inset(0 round 3px)'});
         el.style.setProperty('--ob-target-w',String(_targetBox.w||1));
         el.style.setProperty('--ob-target-h',String(_targetBox.h||1));
         el.style.setProperty('--ob-target-x',String(_targetBox.x||0));

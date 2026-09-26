@@ -509,12 +509,25 @@ function physicalVisualClock(){
   if(state?.phase!=='invasion') return physicalClock();
   return physicalClock()+Math.min(TICK_MS/1000,Math.max(0,performance.now()-(state.physicalStamp||performance.now()))/1000*Math.max(1,gameSpeed));
 }
+function physicalPlacementVisualBox(r,c,id,dir=state?.physicalDirection??1){
+  const fp=physicalFootprintCells(r,c,id,dir);
+  if(!fp?.cells?.length||!fp.bounds) return {w:1,h:1,x:0,y:0,clip:'inset(0 round 4px)'};
+  return {
+    w:fp.bounds.maxC-fp.bounds.minC+1,
+    h:fp.bounds.maxR-fp.bounds.minR+1,
+    x:fp.bounds.minC-c,
+    y:fp.bounds.minR-r,
+    clip:'inset(0 round 4px)'
+  };
+}
 function physicalCellClass(cls,r,c,t){
   if(physicalDef(t.obstacle)) cls+=' physical-trap';
   if(t.type==='chasm') cls+=' physical-chasm';
   if(state?.phase==='build'&&state.activeTool==='obstacle'&&physicalDef(state.selectedObstacleType)){
+    // The classic obstacle branch does not know the rotated physical footprint, so discard
+    // its provisional target and rebuild it from the real physical placement check.
     cls=cls.replace(/\bobstacle-target\b/g,'');
-    if(physicalPlacement(r,c,state.selectedObstacleType).ok) cls+=' physical-target';
+    if(physicalPlacement(r,c,state.selectedObstacleType).ok) cls+=' physical-target obstacle-target';
   }
   return cls;
 }

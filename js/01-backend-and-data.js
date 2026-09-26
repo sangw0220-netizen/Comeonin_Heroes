@@ -637,7 +637,7 @@ const TOOL_INFO={
 };
 const MONSTER_COMMAND_META={
   attack:{icon:'⚔️',name:'공격 명령',desc:'입구까지 캠핑하지 않고 던전 전방에 요격선을 형성합니다. 한 용사에게 전군이 몰리지 않도록 추격 인원을 분산해 압박합니다.'},
-  defense:{icon:'🛡️',name:'수비 명령',desc:'몬스터와 마왕은 핵 주변 3칸의 방어선을 지킵니다. 도발이나 피격을 받아도 방어선을 넘어서 추격하지 않습니다.'},
+  defense:{icon:'🛡️',name:'수비 명령',desc:'평소에는 핵 주변 3칸의 방어선을 지킵니다. 직접 공격받으면 잠시 공격자를 추적한 뒤 방어선으로 복귀합니다.'},
   neutral:{icon:'⚖️',name:'중립 명령',desc:'탱커·수호형·힐러는 핵 주변을 지키고, 나머지는 입구를 침범하지 않는 전방 요격 행동을 사용합니다.'},
 };
 function monsterCommandLabel(command){
@@ -1392,13 +1392,13 @@ const HERO_TYPES=[
   {id:'shieldbearer', name:'방패병',       hpMult:1.75,atkMult:0.80,rewardMult:1.25,range:1, unlockAt:3,
     dmgReduction:0.25, digTimeMul:1.20, knockbackChance:0.30},
   {id:'hunter',        name:'사냥꾼',       hpMult:0.80,atkMult:1.20,rewardMult:1.10,range:3, unlockAt:4,
-    rangedBonus:0.15, targetPriority:'lowestHp', monsterSightRange:5 /* 예시: 몬스터를 더 멀리서 알아챔 */},
+    rangedBonus:0.15, monsterSightRange:5 /* 예시: 몬스터를 더 멀리서 알아챔 */},
   {id:'miner',         name:'광부',         hpMult:1.20,atkMult:0.70,rewardMult:1.00,range:1, unlockAt:2,
     digTimeMul:0.5},
   {id:'archmage',      name:'대현자',       hpMult:0.80,atkMult:1.15,rewardMult:1.30,range:5, unlockAt:6, caster:true,
     purify:true, purifyRange:3},
   {id:'swordsaint',    name:'검성',         hpMult:1.15,atkMult:1.55,rewardMult:1.40,range:1, unlockAt:8,
-    targetPriority:'highestHp', maxHpDmgPct:0.05, maxHpDmgCap:30, pierceTiles:2, pierceDmgMul:0.75},
+    maxHpDmgPct:0.05, maxHpDmgCap:30, pierceTiles:2, pierceDmgMul:0.75},
   {id:'vampire',       name:'흡혈귀',       hpMult:1.10,atkMult:1.15,rewardMult:1.50,range:1, unlockAt:10,
     lifestealPct:0.20, lifestealCap:12},
   {id:'shadowrogue',   name:'그림자 도적',   hpMult:0.65,atkMult:1.15,rewardMult:1.30,range:1, unlockAt:7,
