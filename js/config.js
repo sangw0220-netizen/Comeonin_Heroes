@@ -5,7 +5,7 @@
 */
 window.DUNGEON_SUPABASE_URL = 'https://thdhzvozwzsjaicknhgj.supabase.co';
 window.DUNGEON_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ZySCTRrNQdookaHtB0FlLQ_RuXM_7j_';
-window.MAWANG_SPRITE_DATA = 'assets/images/img_001_e38aa36200.png';
+window.MAWANG_SPRITE_DATA = 'assets/images/characters/mawang.png';
 
 /* ===== 도메인 잠금 =====
    여기 적힌 주소가 아니면 게임이 실행되지 않고 안내 화면만 뜹니다.

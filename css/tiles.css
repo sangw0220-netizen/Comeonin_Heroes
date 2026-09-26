@@ -112,7 +112,7 @@
   background-image:linear-gradient(rgba(224,73,95,.16),rgba(224,73,95,.16)), var(--tile-overlay,none), var(--tile);
 }
 
-/* v46: 신규 장애물 1차 5종 — 발동 프레임으로 전환되는 순간 살짝 강조합니다. */
+/* 리메이크 장애물 — 발동 프레임 전환 강조 */
 .obstacle-icon.trap-pulse{
   animation: obTrapPulse .35s ease-out;
   filter: brightness(1.35) drop-shadow(0 0 6px rgba(255,255,255,.45));
@@ -124,7 +124,7 @@
 }
 
 /* ==================================================================
-   v47: 신규 장애물 1차 5종 — 각자 다른 느낌을 주는 전용 애니메이션
+   리메이크 장애물 — 각자 다른 느낌을 주는 전용 애니메이션
    ================================================================== */
 
 /* ---- 돌풍진: 요청에 따라 회전 애니메이션 롤백 — 다른 장애물처럼 공용 발동 플래시만 사용합니다 ---- */
@@ -150,16 +150,6 @@
 }
 
 /* ---- 붕락지대: 무장 중(예고)엔 붉은 경고 빛이 맥박치고, 낙석 순간엔 화면이 흔들립니다 ---- */
-.cell.ob-rockfall.armed{ animation: obRockfallWarn 1s ease-in-out infinite; }
-@keyframes obRockfallWarn{
-  0%,100%{ box-shadow:inset 0 0 0 0 rgba(255,90,60,0); }
-  50%{ box-shadow:inset 0 0 16px 3px rgba(255,90,60,.55); }
-}
-.cell.ob-rockfall.armed .obstacle-icon{ animation: obRockfallIconWarn 1s ease-in-out infinite; }
-@keyframes obRockfallIconWarn{ 0%,100%{ filter:brightness(1); } 50%{ filter:brightness(1.35) drop-shadow(0 0 8px rgba(255,120,60,.7)); } }
-.cell.ob-rockfall .obstacle-icon.trap-pulse{ animation: obRockfallBurst .55s cubic-bezier(.36,.07,.19,.97); filter:none; }
-@keyframes obRockfallBurst{
-  0%,100%{ transform:translate(0,0); }
   10%{ transform:translate(-3px,1px); }
   25%{ transform:translate(3px,-2px); }
   40%{ transform:translate(-3px,2px); }

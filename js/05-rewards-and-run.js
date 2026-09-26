@@ -35,7 +35,93 @@ const RUN_CONTRACTS=[
 {id:'contractEliteSummon',icon:'🗝️',name:'정예 소환 맹약',rarity:'투자 계약',desc:'값싼 물량 대신, 비싸지만 확실한 정예를 키워내는 계약입니다.',effect:'다음 2웨이브 몬스터 소환 비용 ×3, 대신 소환된 몬스터는 영구 공격력 +30%',apply(){state.contracts.push('eliteSummon');state.contractExpensiveStrongWaves=2;state.contractExpensiveStrongAtkMul=1.30;addLog('<span class="hl-red">🗝️ 정예 소환 맹약</span>을 체결했습니다.');}},
 {id:'contractBloodOath',icon:'🩸',name:'혈맹의 계약',rarity:'아키타입 계약',desc:'적은 병력으로도 아키타입의 위력을 끌어내는 대신, 몬스터들의 몸은 그만큼 약해집니다.',effect:'보유한 아키타입 유물의 발동 조건 영구 -1 · 몬스터 최대HP 영구 -15%(즉시 적용)',apply(){state.contracts.push('bloodOath');state.archetypeThresholdCut=(state.archetypeThresholdCut||0)+1;state.globalMonsterHpMul=(state.globalMonsterHpMul||1)*0.85;state.monsters.forEach(m=>{m.maxHp=Math.round(m.maxHp*0.85);m.hp=Math.min(m.maxHp,m.hp);});addLog('<span class="hl-red">🩸 혈맹의 계약</span> — 아키타입 발동 조건이 완화되었습니다.');}}
 ];
-function rewardChoiceHtml(item,typeClass,typeLabel){const kind=typeClass==='card-type'?'🃏':typeClass==='relic-type'?'💠':'☠️';return `<div class="reward-choice ${typeClass}" data-reward-type="${typeLabel}" data-reward-id="${item.id}"><div class="rc-head"><span class="rc-kind">${kind} ${typeLabel}</span><span class="rc-rarity">${item.rarity||''}</span></div><div class="rc-icon">${item.icon}</div><div class="rc-name">${item.name}</div>${item.tag?`<div class="rc-tag">🔗 ${item.tag.toUpperCase()} 빌드 연계</div>`:''}<div class="rc-desc">${item.desc}</div><div class="rc-effect"><b>효과</b><br>${item.effect}</div><div class="rc-arrow">선택하기 ›</div></div>`;}
+// 5웨이브 보상 UI는 서사 설명보다 선택 결과를 즉시 읽을 수 있도록 별도 표시 문구를 사용합니다.
+// 실제 아이템 이름/효과 데이터와 apply() 로직은 건드리지 않으므로 게임 밸런스와 로그는 그대로 유지됩니다.
+const REWARD_UI_COPY={
+  // 전술 카드
+  rcRepair:{name:'함정 전체 수리',effect:'모든 함정 내구도 100% 회복'},
+  rcAmbush:{name:'강화 몬스터 1마리',effect:'2단계 몬스터 1마리 무료 즉시 소환'},
+  rcReflect:{name:'핵 피해 30% 반사',effect:'다음 1웨이브 · 핵이 받은 피해 30%를 공격자에게 반사'},
+  rcOverload:{name:'함정 범위 +1',effect:'다음 1웨이브 · 모든 함정 효과 범위 +1'},
+  rcLootRaid:{name:'120G + 소환비 할인',effect:'즉시 +120G · 다음 1웨이브 몬스터 소환 비용 -25%'},
+  rcNecroCall:{name:'해골 2마리 소환',effect:'해골 궁수 1 + 해골 수호기사 1 무료 소환'},
+  rcTotalWar:{name:'몬스터 한도 +4',effect:'다음 1웨이브 · 몬스터 생성 제한 +4'},
+  rcSoulPact:{name:'영혼 +15',effect:'이번 판 종료 시 영혼 +15'},
+
+  // 규칙/아키타입 유물
+  relicTrapRevive:{name:'함정 파괴 30% 무효',effect:'함정 파괴 시 30% 확률로 내구도 그대로 생존'},
+  relicCorpseRevive:{name:'전사 시 해골 18%',effect:'몬스터 전사 시 18% 확률로 해골 궁수 소환'},
+  relicRavenousTrap:{name:'함정 처치 +12G',effect:'함정으로 용사 처치 시 골드 +12'},
+  relicSymbiosis:{name:'인접 몬스터 회복',effect:'서로 붙어 있는 몬스터끼리 매초 체력 회복'},
+  relicVeteran:{name:'15킬 몬스터 강화',effect:'15킬 달성 몬스터 · 공격력 +20% · 최대HP +15%'},
+  relicRecoilingWall:{name:'바리케이드 파괴 반격',effect:'바리케이드 파괴 시 파괴한 용사에게 반격 피해'},
+  relicSmugglersEye:{name:'소환비 반값 25%',effect:'몬스터 소환 시 25% 확률로 비용 50% 할인'},
+  relicMarksman:{name:'원거리 연속 공격',effect:'원거리 몬스터 처치 시 25% 확률로 공격 쿨다운 즉시 초기화'},
+  relicCoreBastion:{name:'핵 피해 5% 무효',effect:'핵 피격 시 5% 확률로 해당 공격 완전 무효'},
+  relicLastStand:{name:'위기 시 공격력 +25%',effect:'핵 HP 30% 이하 도달 시 몬스터 공격력 +25% (판당 1회)'},
+  relicSniperLegion:{name:'원거리 집중 처형',effect:'조건: 원거리 3+ · 2명 이상 집중사격 → HP 25% 이하 적 다음 피격에 처형'},
+  relicGlacialPrison:{name:'빙판·거미둥지 감속 강화',effect:'조건: 빙판/거미둥지 3+ · 이동속도 감소 효과 +6%p'},
+  relicPackFury:{name:'동료 전사 시 광분',effect:'조건: 생존 몬스터 6+ · 전사 발생 시 주변 동료 4초간 공격력 +40%'},
+  relicUnbrokenLine:{name:'탱커 공격 시 핵 회복',effect:'조건: 탱커 2+ · 방어시설 1+ · 탱커가 공격할 때 핵 HP +1'},
+  relicPlagueZone:{name:'독·저주 사망 전염',effect:'조건: 독늪/저주 함정 3+ · 상태이상으로 죽은 용사가 주변에 독·저주 전염'},
+  relicChainBlast:{name:'직격 함정 연쇄 발동',effect:'조건: 직격 함정 3+ · 발동 시 반경 2칸 다른 직격 함정도 발동'},
+  relicBerserkCult:{name:'광폭 몬스터 동시 격노',effect:'조건: 광폭 몬스터 2+ · 한 마리 격노 시 전원 즉시 격노'},
+  relicShadowExec:{name:'저체력 적 즉시 암살',effect:'조건: 처형 몬스터 1+ · 생존 3+ · 적 HP 25% 이하가 되면 즉시 암살'},
+  relicSanctuary:{name:'힐러 긴급 구조',effect:'조건: 힐러 1+ · 생존 3+ · 힐러 범위 내 아군이 HP 10% 이하 피격 시 1회 구조'},
+  relicPitMaze:{name:'구덩이 보스 피해 강화',effect:'조건: 심연구덩이 2+ · 밀려난 보스 최대HP 비례 피해 +6%p'},
+  relicAuraResonance:{name:'처치 시 주변 회복',effect:'조건: 수호 석상 1+ · 저주 토템 1+ · 용사 처치 시 주변 몬스터 회복'},
+  relicMazeArchitect:{name:'막다른 길 적 약화',effect:'조건: 통로 40칸+ · 막다른 길 3+ · 막다른 길의 용사 공격력 감소'},
+  relicGoldMerc:{name:'몬스터 사망 시 골드 환급',effect:'조건: 몬스터 투자 500G+ · 몬스터 전사 시 투자 골드 일부 환급'},
+  relicFireCurse:{name:'저주 + 용암 피해 강화',effect:'조건: 용암 1+ · 저주 토템 1+ · 저주 걸린 적의 용암 피해 +25%'},
+  relicUndeadPact:{name:'흡혈 몬스터 1회 생존',effect:'조건: 흡혈 1+ · 힐러 1+ · 근처 힐러가 있으면 죽기 직전 HP 1로 1회 생존'},
+
+  // 계약: 이득과 제약을 제목에서 바로 읽을 수 있게 표시
+  contractSilence:{name:'공격력 +25% · 함정 금지',effect:'몬스터 공격력 +25% 영구 · 다음 2웨이브 새 함정 설치 불가'},
+  contractIsolation:{name:'영혼 ×2 · 소환 금지',effect:'최종 영혼 ×2 · 다음 1웨이브 새 몬스터 소환 불가'},
+  contractBerserk:{name:'공격력 +35% · HP -20%',effect:'몬스터 공격력 +35% 영구 · 최대HP -20% 영구'},
+  contractCursed:{name:'공격력 +40% · 핵 회복 정지',effect:'몬스터 공격력 +40% 영구 · 핵 자동 회복 영구 정지'},
+  contractAmbition:{name:'보상 ×2.2 · 용사 +35%',effect:'다음 3웨이브 용사 수 +35% · 해당 웨이브 보상 골드 ×2.2'},
+  contractEliteSummon:{name:'정예 소환 · 비용 ×3',effect:'다음 2웨이브 소환 비용 ×3 · 그때 소환된 몬스터 공격력 +30% 영구'},
+  contractBloodOath:{name:'아키타입 조건 -1 · HP -15%',effect:'아키타입 유물 발동 조건 -1 영구 · 몬스터 최대HP -15% 영구'}
+};
+function rewardUiCopy(item){
+  const simple=REWARD_UI_COPY[item.id];
+  return simple||{name:item.name,effect:item.effect||item.desc||''};
+}
+const REWARD_UI_BAD_PARTS={
+  contractSilence:[1],
+  contractIsolation:[1],
+  contractBerserk:[1],
+  contractCursed:[1],
+  contractAmbition:[0],
+  contractEliteSummon:[0],
+  contractBloodOath:[1]
+};
+const REWARD_UI_CONDITION_IDS=new Set([
+  'relicSniperLegion','relicGlacialPrison','relicPackFury','relicUnbrokenLine',
+  'relicPlagueZone','relicChainBlast','relicBerserkCult','relicShadowExec',
+  'relicSanctuary','relicPitMaze','relicAuraResonance','relicMazeArchitect',
+  'relicGoldMerc','relicFireCurse','relicUndeadPact'
+]);
+function rewardEffectHtml(item,copy){
+  const effect=String(copy.effect||'');
+  const parts=effect.split(/\s+\u00b7\s+/).filter(Boolean);
+  if(!parts.length)return '';
+  const badParts=new Set(REWARD_UI_BAD_PARTS[item.id]||[]);
+  const conditionMode=REWARD_UI_CONDITION_IDS.has(item.id);
+  return parts.map((part,index)=>{
+    let tone='good';
+    if(badParts.has(index))tone='bad';
+    else if(conditionMode&&index<parts.length-1)tone='neutral';
+    const icon=tone==='good'?'&#9650;':tone==='bad'?'&#9660;':'&#9679;';
+    return `<div class="rc-effect-line rc-${tone}"><span class="rc-effect-mark">${icon}</span><span>${part}</span></div>`;
+  }).join('');
+}
+function rewardChoiceHtml(item,typeClass,typeLabel){
+  const kind=typeClass==='card-type'?'🃏':typeClass==='relic-type'?'💠':'☠️';
+  const copy=rewardUiCopy(item);
+  return `<div class="reward-choice reward-choice-simple ${typeClass}" data-reward-type="${typeLabel}" data-reward-id="${item.id}"><div class="rc-head"><span class="rc-kind">${kind} ${typeLabel}</span><span class="rc-rarity">${item.rarity||''}</span></div><div class="rc-icon">${item.icon}</div><div class="rc-name">${copy.name}</div>${item.tag?`<div class="rc-tag">🔗 ${item.tag.toUpperCase()} 빌드 연계</div>`:''}<div class="rc-effect rc-effect-simple">${rewardEffectHtml(item,copy)}</div><div class="rc-arrow">선택하기 ›</div></div>`;
+}
 function openRewardSelect(){
   if(!state||!els.cardOverlay)return;
   state.phase='cardSelect';
@@ -506,6 +592,32 @@ function fmtTime(sec){
   const m=Math.floor(sec/60), s=sec%60;
   return `${m}:${s.toString().padStart(2,'0')}`;
 }
+function renderVillageRaidLaunchButton(){
+  const raidBtn=document.getElementById('villageRaidLaunchBtn');
+  if(!raidBtn || !state) return;
+  const raidCount=Math.max(0,Number(state.villageRaidCharges)||0);
+  const raidMax=Math.max(1,Number(state.villageRaidChargeMax)||2);
+  const chargeEl=document.getElementById('villageRaidChargeText');
+  const subEl=document.getElementById('villageRaidLaunchSub');
+  if(chargeEl) chargeEl.textContent=`${raidCount}/${raidMax}`;
+  const canShow=state.running && !state.gameOver && state.phase==='build' && !state.village && state.villagePrepTimer==null && !state._villageReturnLock && raidCount>0;
+  raidBtn.classList.toggle('hidden',!canShow);
+  if(canShow){
+    const remain=Math.max(0,(Number(state.villageRaidCooldownUntilWave)||0)-(Number(state.wave)||0));
+    const cooldown=remain>0;
+    raidBtn.classList.toggle('cooldown',cooldown);
+    raidBtn.disabled=cooldown;
+    raidBtn.setAttribute('aria-disabled',cooldown?'true':'false');
+    raidBtn.title=cooldown?`재출정까지 ${remain}웨이브 남았습니다`:'습격권 1개를 사용해 10초 출정 준비를 시작합니다';
+    if(subEl) subEl.textContent=cooldown
+      ? `원정대 재정비 중 · 재출정까지 ${remain}웨이브`
+      : `습격권 1개 사용 · 10초 뒤 출정 (누르지 않으면 다음 웨이브 진행)`;
+  }else{
+    raidBtn.classList.remove('cooldown');
+    raidBtn.disabled=false;
+    raidBtn.removeAttribute('aria-disabled');
+  }
+}
 function renderUI(){
   if(!state){ renderMapCells(); return; }
   if(typeof Sound!=='undefined'&&Sound.syncMusic) Sound.syncMusic();
@@ -522,6 +634,7 @@ function renderUI(){
   els.killCount.textContent=`처치 ${state.killCount}`;
   els.killStatText.textContent=`${state.killCount}명`;
   if(els.monsterCapText) els.monsterCapText.textContent=`${state.monsters.length}/${state.monsterCap||MONSTER_CAP_START}`;
+  renderVillageRaidLaunchButton();
   if(state.phase==='placeCore'){
     els.phaseLabel.textContent='마력의 핵 배치';
     els.timerText.textContent='위치 선택';
@@ -613,11 +726,11 @@ function renderObstacleRanges(){
     const ring=document.createElement('div');
     ring.className='range-ring';
     if(state.selected && state.selected.kind==='tile' && state.selected.r===r && state.selected.c===c) ring.classList.add('strong');
-    ring.style.left=((c+1)*px)+'px';
-    ring.style.top=((r+1)*px)+'px';
-    // Lv.1의 기본 범위는 장애물 자체의 2x2 영역입니다.
-    // 이후 range가 1, 2로 증가할 때 바깥쪽으로 한 칸씩 확장됩니다.
-    const diameter=px*(2+radius*2);
+    const fxCenter=typeof obstacleFxCenter==='function'?obstacleFxCenter(r,c,ob.id,state.grid[r][c]):{r:r+.5,c:c+.5};
+    ring.style.left=((fxCenter.c+.5)*px)+'px';
+    ring.style.top=((fxCenter.r+.5)*px)+'px';
+    const baseSize=typeof obstacleVisualFootprint==='function'?obstacleVisualFootprint(ob.id,state.grid[r][c]):2;
+    const diameter=px*(baseSize+radius*2);
     ring.style.width=diameter+'px';
     ring.style.height=diameter+'px';
     ring.style.setProperty('--range-color',ob.color||'#b79bff');
@@ -745,8 +858,14 @@ function renderMapCells(){
         ob=OBSTACLE_TYPES.find(o=>o.id===t.obstacle);
         cls+=' has-obstacle obstacle-'+(ob?ob.kind:'')+(ob?' ob-'+(t.wasBridge?'collapse_bridge':ob.id):'');
         if(ob && !t.wasBridge && OBSTACLE_ANIMS[ob.id] && obstacleAnimReady[ob.id]) cls+=' ob-animated'; // v61: 프레임 애니메이션 사용
-        if(ob&&ob.id==='rockfall'&&t.rockfallArmed) cls+=' armed';
-        if(ob&&ob.id==='collapse_bridge'&&t.bridgeHits) cls+=' cracked-'+Math.min(3,t.bridgeHits);
+        if(ob&&ob.id==='gust'){
+          const dr=Math.sign(t.obstacleDirR||0),dc=Math.sign(t.obstacleDirC||0);cls+=' ob-dir-'+(dr<0?'up':dr>0?'down':dc<0?'left':'right');
+        }
+        if(ob&&ob.id==='magnet'){
+          const dr=Math.sign(t.obstacleDirR||0),dc=Math.sign(t.obstacleDirC||0);cls+=' ob-dir-'+(dr<0?'up':dr>0?'down':dc<0?'left':'right');
+        }
+        if(ob&&isWallMountedObstacle(ob.id)) cls+=' wall-mounted-obstacle';
+        if(ob&&ob.id==='collapse_bridge') cls+=t.runeGatePermanent?' rune-gate-sealed':(t.runeGateClosed?' rune-gate-closed':' rune-gate-open');
         if(t.wasBridge && t.justCollapsedUntil && performance.now()<t.justCollapsedUntil) cls+=' just-collapsed';
         if(isObstacleRoot(r,c)) cls+=' obstacle-root';
       }
@@ -759,6 +878,8 @@ function renderMapCells(){
           if(t.type==='rock' && !t.obstacle && !t.isEntrance && (t.playerWall===true || isDiggable(r,c))) cls+=' wall-dig-target';
         } else if(state.selectedObstacleType==='__wall__'){
           if(t.type==='floor' && !t.isEntrance && !t.obstacle && !monsterAt(r,c)) cls+=' wall-target';
+        } else if(isWallMountedObstacle(state.selectedObstacleType)){
+          if(t.type==='rock' && !t.isEntrance && !t.obstacle && canPlaceObstacleAt(r,c,state.selectedObstacleType)) cls+=' obstacle-target wall-mount-target';
         } else if(t.type==='floor' && !t.isEntrance && !t.obstacle){
           const anchor=obstacleAnchor(r,c,state.selectedObstacleType);
           if(anchor.r===r && anchor.c===c && canPlaceObstacleAt(r,c,state.selectedObstacleType)) cls+=' obstacle-target';
@@ -796,14 +917,14 @@ function renderMapCells(){
           if(!obImg){ obImg=document.createElement('img'); obImg.className='obstacle-icon'; el.appendChild(obImg); }
           // v46: 대기/발동 2프레임 장애물은 t.triggerFxUntil 동안만 발동 프레임(spriteAlt)을 보여주고,
           // 붕락교처럼 영구히 모습이 바뀌는 경우는 t.wasBridge일 때 고정 스프라이트로 덮어씁니다.
-          const _spriteOpts=t.wasBridge
+          const _spriteOpts=(ob.id==='collapse_bridge'&&t.runeGatePermanent)
             ? {srcOverride:OBSTACLE_SPRITES.collapse_bridge_alt}
-            : {alt:!!(t.triggerFxUntil && performance.now()<t.triggerFxUntil)};
+            : (t.wasBridge ? {srcOverride:OBSTACLE_SPRITES.collapse_bridge_alt} : {alt:!!(t.triggerFxUntil && performance.now()<t.triggerFxUntil)});
           applyObstacleSpriteImage(obImg,ob,_spriteOpts);
           obImg.classList.toggle('trap-pulse', !!_spriteOpts.alt);
           // v61: 프레임 애니메이션 레이어 (평상시 반복형은 CSS가 계속 재생, 발동형은 발동 순간마다 처음부터 한 번 재생)
           const _anim=OBSTACLE_ANIMS[ob.id];
-          if(_anim && obstacleAnimReady[ob.id] && !t.wasBridge){
+          if(_anim && obstacleAnimReady[ob.id] && !t.wasBridge && !(ob.id==='collapse_bridge'&&t.runeGatePermanent)){
             let animEl=el.querySelector('.obstacle-anim');
             if(!animEl){ animEl=document.createElement('div'); animEl.className='obstacle-anim'; el.appendChild(animEl); }
             if(_anim.mode==='trigger'){
@@ -813,7 +934,6 @@ function renderMapCells(){
                 animEl.classList.remove('ob-play'); void animEl.offsetWidth; animEl.classList.add('ob-play');
               } else if(!active && animEl.classList.contains('ob-play')){ animEl.classList.remove('ob-play'); }
               // 경고 상태(붕락지대 등)에서는 경고 프레임을 반복 재생
-              if(_anim.armed) animEl.classList.toggle('ob-armed', !!t.rockfallArmed && !animEl.classList.contains('ob-play'));
             } else {
               // 반복형: 발동 신호가 켜져 있는 동안 잠깐 밝게 번쩍임 (돌풍진/흡인진이 작동하는 순간)
               animEl.classList.toggle('ob-trig', performance.now()<(t.triggerFxUntil||0));
@@ -1716,6 +1836,56 @@ function processFxEvents(){
       spellFxDelayRun(ev,()=>appendHeroSpellImpact(ev,px));
     } else if(ev.type==='heroMeleeSkillImpact'){
       spellFxDelayRun(ev,()=>{ if(Sound.meleeSkillRelease) Sound.meleeSkillRelease(ev.weaponType||'sword'); appendMeleeSkillImpact(ev,px); });
+    } else if(ev.type==='trapFlameJet'){
+      const sx=ev.c*px+px/2,sy=ev.r*px+px/2;
+      const hasTarget=Number.isFinite(ev.toR)&&Number.isFinite(ev.toC);
+      const dx=hasTarget?((ev.toC-ev.c)*px):((ev.dc||1)*px*Math.max(1,Number(ev.range)||3));
+      const dy=hasTarget?((ev.toR-ev.r)*px):((ev.dr||0)*px*Math.max(1,Number(ev.range)||3));
+      const len=Math.max(px*.85,Math.hypot(dx,dy)||0);
+      const ang=Math.atan2(dy,dx||1)*180/Math.PI;
+      const wrap=document.createElement('div');wrap.className='trapfx-flamejet';wrap.style.left=sx+'px';wrap.style.top=sy+'px';
+      wrap.style.setProperty('--jet-len',len+'px');wrap.style.setProperty('--jet-w',(px*.72)+'px');wrap.style.setProperty('--jet-ang',ang+'deg');
+      const beam=document.createElement('div');beam.className='tf-jet-beam';wrap.appendChild(beam);
+      const core=document.createElement('div');core.className='tf-jet-core';wrap.appendChild(core);
+      for(let i=0;i<14;i++){
+        const p=document.createElement('i');p.className='tf-jet-ember';
+        p.style.setProperty('--x',((len*(.35+Math.random()*.6)))+'px');
+        p.style.setProperty('--y',((Math.random()-.5)*px*.55)+'px');
+        p.style.setProperty('--d',(Math.random()*140)+'ms');
+        wrap.appendChild(p);
+      }
+      appendTokenLayerNode(wrap);triggerBoardHitShake(!!(ev.lv>=10),180);setTimeout(()=>wrap.remove(),760);
+    } else if(ev.type==='trapHarpoon'){
+      const sx=ev.fromC*px+px/2,sy=ev.fromR*px+px/2,dx=(ev.toC-ev.fromC)*px,dy=(ev.toR-ev.fromR)*px,len=Math.max(px*.4,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx)*180/Math.PI;
+      const wrap=document.createElement('div');wrap.className='trapfx-harpoon';wrap.style.left=sx+'px';wrap.style.top=sy+'px';wrap.style.setProperty('--chain-len',len+'px');wrap.style.setProperty('--chain-return',(len*.32)+'px');wrap.style.setProperty('--chain-ang',ang+'deg');
+      const reel=document.createElement('div');reel.className='tf-reel';wrap.appendChild(reel);
+      const spine=document.createElement('div');spine.className='tf-chain-spine';wrap.appendChild(spine);
+      const linkCount=Math.max(4,Math.min(18,Math.round(len/14)));
+      for(let i=0;i<linkCount;i++){
+        const link=document.createElement('i');
+        link.className='tf-chain-link'+(i%2?' alt':'');
+        link.style.left=(len*((i+1)/(linkCount+1)))+'px';
+        link.style.setProperty('--d',(i*16)+'ms');
+        wrap.appendChild(link);
+      }
+      const hook=document.createElement('div');hook.className='tf-hook-head';wrap.appendChild(hook);
+      const bind=document.createElement('div');bind.className='tf-hook-bind';
+      for(let i=0;i<3;i++){ const ring=document.createElement('i'); ring.style.setProperty('--rot',(-26+i*26)+'deg'); bind.appendChild(ring); }
+      wrap.appendChild(bind);
+      const hit=document.createElement('div');hit.className='tf-hook-hit';wrap.appendChild(hit);
+      for(let i=0;i<4;i++){ const spark=document.createElement('i'); spark.className='tf-hook-spark'; spark.style.setProperty('--a',(i*90+15)+'deg'); wrap.appendChild(spark); }
+      appendTokenLayerNode(wrap);setTimeout(()=>wrap.remove(),920);
+    } else if(ev.type==='trapMimicChomp'){
+      const wrap=document.createElement('div');wrap.className='trapfx-mimic';wrap.style.left=(ev.c*px+px/2)+'px';wrap.style.top=(ev.r*px+px/2)+'px';wrap.style.setProperty('--mimic-size',(px*1.28)+'px');
+      const aura=document.createElement('div');aura.className='tf-mimic-aura';wrap.appendChild(aura);const top=document.createElement('div');top.className='tf-jaw tf-jaw-top';wrap.appendChild(top);const bottom=document.createElement('div');bottom.className='tf-jaw tf-jaw-bottom';wrap.appendChild(bottom);const tongue=document.createElement('div');tongue.className='tf-mimic-tongue';wrap.appendChild(tongue);
+      for(let i=0;i<8;i++){const sp=document.createElement('i');sp.className='tf-mimic-spark';sp.style.setProperty('--a',(i*45)+'deg');wrap.appendChild(sp);}
+      appendTokenLayerNode(wrap);setTimeout(()=>wrap.remove(),900);
+    } else if(ev.type==='trapRuneGate'){
+      const mode=ev.state||'open',wrap=document.createElement('div');wrap.className='trapfx-rune '+mode;wrap.style.left=(ev.c*px+px/2)+'px';wrap.style.top=(ev.r*px+px/2)+'px';wrap.style.setProperty('--rune-size',(px*(mode==='sealed'?1.75:1.4))+'px');
+      for(let i=0;i<3;i++){const rg=document.createElement('div');rg.className='tf-rune-ring r'+(i+1);wrap.appendChild(rg);}const core=document.createElement('div');core.className='tf-rune-core';wrap.appendChild(core);
+      if(mode!=='open'){for(let i=0;i<5;i++){const bar=document.createElement('i');bar.className='tf-rune-bar';bar.style.setProperty('--x',((i-2)*15)+'%');wrap.appendChild(bar);}}
+      for(let i=0;i<10;i++){const p=document.createElement('i');p.className='tf-rune-particle';p.style.setProperty('--a',(i*36)+'deg');p.style.setProperty('--dist',(px*(.45+Math.random()*.45))+'px');wrap.appendChild(p);}
+      appendTokenLayerNode(wrap);if(mode==='sealed')triggerBoardHitShake(true,260);setTimeout(()=>wrap.remove(),mode==='sealed'?1200:850);
     } else if(ev.type==='obstacleSpecial'){
       const wrap=document.createElement('div'); wrap.className='ob-special '+(ev.ob||'');
       wrap.style.left=(ev.c*px+px/2)+'px'; wrap.style.top=(ev.r*px+px/2)+'px';

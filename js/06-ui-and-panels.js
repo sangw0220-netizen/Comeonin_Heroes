@@ -1,6 +1,7 @@
 "use strict";
 function monsterBuildInfoHtml(m){const a=monsterBuildAffinity(m);if(!a)return `<div class="panel-hint" style="margin-top:6px;color:#8c8c9e;">🧬 현재 빌드와 아직 연결되지 않은 몬스터입니다.</div>`;const meta=BUILD_TAG_META[a.tag]||{icon:'◆',name:a.tag};const st=buildStageInfo(a.tag);const mult=monsterBuildCombatMultiplier(m);const cd=monsterBuildSkillCooldownMul(m);return `<div class="panel-hint" style="margin-top:6px;border:1px solid rgba(224,182,74,.18);"><b style="color:var(--gold)">${meta.icon} 빌드 각성</b><br>${meta.name} · ${st.stage}/5 · <b>${st.name}</b><br><span style="color:#c9b9ff">Lv.${m.tier>=10?'10':m.tier>=5?'5':'1'} 연계 전투 보정 ×${mult.toFixed(2)}</span>${cd<1?`<br><span style="color:#8de0b5">스킬 재사용 ${Math.round((1-cd)*100)}% 감소</span>`:''}</div>`;}
 function obstacleCardSizeText(obId){
+  if(typeof isWallMountedObstacle==='function'&&isWallMountedObstacle(obId)) return '벽 1칸';
   const kind=typeof obstacleFootprintKind==='function' ? obstacleFootprintKind(obId) : 'square2';
   return kind==='single' ? '1×1' : kind==='cross' ? '3×3 십자' : '2×2';
 }
@@ -19,12 +20,11 @@ const OBSTACLE_BRIEF_TEXT={
   web:'이동속도를 낮추고 20% 확률로 기절시킵니다. 기절 시 5초 독을 부여합니다.',
   statue:'주변 몬스터를 지원하는 방어형 장애물입니다.',
   curse:'범위 내 용사를 약화시키는 저주 지대입니다.',
-  gust:'용사를 밀어내어 진형과 이동 경로를 흔듭니다.',
-  magnet:'주변 용사를 끌어당겨 위치를 강제로 바꿉니다.',
-  stun_cage:'용사를 붙잡아 이동을 방해하는 제어형 장애물입니다.',
-  rockfall:'범위에 낙석을 떨어뜨려 큰 피해를 줍니다.',
-  collapse_bridge:'여러 번 밟히면 붕괴하여 통로를 막는 방어형 장애물입니다.',
-  wall_crusher:'넓은 통로를 예고 후 압착해 큰 피해를 주는 대형 장치입니다.',
+  gust:'어느 벽이든 설치 · 지정 방향 직선 화염 · 피해 + 화상 + 넉백.',
+  magnet:'어느 벽이든 설치 · 지정 방향 직선 작살 · 피해 + 견인 + 짧은 경직.',
+  stun_cage:'밟은 영웅 포획 · 지속 피해 + 받는 피해 증가.',
+  collapse_bridge:'3초 개방/봉쇄 반복 · 3회 통과 후 영구 봉인.',
+  wall_crusher:'설치 시 압착 거리가 고정됩니다. 반대 벽이 사라지면 사거리는 늘지 않고 영웅을 밀어냅니다.',
   wall_pusher:'용사를 밀쳐 벽 충돌이나 심연 낙사를 노리는 장치입니다.',
   spring_launcher:'밟은 용사를 지정 방향으로 멀리 튕겨냅니다.',
   pendulum:'넓은 범위를 휩쓸어 베어내는 대형 절단 장치입니다.',
@@ -43,6 +43,25 @@ function monsterSelectionInfoHtml(typeId){
   const rangeText=range<=1?'근접':`사거리 ${range}`;
   return `<div id="monsterSelectionInfo" class="monster-selection-info"><div class="msi-title">👾 ${mt.name} <span>${grade}급</span></div><div class="msi-meta">${roles} · ${rangeText}</div><div class="msi-desc">${mt.desc||'던전을 방어하는 몬스터입니다.'}</div></div>`;
 }
+function obstacleMountDirectionButtonsHtml(current=1){
+  return `<div class="ob-mount-dir compact" role="group" aria-label="발사 방향 선택" title="발사 방향 선택 · R키로 회전">${OBSTACLE_MOUNT_DIRS.map((d,i)=>`<button type="button" data-ob-mount-dir="${i}" aria-pressed="${i===current?'true':'false'}" title="${d.name} 방향">${d.icon}</button>`).join('')}</div>`;
+}
+function setObstacleMountDirection(dir,installedTile=null){
+  if(!state||state.phase!=='build')return;
+  const idx=((Number(dir)||0)%4+4)%4,d=obstacleMountDirectionVector(idx);
+  if(installedTile){installedTile.obstacleDir=idx;installedTile.obstacleDirR=d.r;installedTile.obstacleDirC=d.c;if(installedTile.obstacle==='magnet'){installedTile.harpoonDirR=d.r;installedTile.harpoonDirC=d.c;}}
+  else state.selectedObstacleDirection=idx;
+  state._mapDirty=true;state._rangesDirty=true;state._panelDirty=true;
+}
+function bindObstacleMountDirectionButtons(root=els.panelBox){
+  root?.querySelectorAll('[data-ob-mount-dir]').forEach(btn=>btn.addEventListener('click',()=>{
+    const dir=Number(btn.dataset.obMountDir),r=Number(btn.dataset.obR),c=Number(btn.dataset.obC);
+    const hasCoords=Number.isInteger(r)&&Number.isInteger(c),tile=hasCoords?state?.grid?.[r]?.[c]:null;
+    setObstacleMountDirection(dir,tile&&isWallMountedObstacle(tile.obstacle)?tile:null);
+    root.querySelectorAll('[data-ob-mount-dir]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.obMountDir)===((dir%4)+4)%4)));
+    renderPanel();
+  }));
+}
 function obstacleSelectionInfoHtml(typeId){
   if(typeId==='__wall_dig__') return `<div id="obstacleSelectionInfo" class="obstacle-selection-info"><div class="osi-title">⛏️ 벽 파기</div><div class="osi-desc">암벽이나 직접 만든 벽을 5G로 파내 다시 통로로 만듭니다.</div></div>`;
   if(typeId==='__wall__') return `<div id="obstacleSelectionInfo" class="obstacle-selection-info"><div class="osi-title">🧱 벽 생성 <span>1×1</span></div><div class="osi-desc">빈 바닥에 암벽을 세워 용사의 이동 경로를 직접 설계합니다.</div></div>`;
@@ -54,7 +73,9 @@ function obstacleSelectionInfoHtml(typeId){
     const ps=typeof physicalPlacementSize==='function'?physicalPlacementSize(ob.id):physicalDef(ob.id).physicalSize;
     if(ps?.length===2) size=`${ps[0]}×${ps[1]}`;
   }
-  return `<div id="obstacleSelectionInfo" class="obstacle-selection-info"><div class="osi-title">${ob.icon||'🧱'} ${ob.name} <span>${size}</span></div><div class="osi-desc">${obstacleBriefText(ob)}</div></div>`;
+  const mounted=isWallMountedObstacle(ob.id);
+  const dir=obstacleMountDirectionIndex();
+  return `<div id="obstacleSelectionInfo" class="obstacle-selection-info${mounted?' mounted-compact':''}"><div class="osi-title${mounted?' osi-title-with-dir':''}"><span class="osi-title-main">${ob.icon||'🧱'} ${ob.name} <span>${mounted?'벽 설치형':size}</span></span>${mounted?obstacleMountDirectionButtonsHtml(dir):''}</div><div class="osi-desc">${obstacleBriefText(ob)}</div></div>`;
 }
 function renderPanel(){
   if(typeof renderPhysicalPanel==='function' && renderPhysicalPanel()) return;
@@ -254,6 +275,7 @@ function renderPanelInner(){
       html+=`<div class="panel-hint" style="margin-top:6px;font-size:9px;">벽 파기는 <b>5G</b>로 <b>기존 암벽 또는 생성한 벽</b>을 제거 · 벽 생성은 <b>개척된 빈 바닥</b>에 설치 · 장애물마다 <b>1×1 / 2×2 / 십자형</b> 설치 크기가 다릅니다.</div>`;
     }
     els.panelBox.innerHTML=html;
+    bindObstacleMountDirectionButtons();
     return;
   }
   if(sel.kind==='hero'){
@@ -347,7 +369,8 @@ function renderPanelInner(){
     const lv=obstacleLevel(t), range=obstacleRange(ob?.id,t), upCost=obstacleUpgradeCost(ob,lv);
     const canUp=state.phase==='build'&&lv<OBSTACLE_LEVEL_MAX&&state.gold>=upCost;
     const fixedArea=ob&&['flame','lightning','poison','barricade','pit','frost','web'].includes(ob.id);
-    html+=`<div class="panel-hint"><b style="color:var(--gold)">상태:</b> ${ob?ob.name:'장애물'} · <b>Lv.${lv}</b>${ob?` · 설치 ${obstacleFootprintLabel(ob.id)}`:''}${fixedArea?' · 효과는 설치 영역':' · 추가 범위 '+range+'칸'}</div>`;
+    const mountedDirHtml=(ob&&isWallMountedObstacle(ob.id))?`<span class="ob-inline-dir-label">방향</span>${obstacleMountDirectionButtonsHtml(Number.isInteger(t.obstacleDir)?t.obstacleDir:1).replaceAll('data-ob-mount-dir=',`data-ob-r="${r}" data-ob-c="${c}" data-ob-mount-dir=`)}`:'';
+    html+=`<div class="panel-hint obstacle-status-line"><span><b style="color:var(--gold)">상태:</b> ${ob?ob.name:'장애물'} · <b>Lv.${lv}</b>${ob?` · 설치 ${obstacleFootprintLabel(ob.id)}`:''}${fixedArea?' · 효과는 설치 영역':' · 추가 범위 '+range+'칸'}</span>${mountedDirHtml}</div>`;
     html+=`<div class="panel-hint">${ob?`<b>${ob.icon} ${ob.name}</b><br>${ob.desc}<br><b style="color:var(--gold)">특수 능력:</b> ${obstacleSpecialText(ob.id,lv)}`:'장애물입니다.'}</div>`;
     if(ob && lv<OBSTACLE_LEVEL_MAX){
       html+=`<button class="action-btn" id="upgradeObstacleBtn" ${canUp?'':'disabled'}>✨ 장애물 강화 → Lv.${lv+1} · ${upCost}G</button>`;
@@ -371,6 +394,7 @@ function renderPanelInner(){
     html+=`<div class="panel-hint">현재는 비어 있는 바닥입니다. 몬스터를 소환하려면 하단의 <b>👾 몬스터</b> 메뉴에서 원하는 몬스터 카드를 선택하세요.</div>`;
   }
   els.panelBox.innerHTML=html;
+  bindObstacleMountDirectionButtons();
 }
 
 let dragSuppressClick=false;
@@ -407,6 +431,7 @@ function activateShopItem(item){
     }
     const infoBox=els.panelBox.querySelector('#obstacleSelectionInfo');
     if(infoBox) infoBox.outerHTML=obstacleSelectionInfoHtml(typeId);
+    bindObstacleMountDirectionButtons();
     return true;
   }
 
@@ -607,20 +632,26 @@ els.panelBox.addEventListener('click',(e)=>{
 });
 
 const VILLAGE_SPRITES={
-  barracks:'assets/images/img_087_cb183623b4.png',
-  blacksmith:'assets/images/img_088_f6f67316db.png',
-  castle:'assets/images/img_089_6a30287639.png',
-  church:'assets/images/img_090_64f0e0c4ed.png',
-  granary:'assets/images/img_091_630eebe615.png',
-  house:'assets/images/img_092_153683c7c5.png',
-  inn:'assets/images/img_093_2b71c0543f.png',
-  lumber:'assets/images/img_094_6a0845b229.png',
-  magelab:'assets/images/img_095_082680dbe0.png',
-  mine:'assets/images/img_096_9a282fed9d.png',
-  shop:'assets/images/img_097_b59cc60efc.png',
-  stable:'assets/images/img_098_0b96ea9c3f.png',
-  training:'assets/images/img_099_ba97d8e169.png',
+  barracks:'assets/images/raid/buildings/barracks.png',
+  blacksmith:'assets/images/raid/buildings/blacksmith.png',
+  castle:'assets/images/raid/buildings/castle.png',
+  church:'assets/images/raid/buildings/church.png',
+  granary:'assets/images/raid/buildings/granary.png',
+  house:'assets/images/raid/buildings/house.png',
+  inn:'assets/images/raid/buildings/inn.png',
+  lumber:'assets/images/raid/buildings/lumber.png',
+  magelab:'assets/images/raid/buildings/magelab.png',
+  mine:'assets/images/raid/buildings/mine.png',
+  shop:'assets/images/raid/buildings/shop.png',
+  stable:'assets/images/raid/buildings/stable.png',
+  training:'assets/images/raid/buildings/training.png',
 };
+const VILLAGE_RUIN_SPRITES={
+  buildingA:'assets/images/raid/buildings/raid_ruin_1.png',
+  buildingB:'assets/images/raid/buildings/raid_ruin_2.png',
+  castle:'assets/images/raid/buildings/raid_ruin_2.png',
+};
+
 /* ==================================================================
    v38 · 마을 습격 이벤트 (Village Raid)
    10 / 20 / 30 ... 웨이브를 클리어하고 카드를 고른 뒤,
@@ -875,113 +906,145 @@ function generateVillageMap(townType){
   const G=VILLAGE_GRID;
   const grid=[];
   const blockHp=villageBlockMaxHp();
+  const makeBlock=(feature=null,hpMul=1)=>({type:'block', blockHp:Math.max(18,Math.round(blockHp*hpMul)), blockMaxHp:Math.max(18,Math.round(blockHp*hpMul)), vFeature:feature});
+  const makeRoad=(zone='field',feature=null)=>({type:'road', vZone:zone, vFeature:feature});
+  const makeRuin=(kind='rubble')=>({type:'ruin', ruinKind:kind, vZone:'ruin'});
+
   for(let r=0;r<G;r++){
     const row=[];
-    for(let c=0;c<G;c++) row.push({type:'block', blockHp, blockMaxHp:blockHp});
+    for(let c=0;c<G;c++) row.push(makeBlock('wall',1));
     grid.push(row);
   }
-  const carve=(r,c)=>{ if(villageInBounds(r,c) && grid[r][c].type==='block') grid[r][c]={type:'road'}; };
+  const setRoad=(r,c,zone='field',feature=null)=>{ if(villageInBounds(r,c)) grid[r][c]=makeRoad(zone,feature); };
+  const setRuin=(r,c,kind='rubble')=>{ if(villageInBounds(r,c)) grid[r][c]=makeRuin(kind); };
 
-  // 중앙 성 + 광장
-  const cr=Math.floor(G/2)-Math.floor(VILLAGE_CASTLE_SIZE/2); // 9
-  const cc=cr;
-  for(let r=cr-2;r<cr+VILLAGE_CASTLE_SIZE+2;r++)
-    for(let c=cc-2;c<cc+VILLAGE_CASTLE_SIZE+2;c++) carve(r,c);
+  const breachRow=9;
+  const defenderRow=8;
+  const counterRow=6;
+  const castleApproachRow=5;
+
+  // 1) 기본 전장 골격: 위는 도시, 가운데는 방어선, 아래는 공격 집결지.
+  for(let r=1;r<=13;r++){
+    const zone = r<=4 ? 'castle' : (r<=8 ? 'town' : (r===9 ? 'barricade' : 'assault'));
+    for(let c=1;c<=13;c++) setRoad(r,c,zone);
+  }
+
+  // 2) 성과 상단 광장
+  const cr=0, cc=6; // castle shifted 1 cell to the right for better centering on the main axis
   const castle={
     r:cr, c:cc, size:VILLAGE_CASTLE_SIZE,
     hp:villageCastleMaxHp(), maxHp:villageCastleMaxHp(), destroyed:false
   };
-  for(let r=cr;r<cr+VILLAGE_CASTLE_SIZE;r++)
-    for(let c=cc;c<cc+VILLAGE_CASTLE_SIZE;c++)
-      grid[r][c]={type:'castle', vcRootR:cr, vcRootC:cc};
-
-  const centerR=cr+VILLAGE_CASTLE_SIZE/2-0.5, centerC=cc+VILLAGE_CASTLE_SIZE/2-0.5;
-
-  // 건물 후보 슬롯 (성 광장과 겹치지 않게)
-  const slots=[];
-  for(let r=1;r<=G-3;r+=4){
-    for(let c=1;c<=G-3;c+=4){
-      const far=Math.max(Math.abs(r+0.5-centerR), Math.abs(c+0.5-centerC));
-      if(far<5) continue;
-      slots.push([r,c]);
+  for(let r=cr;r<cr+VILLAGE_CASTLE_SIZE;r++){
+    for(let c=cc;c<cc+VILLAGE_CASTLE_SIZE;c++){
+      grid[r][c]={type:'castle', vcRootR:cr, vcRootC:cc, vZone:'castle'};
     }
   }
-  slots.sort(()=>Math.random()-0.5);
+  // 성 앞 뜰 강조
+  for(let r=0;r<=castleApproachRow;r++){
+    for(let c=3;c<=11;c++) if(villageInBounds(r,c) && grid[r][c].type==='road') grid[r][c].vZone='castle';
+  }
 
+  // 3) 마을 건물 고정 슬롯 배치 (가운데 성을 둘러싼 도시 지구)
   const preferred=new Set((townType&&townType.preferred)||[]);
   const defs=VILLAGE_BUILDING_DEFS.slice().sort((a,b)=>{
     const aw=preferred.has(a.id)?1:0, bw=preferred.has(b.id)?1:0;
     if(aw!==bw) return bw-aw;
-    return Math.random()-.5;
+    return 0;
   }).slice(0, villageBuildingCount());
+  const slots=[
+    [3,1],[3,11],
+    [5,2],[5,10],
+    [6,4],[6,8]
+  ];
   const buildings=[];
   for(let i=0;i<defs.length && i<slots.length;i++){
     const def=defs[i];
     const [br,bc]=slots[i];
-    // 건물 주변 4x4 공터
-    for(let r=br-1;r<=br+2;r++) for(let c=bc-1;c<=bc+2;c++) carve(r,c);
     const b={
       id:'vb'+i, defId:def.id, name:def.name, icon:def.icon, sprite:def.id,
       r:br, c:bc, size:VILLAGE_BUILD_SIZE,
       hp:villageBuildingMaxHp(def), maxHp:villageBuildingMaxHp(def),
       destroyed:false,
-      // v38.6: 마을 습격에서 용사가 너무 빨리 쏟아지던 문제를 수정합니다.
-      //        첫 생산까지 충분히 기다리고, 이후 생산 간격도 크게 늘립니다.
       spawnCd:VILLAGE_FIRST_SPAWN_SEC + Math.random()*def.spawnSec*0.8,
       spawnSec:Math.max(VILLAGE_SPAWN_MIN_SEC, def.spawnSec*VILLAGE_SPAWN_SLOW_MUL*(1-(villageStage()-1)*0.05)),
       heroes:def.heroes, gold:def.gold
     };
-    for(let r=br;r<br+VILLAGE_BUILD_SIZE;r++)
-      for(let c=bc;c<bc+VILLAGE_BUILD_SIZE;c++)
-        grid[r][c]={type:'building', vbRootR:br, vbRootC:bc};
+    for(let r=br;r<br+VILLAGE_BUILD_SIZE;r++){
+      for(let c=bc;c<bc+VILLAGE_BUILD_SIZE;c++){
+        grid[r][c]={type:'building', vbRootR:br, vbRootC:bc, vZone:br<=3?'castle':'town'};
+      }
+    }
     buildings.push(b);
-    // 성 광장까지 L자 도로
-    let rr=br+1, ccx=bc+1;
-    const tr=Math.round(centerR), tc=Math.round(centerC);
-    while(ccx!==tc){ ccx += ccx<tc?1:-1; if(grid[rr]?.[ccx]?.type==='block') carve(rr,ccx); }
-    while(rr!==tr){ rr += rr<tr?1:-1; if(grid[rr]?.[ccx]?.type==='block') carve(rr,ccx); }
   }
 
-  // 마왕/몬스터 진입구 (가장자리 3곳)
-  const entries=[];
-  const edgePool=[];
-  for(let c=1;c<G-1;c++){ edgePool.push([0,c],[G-1,c]); }
-  for(let r=1;r<G-1;r++){ edgePool.push([r,0],[r,G-1]); }
-  edgePool.sort(()=>Math.random()-0.5);
-  for(const p of edgePool){
-    if(entries.some(e=>Math.abs(e[0]-p[0])+Math.abs(e[1]-p[1])<7)) continue;
-    entries.push(p);
-    if(entries.length>=3) break;
+  // 4) 중앙 방어선 / 바리케이드. 첫 페이즈의 시각적 핵심.
+  // v96: 목책 그래픽의 깊이에 맞춰 충돌 판정을 2중으로 두껍게 만듭니다.
+  // 앞줄(breachRow)은 실제 파괴 대상, 뒷줄(defenderRow)은 얇은 보조 장벽입니다.
+  const breachCells=[];
+  for(let c=1;c<=13;c++){
+    // 전장 전체를 가로막는 주 바리케이드.
+    grid[breachRow][c]=makeBlock('barricade',0.42);
+    breachCells.push([breachRow,c]);
+    // 목책 두께만큼 한 줄 더 충돌시키되, 난이도 폭증을 막기 위해 HP는 더 낮게 둡니다.
+    grid[defenderRow][c]=makeBlock('barricade',0.20);
+    breachCells.push([defenderRow,c]);
   }
+  // 화살 사격선 / 방어선 강조용 상단 도로 띠
+  for(let c=1;c<=13;c++) setRoad(defenderRow-1,c,'frontline', c===7 ? 'banner' : null);
+  for(let c=3;c<=11;c++) setRoad(counterRow,c,'town');
+
+  // 5) 하단 공격 집결지와 진입구.
+  const entries=[[14,4],[14,7],[14,10]];
+  const staging=[];
   for(const [r,c] of entries){
-    carve(r,c);
-    const dr = r===0?1 : r===G-1?-1 : 0;
-    const dc = c===0?1 : c===G-1?-1 : 0;
-    carve(r+dr, c+dc);
+    setRoad(r,c,'assault','entry');
+    setRoad(r-1,c,'assault','entry');
+    staging.push([r,c],[r-1,c]);
+  }
+  for(let c=1;c<=13;c++){
+    setRoad(10,c,'assault');
+    setRoad(11,c,'assault');
+    setRoad(12,c,'assault');
+    setRoad(13,c,'assault');
   }
 
-  // 함정 배치 (도로 위, 건물/성 주변 제외)
-  const traps=[];
-  const trapCount = 3 + villageStage();
-  const roadCells=[];
-  for(let r=0;r<G;r++) for(let c=0;c<G;c++){
-    if(grid[r][c].type!=='road') continue;
-    if(entries.some(e=>Math.abs(e[0]-r)+Math.abs(e[1]-c)<=2)) continue;
-    const nearCastle=Math.max(Math.abs(r-centerR),Math.abs(c-centerC))<3;
-    if(nearCastle) continue;
-    roadCells.push([r,c]);
+  // 6) 성으로 향하는 중앙 축과 좌우 통로를 강조.
+  for(let r=1;r<=13;r++){
+    for(let c=6;c<=8;c++) if(grid[r][c].type==='road') grid[r][c].vFeature='mainlane';
   }
-  roadCells.sort(()=>Math.random()-0.5);
-  for(let i=0;i<Math.min(trapCount, roadCells.length);i++){
-    const [r,c]=roadCells[i];
-    if(traps.some(t=>Math.abs(t.r-r)+Math.abs(t.c-c)<3)) continue;
-    const def=VILLAGE_TRAP_DEFS[Math.floor(Math.random()*VILLAGE_TRAP_DEFS.length)];
+  for(let r=5;r<=8;r++) for(let c=1;c<=13;c++) if(grid[r][c].type==='road' && !grid[r][c].vFeature) grid[r][c].vFeature='townlane';
+
+  // 7) 함정은 방어선 뒤쪽과 도시 진입부에 제한적으로 배치.
+  const traps=[];
+  const trapSlots=[[7,3],[7,11],[6,7],[5,5],[5,9]];
+  const trapCount=Math.min(3+villageStage(), trapSlots.length);
+  for(let i=0;i<trapCount;i++){
+    const [r,c]=trapSlots[i];
+    if(grid[r][c].type!=='road') continue;
+    const def=VILLAGE_TRAP_DEFS[i%VILLAGE_TRAP_DEFS.length];
     const t={r,c,defId:def.id,name:def.name,icon:def.icon,color:def.color,cd:0,cdMax:def.cd};
     grid[r][c].vtrap=t;
     traps.push(t);
   }
 
-  return {grid, castle, buildings, traps, entries, centerR:tr0(centerR), centerC:tr0(centerC)};
+  // 8) 장식용 폐허 시작 지점 (전장이 이전 침공 흔적으로 보이게).
+  setRuin(10,2,'barricade');
+  setRuin(10,12,'barricade');
+
+  return {
+    grid,
+    castle,
+    buildings,
+    traps,
+    entries,
+    staging,
+    breachCells,
+    frontlineCells:[[defenderRow-1,2],[defenderRow-1,4],[defenderRow-1,6],[defenderRow-1,8],[defenderRow-1,10],[defenderRow-1,12]],
+    counterCells:[[counterRow,4],[counterRow,7],[counterRow,10],[counterRow,13]],
+    castleGuardCells:[[castleApproachRow,4],[castleApproachRow,6],[castleApproachRow,8],[castleApproachRow,10]],
+    centerR:tr0(cr+VILLAGE_CASTLE_SIZE/2), centerC:tr0(cc+VILLAGE_CASTLE_SIZE/2)
+  };
 }
 function tr0(v){ return Math.round(v); }
 
@@ -1044,6 +1107,11 @@ function startVillageRaid(){
     earnedEffects:[],
     traps: v.traps,
     entries: v.entries,
+    staging: v.staging||[],
+    breachCells: v.breachCells||[],
+    frontlineCells: v.frontlineCells||[],
+    counterCells: v.counterCells||[],
+    castleGuardCells: v.castleGuardCells||[],
     timer: villageTimeLimit(),
     maxTimer: villageTimeLimit(),
     totalBuildings: v.buildings.length,
@@ -1068,11 +1136,13 @@ function startVillageRaid(){
   if(typeof Sound!=='undefined'&&Sound.syncMusic) Sound.syncMusic(true);
 
   // 진입구에 배치
-  const spots = [];
-  for(const [er,ec] of v.entries){
-    const dr = er===0?1 : er===VILLAGE_GRID-1?-1 : 0;
-    const dc = ec===0?1 : ec===VILLAGE_GRID-1?-1 : 0;
-    spots.push([er,ec],[er+dr,ec+dc]);
+  const spots = (Array.isArray(v.staging) && v.staging.length) ? v.staging.slice() : [];
+  if(!spots.length){
+    for(const [er,ec] of v.entries){
+      const dr = er===0?1 : er===VILLAGE_GRID-1?-1 : 0;
+      const dc = ec===0?1 : ec===VILLAGE_GRID-1?-1 : 0;
+      spots.push([er,ec],[er+dr,ec+dc]);
+    }
   }
   let si=0;
   const placeAt=(ent)=>{
@@ -1107,10 +1177,10 @@ function startVillageRaid(){
   if(els.rangeLayer) els.rangeLayer.innerHTML='';
   setVillageBackdrop(true);
   showVillageIntro();
-  showVillageToast(townType.icon,`${townType.name} 습격 시작!`,`작전 목표 3곳을 파괴하고 전리품을 챙기세요. 경보가 오르면 증원군이 강해집니다.`,'prep',3800);
+  showVillageToast(townType.icon,`${townType.name} 공성 습격 시작!`,`중앙 방어선을 돌파해 작전 목표를 부수고, 길이 열리면 성까지 밀어붙이세요.`,'prep',3800);
   Sound.expand && Sound.expand();
   Sound.setStageMusic && Sound.setStageMusic(1);
-  addLog(`<span class="hl-gold">${townType.icon} ${townType.name} 습격!</span> 작전 목표 3곳이 지정되었습니다. 필요하면 언제든 철수해 현재 전리품을 지킬 수 있습니다.`);
+  addLog(`<span class="hl-gold">${townType.icon} ${townType.name} 공성 습격!</span> 중앙 방어선을 돌파한 뒤 작전 목표를 파괴하십시오. 필요하면 언제든 철수해 현재 전리품을 지킬 수 있습니다.`);
   renderUI();
 }
 
@@ -1413,7 +1483,7 @@ function performVillageReturn(success, villageSnapshot){
 function villagePassable(r,c){
   if(!villageInBounds(r,c)) return false;
   const t=state.grid[r][c];
-  return !!t && t.type==='road';
+  return !!t && (t.type==='road' || t.type==='ruin');
 }
 function villageMonsterAt(r,c,skip){
   if(state.mawang && !state.mawang.dead && state.mawang!==skip && state.mawang.r===r && state.mawang.c===c) return state.mawang;
@@ -1508,7 +1578,14 @@ function villageDamageStruct(att, s, isMawang){
   if(s.hp<=0){
     s.hp=0; s.destroyed=true;
     const cells=villageStructCells(s);
-    for(const [r,c] of cells){ state.grid[r][c]={type:'road'}; }
+    const isCastleRuin=(s===v.castle);
+    const ruinSprite=isCastleRuin?'castle':((v.destroyedBuildings||0)%2===0?'buildingA':'buildingB');
+    for(const [r,c] of cells){
+      state.grid[r][c]={
+        type:'ruin', ruinKind:(isCastleRuin?'castle':'building'), vZone:'ruin',
+        ruinRootR:s.r, ruinRootC:s.c, ruinSize:s.size, ruinSprite
+      };
+    }
     state.fxEvents.push({type:'spawnBurst', r:s.r+1, c:s.c+1, color:'rgba(255,140,60,.95)'});
     if(s===v.castle){
       addGold(0);
@@ -1547,7 +1624,7 @@ function villageDamageBlock(att, r, c, isMawang){
   Sound.dig && Sound.dig(); // v38.6: 블럭을 부수는 중 사운드
   state.fxEvents.push({type:'spark', r, c, color:'#cdbff5'});
   if(t.blockHp<=0){
-    state.grid[r][c]={type:'road'};
+    state.grid[r][c]=(t.vFeature==='barricade') ? {type:'ruin', ruinKind:'barricade', vZone:'ruin'} : {type:'road'};
     state.fxEvents.push({type:'spawnBurst', r, c, color:'rgba(190,175,235,.75)'});
     Sound.digBreak && Sound.digBreak();
     state.village.flowTick = 0; // 경로 재계산
@@ -1891,6 +1968,16 @@ function simulateVillageStep(dt){
 
 /* ---------------- 렌더링 ---------------- */
 function setVillageBackdrop(on){
+  // 전용 마을 습격 레이아웃은 body 클래스 하나로 격리합니다.
+  // 던전으로 복귀하면 즉시 제거되어 기존 던전 레이아웃/보드 크기로 되돌아갑니다.
+  document.body.classList.toggle('village-raid-layout', !!on);
+  const mapEl = els.map || document.getElementById('map');
+  if(mapEl){
+    mapEl.classList.toggle('village-bg-scene', !!on);
+    if(!on){
+      mapEl.classList.remove('v-breach-closed','v-breach-open');
+    }
+  }
   const bd = els.stageBackdrop || document.getElementById('stageBackdrop');
   if(bd){
     if(on){
@@ -1914,17 +2001,27 @@ function setVillageBackdrop(on){
       badge.innerHTML = badge.dataset.prevHtml;
     }
   }
+  // 클래스 변경으로 보드 프레임 크기가 달라질 수 있으므로 현재 모드에 맞게 즉시 재계산합니다.
+  requestAnimationFrame(()=>{ if(typeof applyBoardSize==='function') applyBoardSize(); });
 }
 
 function renderVillageCells(){
   if(!cellEls.length || !state || !state.village) return;
   const v=state.village;
+  const mapEl = els.map || document.getElementById('map');
+  if(mapEl){
+    mapEl.classList.add('village-bg-scene');
+    const breachClosed=(v.breachCells||[]).some(([br,bc])=>state.grid[br]?.[bc]?.type==='block');
+    mapEl.classList.toggle('v-breach-closed',breachClosed);
+    mapEl.classList.toggle('v-breach-open',!breachClosed);
+  }
   for(let r=0;r<VILLAGE_GRID;r++){
     for(let c=0;c<VILLAGE_GRID;c++){
       const el=cellEls[r]?.[c]; if(!el) continue;
       const t=state.grid[r][c];
       const isBuildRoot = t.type==='building' && t.vbRootR===r && t.vbRootC===c;
       const isCastleRoot = t.type==='castle' && t.vcRootR===r && t.vcRootC===c;
+      const isRuinRoot = t.type==='ruin' && t.ruinRootR===r && t.ruinRootC===c;
       let cls='cell v-cell';
       if(t.type==='block'){
         cls+=' v-block';
@@ -1935,15 +2032,17 @@ function renderVillageCells(){
       }
       else if(t.type==='building') cls+=' v-struct';
       else if(t.type==='castle') cls+=' v-struct v-castlecell';
+      else if(t.type==='ruin') cls+=' v-road v-ruin';
       else cls+=' v-road';
       if(isBuildRoot) cls+=' v-build-root';
       if(isCastleRoot) cls+=' v-castle-root';
+      if(isRuinRoot) cls+=' v-ruin-root';
       if(t.vtrap) cls+=' v-trap';
+      if(t.vZone) cls+=' v-zone-'+t.vZone;
+      if(t.vFeature) cls+=' v-feature-'+t.vFeature;
+      if(t.ruinKind) cls+=' v-ruin-'+t.ruinKind;
       if(el.className!==cls) el.className=cls;
 
-      // v79: 도시 텍스처를 셀마다 한 장씩 반복하지 않고 여러 칸에 걸쳐 이어 보이게 합니다.
-      // 같은 4x4(벽)/3x3(도로) 구간에서는 큰 텍스처의 서로 다른 조각을 보여 주므로
-      // '복붙 타일' 느낌이 크게 줄어듭니다.
       if(t.type==='block'){
         const wx=(c%4)*(100/3), wy=(r%4)*(100/3);
         el.style.setProperty('--v-wall-x',wx.toFixed(3)+'%');
@@ -1956,7 +2055,6 @@ function renderVillageCells(){
         el.style.removeProperty('--v-wall-x'); el.style.removeProperty('--v-wall-y');
       }
 
-      // 함정 아이콘
       let trapEl=el.querySelector('.v-trap-icon');
       if(t.vtrap){
         if(!trapEl){ trapEl=document.createElement('div'); trapEl.className='v-trap-icon'; el.appendChild(trapEl); }
@@ -1964,7 +2062,20 @@ function renderVillageCells(){
         trapEl.style.opacity = t.vtrap.cd>0 ? '.28' : '1';
       } else if(trapEl) trapEl.remove();
 
-      // 구조물 스프라이트 (루트 칸에만)
+      let ruinEl=el.querySelector('.v-ruin-deco');
+      if(t.type==='ruin' && !isRuinRoot){
+        if(!ruinEl){ ruinEl=document.createElement('div'); ruinEl.className='v-ruin-deco'; el.appendChild(ruinEl); }
+        ruinEl.textContent = t.ruinKind==='barricade' ? '🪵' : '';
+      } else if(ruinEl) ruinEl.remove();
+
+      let ruinImg=el.querySelector('.v-ruin-sprite');
+      if(isRuinRoot){
+        if(!ruinImg){ ruinImg=document.createElement('img'); ruinImg.className='v-ruin-sprite'; el.appendChild(ruinImg); }
+        const ruinSrc=VILLAGE_RUIN_SPRITES[t.ruinSprite]||VILLAGE_RUIN_SPRITES.buildingA;
+        if(ruinImg.getAttribute('src')!==ruinSrc) ruinImg.setAttribute('src',ruinSrc);
+        ruinImg.classList.toggle('v-ruin-castle', t.ruinKind==='castle');
+      } else if(ruinImg) ruinImg.remove();
+
       let base=el.querySelector('.v-base');
       let img=el.querySelector('.v-sprite');
       let bar=el.querySelector('.v-hp');
@@ -2175,41 +2286,86 @@ function showVillageResult(v, success, done, holdMs){
     return _selectCell(r,c);
   };
 
-  function maybeStartVillage(){
+  function villageRaidChargeMax(){
+    return Math.max(1, Number(state?.villageRaidChargeMax)||2);
+  }
+  function villageRaidCooldownRemaining(){
+    if(!state) return 0;
+    return Math.max(0,(Number(state.villageRaidCooldownUntilWave)||0)-(Number(state.wave)||0));
+  }
+  function grantVillageRaidOpportunity(){
     if(!state || state.gameOver) return false;
     if(state.wave<=0 || state.wave%10!==0) return false;
-    if(state.lastVillageWave===state.wave) return false;
-    const mwReady = state.mawang && !state.mawang.dead && state.mawang.hp>0;
-    const aliveMonsters = state.monsters.filter(m=>m.hp>0).length;
-    if(!mwReady && aliveMonsters<2){
-      addLog('<span class="hl-red">🏘️ 마을 습격 취소</span> — 원정을 보낼 병력이 부족합니다.');
-      return false;
+    // 같은 10웨이브 보상에서 applyReward/applyCard가 중복 호출되어도 1회만 지급합니다.
+    if((state.lastVillageGrantWave||0)===state.wave) return false;
+    state.lastVillageGrantWave=state.wave;
+    const max=villageRaidChargeMax();
+    const before=Math.max(0,Number(state.villageRaidCharges)||0);
+    state.villageRaidCharges=Math.min(max,before+1);
+    state.villageRaidChargeMax=max;
+    if(state.villageRaidCharges>before){
+      showVillageToast('⚔️','마을 습격권 획득!',`습격권 ${state.villageRaidCharges}/${max} · 준비 단계에서 원하는 때 출정할 수 있습니다.`,'prep',3600);
+      addLog(`<span class="hl-gold">⚔️ 마을 습격권 +1</span> — 현재 <span class="hl-gold">${state.villageRaidCharges}/${max}</span>. 준비 단계에서 원하는 때 원정을 시작할 수 있습니다.`);
+      Sound.magic && Sound.magic('dark');
+    }else{
+      showVillageToast('⚔️','마을 습격권 가득 참',`현재 ${state.villageRaidCharges}/${max} · 습격권을 사용하면 다음 10웨이브 보상에서 다시 받을 수 있습니다.`,'prep',3200);
+      addLog(`<span class="hl-gold">⚔️ 마을 습격권</span> — 최대 ${max}개를 보유 중이라 추가 습격권은 저장되지 않았습니다.`);
     }
-    state.lastVillageWave=state.wave;
-    // v38.6: 곧바로 마을로 넘어가지 않고 준비 시간을 둡니다.
-    //        페이즈는 'build'로 유지되므로 이 동안 몬스터/장애물을 그대로 배치할 수 있습니다.
-    state.phase='build';
-    state.villagePrepTimer=VILLAGE_PREP_SEC;
-    // 기존 던전 보드와 장애물 이미지는 그대로 유지하고 UI 카운트다운만 갱신합니다.
-    state._mapDirty=false; state._rangesDirty=false; state._panelDirty=true;
-    showVillageToast('🏘️','마을 습격 준비!',`${VILLAGE_PREP_SEC}초 뒤 마을로 진격합니다 · 지금 몬스터를 더 생성해두세요!`,'prep',VILLAGE_PREP_SEC*1000);
-    addLog(`<span class="hl-gold">🏘️ 마을 습격 예고</span> — <span class="hl-gold">${VILLAGE_PREP_SEC}초</span> 뒤 원정을 시작합니다. 그 전에 몬스터를 더 준비하세요!`);
-    Sound.magic && Sound.magic('dark');
     renderUI();
     return true;
   }
 
+  function requestVillageRaid(){
+    if(!state || state.gameOver || !state.running) return false;
+    if(state.phase!=='build' || state.village || state.villagePrepTimer!=null || state._villageReturnLock) return false;
+    const charges=Math.max(0,Number(state.villageRaidCharges)||0);
+    if(charges<=0){
+      showVillageToast('⚔️','습격권이 없습니다','10웨이브마다 습격권을 1개씩 획득합니다.','prep',2400);
+      return false;
+    }
+    const remain=villageRaidCooldownRemaining();
+    if(remain>0){
+      showVillageToast('⏳','원정대 재정비 중',`재출정까지 ${remain}웨이브 남았습니다.`,'prep',2600);
+      addLog(`<span class="hl-gold">⏳ 마을 습격 대기</span> — 재출정까지 ${remain}웨이브 남았습니다.`);
+      return false;
+    }
+    const mwReady=state.mawang && !state.mawang.dead && state.mawang.hp>0;
+    const aliveMonsters=state.monsters.filter(m=>m.hp>0).length;
+    if(!mwReady && aliveMonsters<2){
+      showVillageToast('🏘️','원정 불가','마왕 또는 원정에 나설 몬스터 병력이 부족합니다.','lose',2600);
+      addLog('<span class="hl-red">🏘️ 마을 습격 취소</span> — 원정을 보낼 병력이 부족합니다.');
+      return false;
+    }
+
+    // 버튼을 누른 시점에 습격권을 소비하고 10초 출정 준비를 시작합니다.
+    state.villageRaidCharges=Math.max(0,charges-1);
+    state.lastVillageLaunchWave=state.wave;
+    // 현재 웨이브 기준으로 3개 웨이브를 더 클리어한 뒤 재출정 가능.
+    // 예: 10웨이브에서 출정 → 11,12,13 클리어 후 다시 출정 가능.
+    state.villageRaidCooldownUntilWave=state.wave+3;
+    state.phase='build';
+    state.villagePrepTimer=VILLAGE_PREP_SEC;
+    state._mapDirty=false; state._rangesDirty=false; state._panelDirty=true;
+    showVillageToast('🏘️','마을 습격 준비!',`${VILLAGE_PREP_SEC}초 뒤 마을로 진격합니다 · 습격권 ${state.villageRaidCharges}/${villageRaidChargeMax()}`,'prep',VILLAGE_PREP_SEC*1000);
+    addLog(`<span class="hl-gold">🏘️ 마을 습격 출정</span> — 습격권 1개를 사용했습니다. <span class="hl-gold">${VILLAGE_PREP_SEC}초</span> 뒤 진격합니다.`);
+    Sound.magic && Sound.magic('dark');
+    renderUI();
+    return true;
+  }
+  window.requestVillageRaid=requestVillageRaid;
+
+
   const _applyReward = applyReward;
   applyReward = function(type,id){
     const r=_applyReward(type,id);
-    maybeStartVillage();
+    grantVillageRaidOpportunity();
     return r;
   };
 
   const _applyCard = applyCard;
   applyCard = function(cardId){
     const r=_applyCard(cardId);
-    maybeStartVillage();
+    grantVillageRaidOpportunity();
     return r;
   };
 
@@ -2243,3 +2399,16 @@ renderMapCells();
 renderStartMetaSummary();
 syncTokenMoveDuration();
 requestAnimationFrame(gameLoop);
+
+
+// Wall-mounted remade traps: R rotates the selected placement direction, or an installed device while its tile is selected.
+document.addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()!=='r'||e.repeat||e.ctrlKey||e.metaKey||e.altKey||/^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName||'')||e.target?.isContentEditable)return;
+  if(state?.phase!=='build')return;
+  if(state.selected?.kind==='tile'){
+    const t=state.grid[state.selected.r]?.[state.selected.c];
+    if(t&&isWallMountedObstacle(t.obstacle)){setObstacleMountDirection((Number.isInteger(t.obstacleDir)?t.obstacleDir:1)+1,t);renderPanel();}
+  }else if(state.selected?.kind==='tool'&&state.selected.tool==='obstacle'&&isWallMountedObstacle(state.selectedObstacleType)){
+    setObstacleMountDirection(obstacleMountDirectionIndex()+1);renderPanel();
+  }
+});

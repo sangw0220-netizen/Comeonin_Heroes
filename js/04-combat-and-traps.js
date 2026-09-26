@@ -41,7 +41,7 @@ function evacuateHeroFromCollapsedBridge(h){
     const [r,c,d]=queue[head++];
     if(d>0){
       const t=state.grid[r]?.[c];
-      if(t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade' && t.obstacle!=='pit' && !monsterAt(r,c)){
+      if(t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade' && t.obstacle!=='pit' && !(t.obstacle==='collapse_bridge'&&runeGateIsBlocking(t)) && !monsterAt(r,c)){
         h.prevR=h.r; h.prevC=h.c; h.r=r; h.c=c; h.lastMoveAt=performance.now();
         h.barricadeSlowUntil=0; // 방금 벗어났으니 굳어있던 둔화 효과도 함께 풀어줍니다.
         return;
@@ -66,63 +66,127 @@ function markObstacleTrigger(tile,ms){
   if(typeof state!=='undefined' && state){ state._mapDirty=true; setTimeout(()=>{ if(state) state._mapDirty=true; },ms+40); }
   return until;
 }
-function magnetNearestFootprintCell(rootR,rootC,r,c){
-  let best=null,bestD=Infinity;
-  for(let rr=rootR;rr<=rootR+1;rr++)for(let cc=rootC;cc<=rootC+1;cc++){
-    const d=Math.abs(rr-r)+Math.abs(cc-c);
-    if(d<bestD){bestD=d;best={r:rr,c:cc};}
-  }
-  return best;
+function cardinalDirection(dr,dc){
+  if(Math.abs(dr)>=Math.abs(dc)&&dr!==0) return {r:Math.sign(dr),c:0};
+  if(dc!==0) return {r:0,c:Math.sign(dc)};
+  return {r:0,c:1};
 }
-function magnetPullOneStep(h,rootR,rootC){
+function obstacleDirection(tile,fr=0,fc=1){
+  const r=Math.sign(Number(tile?.obstacleDirR)||0),c=Math.sign(Number(tile?.obstacleDirC)||0);
+  return r?{r,c:0}:c?{r:0,c}:{r:fr,c:fc};
+}
+function flameSprayerTargets(root,rootTile,range){
+  const d=obstacleDirection(rootTile,0,1),cells=new Set([root.r+'_'+root.c]);
+  for(let k=1;k<=range;k++){
+    const r=root.r+d.r*k,c=root.c+d.c*k;
+    if(!inBounds(r,c)) break;
+    const tile=state.grid[r]?.[c];
+    if(!tile || tile.type==='rock' || tile.obstacle==='barricade' || (tile.obstacle==='collapse_bridge'&&runeGateIsBlocking(tile))) break;
+    cells.add(r+'_'+c);
+  }
+  return state.heroes.filter(h=>h.hp>0&&cells.has(h.r+'_'+h.c));
+}
+function triggerFlameSprayer(root,rootTile,lv,now=performance.now()){
+  if(!rootTile||now<(rootTile.gustNextAt||0)) return false;
+  const range=FLAME_SPRAYER_RANGE+(lv>=5?1:0)+(lv>=10?1:0);
+  const targets=flameSprayerTargets(root,rootTile,range);
+  if(!targets.length) return false;
+  const cooldown=Math.max(3000,FLAME_SPRAYER_COOLDOWN_MS-(lv-1)*90);
+  rootTile.gustNextAt=now+cooldown;
+  const d=obstacleDirection(rootTile,0,1),globalMul=trapAmplifyMul()*trapMasteryAttackDmgMul()*mawangObstacleMultiplier();
+  const base=Math.max(1,Math.round(FLAME_SPRAYER_DMG*lerpLv(lv,1,2.25)*globalMul));
+  const burnDps=FLAME_SPRAYER_BURN_DPS*lerpLv(lv,1,2.15)*globalMul;
+  const burnMs=FLAME_SPRAYER_BURN_MS+(lv>=5?500:0)+(lv>=10?500:0);
+  const knock=FLAME_SPRAYER_KNOCK_TILES+(lv>=10?1:0);
+  // Farthest-first prevents a front target from blocking every hero behind it during knockback.
+  targets.sort((a,b)=>(b.r*d.r+b.c*d.c)-(a.r*d.r+a.c*d.c));
+  for(const h of targets){
+    h.hp-=base;h.lastTrapHitAt=now;
+    h.flameBurnUntil=Math.max(h.flameBurnUntil||0,now+burnMs);
+    h.flameBurnDps=Math.max(h.flameBurnDps||0,burnDps);
+    state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:base,color:'#ff8b45'},{type:'floatText',r:h.r,c:h.c,text:'🔥 화상',color:'#ffae55'});
+    if(h.hp>0&&typeof physicalForceMove==='function') physicalForceMove(h,d.r,d.c,knock,{source:'gust',damage:1,launch:false});
+    sayHero(h,pickHeroDialogue('trapFlame'),'trapHit',1000,true);
+  }
+  markObstacleTrigger(rootTile,1000);Sound.trap('gust');
+  const fxTarget=targets[0]||null;
+  state.fxEvents.push(
+    {type:'trapFlameJet',r:root.r,c:root.c,dr:d.r,dc:d.c,range,lv,toR:fxTarget?fxTarget.r:null,toC:fxTarget?fxTarget.c:null},
+    {type:'obstacleBurst',r:root.r,c:root.c,ob:'gust',text:'🔥',footprint:1}
+  );
+  return true;
+}
+function harpoonPullOneStep(h,rootR,rootC){
   if(!h||h.hp<=0) return false;
-  const target=magnetNearestFootprintCell(rootR,rootC,h.r,h.c);
-  if(!target || (target.r===h.r&&target.c===h.c)) return false;
-  const currentDist=Math.abs(target.r-h.r)+Math.abs(target.c-h.c);
-  const candidates=[];
+  const currentDist=Math.abs(rootR-h.r)+Math.abs(rootC-h.c),candidates=[];
   for(const [dr,dc] of [[-1,0],[1,0],[0,-1],[0,1]]){
     const nr=h.r+dr,nc=h.c+dc,nt=state.grid[nr]?.[nc];
-    if(!nt||(nt.type!=='floor'&&nt.type!=='core')||nt.obstacle==='barricade') continue;
+    if(!nt||(nt.type!=='floor'&&nt.type!=='core')||nt.obstacle==='barricade'||(nt.obstacle==='collapse_bridge'&&runeGateIsBlocking(nt))) continue;
     if(monsterAt(nr,nc)||(isHeroAt(nr,nc)&&!(nr===h.r&&nc===h.c))) continue;
-    const nextTarget=magnetNearestFootprintCell(rootR,rootC,nr,nc);
-    const d=nextTarget?Math.abs(nextTarget.r-nr)+Math.abs(nextTarget.c-nc):Infinity;
+    const d=Math.abs(rootR-nr)+Math.abs(rootC-nc);
     if(d<currentDist)candidates.push({r:nr,c:nc,d});
   }
   if(!candidates.length)return false;
-  candidates.sort((x,y)=>x.d-y.d);
-  const step=candidates[0];
-  const nt=state.grid[step.r]?.[step.c];
+  candidates.sort((a,b)=>a.d-b.d);const step=candidates[0],nt=state.grid[step.r]?.[step.c];
   if(nt?.obstacle==='pit'){
     const res=resolveAbyssPitForcedContact(h,step.r,step.c,{source:'magnet',fromR:h.r,fromC:h.c});
-    if(res?.resolved) return true;
+    if(res?.resolved)return true;
   }
-  h.prevR=h.r;h.prevC=h.c;h.lastStepR=step.r-h.r;h.lastStepC=step.c-h.c;
-  h.r=step.r;h.c=step.c;h.lastMoveAt=performance.now();h.stuckTicks=0;
+  h.prevR=h.r;h.prevC=h.c;h.lastStepR=step.r-h.r;h.lastStepC=step.c-h.c;h.r=step.r;h.c=step.c;h.lastMoveAt=performance.now();h.stuckTicks=0;
+  if(nt?.obstacle&&nt.obstacle!=='magnet')activateObstacle(h,nt,'forced',true);
   return true;
 }
-function triggerMagnetPulse(root,rootTile,lv,now){
-  if(!rootTile||now<(rootTile.magnetNextPullAt||0))return false;
-  const interval=lv>=10?280:lv>=5?330:MAGNET_PULL_INTERVAL_MS;
-  rootTile.magnetNextPullAt=now+interval;
-  const range=obstacleRange('magnet',rootTile);
-  const targets=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(root.r,root.c,x.r,x.c)<=range);
-  let moved=0;
-  for(const x of targets){
-    const steps=MAGNET_PULL_TILES+(lv>=10?1:0);
-    let pulled=false;
-    for(let i=0;i<steps;i++){if(!magnetPullOneStep(x,root.r,root.c))break;pulled=true;}
-    if(pulled){
-      moved++;
-      state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'🧲 끌림',color:'#c9a0ff'});
-      if(now-(x.magnetReactAt||0)>1200){x.magnetReactAt=now;sayHero(x,pickHeroDialogue('trapMagnet'),'trapHit',1000,true);}
-    }
+function selectHarpoonTarget(root,rootTile,range){
+  const d=obstacleDirection(rootTile,0,1),now=performance.now();
+  for(let k=1;k<=range;k++){
+    const r=root.r+d.r*k,c=root.c+d.c*k;if(!inBounds(r,c))break;
+    const tile=state.grid[r]?.[c];
+    if(!tile||tile.type==='rock'||tile.obstacle==='barricade'||(tile.obstacle==='collapse_bridge'&&runeGateIsBlocking(tile)))break;
+    const target=state.heroes.find(h=>h.hp>0&&h.r===r&&h.c===c&&(h.harpoonImmuneUntil||0)<=now);
+    if(target)return target;
   }
-  if(targets.length){
-    markObstacleTrigger(rootTile,Math.min(360,interval));
-    if(moved)Sound.trap('magnet');
-    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'magnet',text:'🧲',footprint:2});
-  }
-  return moved>0;
+  return null;
+}
+function triggerHarpoonPulse(root,rootTile,lv,now=performance.now()){
+  if(!rootTile||now<(rootTile.harpoonNextAt||0))return false;
+  const range=HARPOON_RANGE+(lv>=5?1:0),target=selectHarpoonTarget(root,rootTile,range);if(!target)return false;
+  const harpoonTargetR=target.r,harpoonTargetC=target.c;
+  rootTile.harpoonNextAt=now+Math.max(3500,HARPOON_COOLDOWN_MS-(lv-1)*165);
+  const face=obstacleDirection(rootTile,0,1);rootTile.harpoonDirR=face.r;rootTile.harpoonDirC=face.c;
+  const globalMul=trapAmplifyMul()*trapMasteryAttackDmgMul()*mawangObstacleMultiplier();
+  const dmg=Math.max(1,Math.round(HARPOON_DMG*lerpLv(lv,1,2.4)*globalMul));
+  target.hp-=dmg;target.lastTrapHitAt=now;target.harpoonImmuneUntil=Math.max(target.harpoonImmuneUntil||0,now+HARPOON_REHIT_IMMUNE_MS);
+  let moved=0;for(let i=0;i<HARPOON_PULL_TILES+(lv>=10?1:0)&&target.hp>0;i++){if(!harpoonPullOneStep(target,root.r,root.c))break;moved++;}
+  const stunMs=HARPOON_STUN_MS+(lv>=5?250:0)+(lv>=10?250:0);target.stunTicks=Math.max(target.stunTicks||0,Math.ceil(stunMs/TICK_MS));
+  state.fxEvents.push({type:'damageNumber',r:target.r,c:target.c,amount:dmg,color:'#c9a0ff'},{type:'floatText',r:target.r,c:target.c,text:moved?'🪝 견인!':'🪝 작살!',color:'#d9b7ff'});
+  markObstacleTrigger(rootTile,1000);Sound.trap('magnet');sayHero(target,pickHeroDialogue('trapMagnet'),'trapHit',1100,true);
+  state.fxEvents.push(
+    {type:'trapHarpoon',fromR:root.r,fromC:root.c,toR:harpoonTargetR,toC:harpoonTargetC,lv},
+    {type:'obstacleBurst',r:root.r,c:root.c,ob:'magnet',text:'🪝',footprint:1}
+  );
+  return true;
+}
+// Compatibility name retained for old callers / AI code.
+function triggerMagnetPulse(root,rootTile,lv,now){return triggerHarpoonPulse(root,rootTile,lv,now);}
+function runeGateClosedMs(tile){return RUNE_GATE_CLOSED_MS+Math.round((obstacleLevel(tile)-1)*(1000/(OBSTACLE_LEVEL_MAX-1)));}
+function runeGateIsBlocking(tile,now=performance.now()){
+  if(!tile||tile.obstacle!=='collapse_bridge')return false;
+  if(tile.runeGatePermanent)return true;
+  const start=Number(tile.runeGateCycleStartedAt)||0;if(!start)return false;
+  const closedMs=runeGateClosedMs(tile),cycle=RUNE_GATE_OPEN_MS+closedMs,phase=((now-start)%cycle+cycle)%cycle;
+  return phase>=RUNE_GATE_OPEN_MS;
+}
+function processRuneGateState(r,c,tile,lv,now=performance.now()){
+  if(!tile||tile.obstacle!=='collapse_bridge')return;
+  if(!tile.runeGateCycleStartedAt)tile.runeGateCycleStartedAt=now;
+  const closed=runeGateIsBlocking(tile,now);
+  if(!!tile.runeGateClosed===closed)return;
+  tile.runeGateClosed=closed;state._mapDirty=true;state._rangesDirty=true;dungeonStructureInvalidate();
+  state.fxEvents.push(
+    {type:'trapRuneGate',r,c,state:closed?'closed':'open',lv},
+    {type:'floatText',r,c,text:closed?'🌀 봉쇄':'🌀 개방',color:closed?'#d49bff':'#a9e7ff'}
+  );
+  if(closed){for(const h of state.heroes){if(h.hp>0&&h.r===r&&h.c===c)evacuateHeroFromCollapsedBridge(h);}}
 }
 function applyCursePulse(h,rootTile,lv,now,force=false){
   if(!h||h.hp<=0)return false;
@@ -222,8 +286,9 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
   }
   const ambushMul=1+(isAmbush?trapAmbushBonus():0);
   const affected=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(root.r,root.c,x.r,x.c)<=range);
-  for(const x of affected) x.lastTrapHitAt=now;
-  if(OBSTACLE_TRIGGER_FX_MS[ob.id]) markObstacleTrigger(rootTile,OBSTACLE_TRIGGER_FX_MS[ob.id]); // v61: 발동형 프레임 애니메이션 재생 신호
+  const redesigned=['gust','magnet','stun_cage','collapse_bridge'].includes(ob.id);
+  if(!redesigned) for(const x of affected) x.lastTrapHitAt=now;
+  if(!redesigned && OBSTACLE_TRIGGER_FX_MS[ob.id]) markObstacleTrigger(rootTile,OBSTACLE_TRIGGER_FX_MS[ob.id]); // 리메이크 장애물은 각 고유 발동 타이밍에서 직접 신호
   state.fxEvents.push({type:'obstacleImpact',r:center.r,c:center.c,ob:ob.id,strong:lv>=5,label:lv>=10?'LV.10!':'LV.'+lv,key:'h'+h.id,footprint:visualFootprint});
 
   if(ob.id==='spike'){
@@ -338,73 +403,39 @@ function activateObstacle(h,tile,trigger='contact',chained=false){
     if(applied){Sound.trap('curse');markObstacleTrigger(rootTile,420);}
     state.fxEvents.push({type:'obstacleAuraPulse',r:root.r+0.5,c:root.c+0.5,ob:'curse',lv,footprint:2});return true;
   }
-  // v46: 신규 장애물 1차 5종
-  if(ob.id==='gust'){
-    // 밟은 방향의 반대쪽으로 밀쳐냅니다. 뒤에 다른 함정·구덩이를 깔아두면 그쪽으로 처넣을 수 있습니다.
-    let kr=-Math.sign(h.lastStepR||0), kc=-Math.sign(h.lastStepC||0);
-    if(!kr && !kc){ kr=Math.sign(h.r-CORE_R); kc=Math.sign(h.c-CORE_C); }
-    // Cardinal, real-entity movement; no copied heroes and no unbounded trap recursion.
-    if(kr) kc=0; else if(!kc) kc=1;
-    const dist=GUST_KNOCK_TILES+(lv>=5?1:0);
-    if(typeof physicalForceMove==='function') physicalForceMove(h,kr,kc,dist,{source:'gust',damage:8,launch:false});
-    markObstacleTrigger(rootTile,500); // v47: 발동 애니메이션(휘몰아치는 소용돌이) 재생 시간
-    Sound.trap('gust');
-    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'gust',text:'💨',footprint:2});
-    return true;
-  }
-  if(ob.id==='magnet'){
-    // 타일 접촉은 즉시 첫 흡인 펄스를 요청하고, 이후 반복 흡인은 zone tick에서 처리합니다.
-    triggerMagnetPulse(root,rootTile,lv,now);
-    return true;
-  }
+  // 리메이크 장애물 — 각 고유 컨셉 효과를 처리합니다.
+  if(ob.id==='gust') return triggerFlameSprayer(root,rootTile,lv,now);
+  if(ob.id==='magnet') return triggerHarpoonPulse(root,rootTile,lv,now);
   if(ob.id==='stun_cage'){
-    const dur=STUN_CAGE_MS+(lv>=10?900:lv>=5?400:0);
-    for(const x of affected){
-      x.cageStunUntil=Math.max(x.cageStunUntil||0,now+dur);
-      state.fxEvents.push({type:'floatText',r:x.r,c:x.c,text:'⛓ 포박!',color:'#ff8fa3'});
-      sayHero(x,pickHeroDialogue('trapStunCage'),'trapHit',1400,true);
-    }
-    markObstacleTrigger(rootTile,STUN_CAGE_FX_MS);
-    Sound.trap('stun_cage');
-    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'stun_cage',text:'⛓',footprint:2});
-    return true;
-  }
-  if(ob.id==='rockfall'){
-    // 이미 예고 중이면 다시 무장하지 않습니다. 지연 폭발은 state.pendingRockfalls에서 처리합니다.
-    if(!rootTile.rockfallArmed){
-      rootTile.rockfallArmed=true; state._mapDirty=true; // v61: 경고 프레임 반복 재생/경고 표시를 화면에 반영
-      if(!state.pendingRockfalls) state.pendingRockfalls=[];
-      state.pendingRockfalls.push({r:root.r,c:root.c,range,lv,detonateAt:now+ROCKFALL_DELAY_MS,tile:rootTile});
-      state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'⚠ 낙석 경고!',color:'#ffb15c'});
-      Sound.trap('rockfall');
-    }
-    return true;
+    if(now<(rootTile.mimicNextAt||0))return false;
+    if(now<(h.mimicRehitImmuneUntil||0))return false;
+    const dur=Math.round(lerpLv(lv,MIMIC_HOLD_MS,3000)),total=Math.round(lerpLv(lv,MIMIC_TOTAL_DMG,36)*trapAmplifyMul()*trapMasteryAttackDmgMul()*mawangObstacleMultiplier());
+    rootTile.mimicNextAt=now+Math.max(5200,MIMIC_COOLDOWN_MS-(lv-1)*200);
+    h.mimicHoldUntil=Math.max(h.mimicHoldUntil||0,now+dur);h.mimicNextTickAt=now;h.mimicTickDamage=Math.max(1,Math.round(total/Math.max(1,Math.ceil(dur/MIMIC_TICK_MS))));h.mimicRehitImmuneUntil=Math.max(h.mimicRehitImmuneUntil||0,now+dur+MIMIC_REHIT_IMMUNE_MS);
+    h.mimicVulnerabilityUntil=Math.max(h.mimicVulnerabilityUntil||0,now+dur);h.mimicVulnerabilityMul=Math.max(h.mimicVulnerabilityMul||1,lerpLv(lv,MIMIC_VULN_MUL,1.35));h.lastTrapHitAt=now;
+    markObstacleTrigger(rootTile,dur);Sound.trap('stun_cage');
+    state.fxEvents.push(
+      {type:'trapMimicChomp',r:h.r,c:h.c,duration:dur,lv},
+      {type:'floatText',r:h.r,c:h.c,text:`👅 포획! 받는 피해 +${Math.round((h.mimicVulnerabilityMul-1)*100)}%`,color:'#ff8fd0'},
+      {type:'obstacleBurst',r:root.r,c:root.c,ob:'stun_cage',text:'📦',footprint:1}
+    );
+    sayHero(h,pickHeroDialogue('trapStunCage'),'trapHit',1400,true);return true;
   }
   if(ob.id==='collapse_bridge'){
-    if(rootTile.bridgeCollapsed) return false; // 이미 무너진 뒤에는 일반 barricade로 동작합니다.
-    const need=BRIDGE_HITS_TO_COLLAPSE+(lv>=10?2:lv>=5?1:0);
-    rootTile.bridgeHits=(rootTile.bridgeHits||0)+1;
-    state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:`🌉 ${rootTile.bridgeHits}/${need}`,color:'#e0c9a0'});
-    if(rootTile.bridgeHits>=need){
-      const footprintCells=obstacleFootprintCells(root.r,root.c).cells;
-      rootTile.obstacle='barricade'; rootTile.wasBridge=true; rootTile.bridgeCollapsed=true; rootTile.justCollapsedUntil=now+500;
-      syncObstacleFootprint(root.r,root.c);
-      for(const [rr,cc] of footprintCells){
-        const ct=state.grid[rr]?.[cc]; if(ct){ ct.wasBridge=true; ct.bridgeCollapsed=true; ct.justCollapsedUntil=rootTile.justCollapsedUntil; }
-      }
-      for(const x of affected){ x.hp-=BRIDGE_COLLAPSE_DMG; state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:BRIDGE_COLLAPSE_DMG,color:'#e0c9a0'}); sayHero(x,pickHeroDialogue('trapBridgeCollapse'),'trapHit',1500,true); }
-      // v48: 무너진 칸 위에 서 있던 용사는(밟아서 무너뜨린 당사자 포함) 전부 안전한 칸으로 대피시킵니다.
-      // 그대로 두면 벽으로 변한 칸에 갇혀 영영 못 움직이는 문제가 생깁니다.
-      for(const x of state.heroes){
-        if(x.hp>0 && footprintCells.some(([rr,cc])=>rr===x.r&&cc===x.c)) evacuateHeroFromCollapsedBridge(x);
-      }
-      state.fxEvents.push({type:'floatText',r:root.r+0.5,c:root.c+0.5,text:'🌉 붕괴!',color:'#ff8f5c'});
-    } else {
-      markObstacleTrigger(rootTile,300); // v47: 붕괴 전 매 타격마다 살짝 흔들리는 연출
+    if(runeGateIsBlocking(rootTile,now))return false;
+    rootTile.runeGateTouches=(rootTile.runeGateTouches||0)+1;const need=RUNE_GATE_STABILITY;
+    state.fxEvents.push({type:'floatText',r:root.r,c:root.c,text:`🌀 안정도 ${Math.max(0,need-rootTile.runeGateTouches)}/${need}`,color:'#b889ff'});
+    if(rootTile.runeGateTouches>=need){
+      rootTile.runeGatePermanent=true;rootTile.runeGateClosed=true;state._mapDirty=true;state._rangesDirty=true;dungeonStructureInvalidate();markObstacleTrigger(rootTile,900);
+      const seal=Math.max(1,Math.round(RUNE_GATE_SEAL_DMG*lerpLv(lv,1,2)*trapAmplifyMul()));h.hp-=seal;h.lastTrapHitAt=now;
+      state.fxEvents.push(
+        {type:'trapRuneGate',r:root.r,c:root.c,state:'sealed',lv},
+        {type:'damageNumber',r:h.r,c:h.c,amount:seal,color:'#cf9aff'},
+        {type:'floatText',r:root.r,c:root.c,text:'🌀 영구 봉인!',color:'#e1b2ff'}
+      );
+      if(h.hp>0)evacuateHeroFromCollapsedBridge(h);
     }
-    Sound.trap('collapse_bridge');
-    state.fxEvents.push({type:'obstacleBurst',r:root.r+0.5,c:root.c+0.5,ob:'collapse_bridge',text:'🌉',footprint:2});
-    return true;
+    Sound.trap('collapse_bridge');return true;
   }
   return false;
 }
@@ -439,20 +470,21 @@ function findThreateningMonster(h){
   return {monster:best,dist:bestD};
 }
 function findFleeTarget(h, threat){
-  const candidates=[];
+  // v88 combat-opt: 후보 배열을 만들고 정렬하지 않고, 같은 순서로 점수를 계산하며 최댓값만 유지합니다.
+  // Math.random() 호출 횟수/순서와 동률 시 먼저 나온 칸을 유지하므로 기존 도주 결과 규칙은 같습니다.
+  let best=null,bestScore=-Infinity;
   const baseDist=threat?Math.abs(threat.r-h.r)+Math.abs(threat.c-h.c):0;
   for(let r=1;r<GRID-1;r++) for(let c=1;c<GRID-1;c++){
     const t=state.grid[r][c];
-    if(t.type!=='floor'||t.obstacle==='barricade'||t.obstacle==='pit'||monsterAt(r,c)||isHeroAt(r,c)) continue;
+    if(t.type!=='floor'||t.obstacle==='barricade'||t.obstacle==='pit'||(t.obstacle==='collapse_bridge'&&runeGateIsBlocking(t))||monsterAt(r,c)||isHeroAt(r,c)) continue;
     const dThreat=threat?Math.abs(r-threat.r)+Math.abs(c-threat.c):0;
     const dStart=Math.abs(r-h.r)+Math.abs(c-h.c);
     // 너무 멀리 달리지 않고, 위협에서 충분히 떨어진 내부 공간을 선택
     if(dThreat<Math.max(3,baseDist+3)||dStart<2) continue;
-    candidates.push({r,c,score:dThreat*2-dStart*.35+Math.random()*1.5});
+    const score=dThreat*2-dStart*.35+Math.random()*1.5;
+    if(score>bestScore){ bestScore=score; best=[r,c]; }
   }
-  candidates.sort((a,b)=>b.score-a.score);
-  if(candidates.length) return [candidates[0].r,candidates[0].c];
-  return null;
+  return best;
 }
 function startFlee(h,threat){
   if(h.fleeing||!threat) return;
@@ -468,46 +500,49 @@ function coreDetected(h){
   const d=Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C);
   return d<=HERO_SIGHT_RANGE && !losBlocked(h.r,h.c,CORE_R,CORE_C);
 }
+// v88 combat-opt · 균일 가중치 격자 최단경로 공용 BFS.
+// 기존 Map/Set 기반 다익스트라와 동일한 상→하→좌→우 탐색 순서/동률 규칙을 유지하면서,
+// 문자열 키·전체 dist 재스캔을 제거해 유닛 수가 많을 때 전투 프레임 비용을 낮춥니다.
+function gridPathStepToGoal(startR,startC,goalCells,passable,allowStartGoal=false){
+  const total=GRID*GRID, start=startR*GRID+startC;
+  const goalMask=new Uint8Array(total);
+  for(const g of goalCells||[]){
+    const r=g?.[0],c=g?.[1];
+    if(r>=0&&r<GRID&&c>=0&&c<GRID) goalMask[r*GRID+c]=1;
+  }
+  const parent=new Int16Array(total); parent.fill(-2);
+  const queue=new Uint16Array(total);
+  let head=0,tail=0,found=-1;
+  queue[tail++]=start; parent[start]=-1;
+  while(head<tail){
+    const idx=queue[head++], r=(idx/GRID)|0, c=idx-r*GRID;
+    if(goalMask[idx] && (allowStartGoal || idx!==start)){ found=idx; break; }
+    const visit=(nr,nc)=>{
+      const ni=nr*GRID+nc;
+      if(parent[ni]!==-2 || !passable(nr,nc)) return;
+      parent[ni]=idx; queue[tail++]=ni;
+    };
+    if(r>0) visit(r-1,c);
+    if(r<GRID-1) visit(r+1,c);
+    if(c>0) visit(r,c-1);
+    if(c<GRID-1) visit(r,c+1);
+  }
+  if(found<0 || found===start) return null;
+  let step=found;
+  while(parent[step]>=0 && parent[step]!==start) step=parent[step];
+  if(step===start) return null;
+  return [((step/GRID)|0),step%GRID];
+}
+
 // 목표 칸까지 가는 다음 한 걸음을 계산합니다.
 // 용사는 장애물을 미리 인지하거나 위험도를 계산해 우회하지 않습니다.
 // 모든 통행 가능한 장애물 칸을 일반 바닥과 동일한 비용으로 취급하며,
-// 물리적으로 통행을 막는 barricade만 실제 장벽으로 취급합니다.
+// 물리적으로 통행을 막는 barricade/pit만 실제 장벽으로 취급합니다.
 function pathStepToGoal(h,goalCells){
-  const goals=new Set(goalCells.map(([r,c])=>r+'_'+c));
-  const dist=new Map(), prev=new Map();
-  const startKey=h.r+'_'+h.c;
-  dist.set(startKey,0);
-  const visited=new Set();
-  let curKey=startKey, cur=[h.r,h.c];
-  while(true){
-    visited.add(curKey);
-    if(goals.has(curKey) && curKey!==startKey) break;
-    for(const [nr,nc] of neighbors4(cur[0],cur[1])){
-      const t=state.grid[nr]?.[nc];
-      if(!t || (t.type!=='floor'&&t.type!=='core') || t.obstacle==='barricade' || t.obstacle==='pit') continue;
-      const key=nr+'_'+nc;
-      if(visited.has(key)) continue;
-      // 장애물에 대한 사전 회피 비용을 적용하지 않습니다.
-      const nd=dist.get(curKey)+1;
-      if(nd<(dist.has(key)?dist.get(key):Infinity)){ dist.set(key,nd); prev.set(key,cur); }
-    }
-    // 방문하지 않은 노드 중 누적 비용이 가장 낮은 곳으로 이동(단순 다익스트라).
-    // 격자가 16×16으로 작아 매 틱 전체 스캔해도 부담이 없습니다.
-    let nextKey=null,best=Infinity;
-    for(const [k,d] of dist){
-      if(visited.has(k)) continue;
-      if(d<best){ best=d; nextKey=k; }
-    }
-    if(nextKey===null) return null; // 목표에 도달하는 경로가 없음
-    cur=nextKey.split('_').map(Number);
-    curKey=nextKey;
-  }
-  // 시작점에서 목표까지의 경로를 역추적해서 첫 한 걸음만 반환합니다.
-  let step=cur, prevStep=prev.get(curKey);
-  while(prevStep && !(prevStep[0]===h.r&&prevStep[1]===h.c)){
-    step=prevStep; prevStep=prev.get(prevStep[0]+'_'+prevStep[1]);
-  }
-  return (step[0]===h.r&&step[1]===h.c)?null:step;
+  return gridPathStepToGoal(h.r,h.c,goalCells,(r,c)=>{
+    const t=state.grid[r]?.[c];
+    return !!t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade' && t.obstacle!=='pit' && !(t.obstacle==='collapse_bridge'&&runeGateIsBlocking(t));
+  },false);
 }
 function partyFollowStep(h){
   if(!h.partyId || h.partyLeaderId===h.id || h.fleeing || h.digging) return null;
@@ -518,7 +553,7 @@ function partyFollowStep(h){
     const nr=h.r+Math.sign(leader.lastStepR||0), nc=h.c+Math.sign(leader.lastStepC||0);
     if(Math.abs(leader.lastStepR||0)+Math.abs(leader.lastStepC||0)===1 && inBounds(nr,nc)){
       const t=state.grid[nr][nc];
-      if(t.type==='floor' && t.obstacle!=='barricade' && t.obstacle!=='pit' && !monsterAt(nr,nc) && !(nr===h.prevR&&nc===h.prevC)) return [nr,nc];
+      if(t.type==='floor' && t.obstacle!=='barricade' && t.obstacle!=='pit' && !(t.obstacle==='collapse_bridge'&&runeGateIsBlocking(t)) && !monsterAt(nr,nc) && !(nr===h.prevR&&nc===h.prevC)) return [nr,nc];
     }
     return null;
   }
@@ -674,7 +709,7 @@ function tryHeroPierce(h,m,baseHit,now){
 }
 
 // v51: 방어 버프(guard)로 줄어든 받는 피해 배율 (반격 피해에도 적용)
-function heroGuardMul(h){ return (h.guardUntil&&performance.now()<h.guardUntil)?(1-Math.min(.8,h.guardReduction||0)):1; }
+function heroGuardMul(h){ const now=performance.now(),guard=(h.guardUntil&&now<h.guardUntil)?(1-Math.min(.8,h.guardReduction||0)):1,vuln=(h.mimicVulnerabilityUntil&&now<h.mimicVulnerabilityUntil)?(h.mimicVulnerabilityMul||MIMIC_VULN_MUL):1; return guard*vuln; }
 function isRangedMonsterUnit(m){ return !!m && (m.range||1)>1; }
 function heroProjectileFx(h,tr,tc){
   return {type:'projectile',fromR:h.r,fromC:h.c,toR:tr,toC:tc,color:RANGED_COLOR[h.typeId]||'#e0e0e0',owner:'hero',typeId:h.typeId,kind:rangedProjectileKind('hero',h.typeId)};
@@ -705,8 +740,13 @@ function processHeroTick(h,dt){
   // 정령사: 20초 동안 1초마다 가장 가까운 몬스터에게 정령 피해
   if(h.spiritSummonUntil && now<h.spiritSummonUntil && now>=(h.spiritNext||0)){
     h.spiritNext=now+1000;
-    const t=state.monsters.filter(m=>m.hp>0&&Math.abs(m.r-h.r)+Math.abs(m.c-h.c)<=4)
-      .sort((a,b)=>(Math.abs(a.r-h.r)+Math.abs(a.c-h.c))-(Math.abs(b.r-h.r)+Math.abs(b.c-h.c)))[0];
+    // v88 combat-opt: filter+sort 배열 생성 대신 동일한 배열 순서로 가장 가까운 대상만 선택합니다.
+    let t=null,bestSpiritDist=Infinity;
+    for(const cand of state.monsters){
+      if(cand.hp<=0) continue;
+      const d=Math.abs(cand.r-h.r)+Math.abs(cand.c-h.c);
+      if(d<=4 && d<bestSpiritDist){ t=cand; bestSpiritDist=d; }
+    }
     if(t){
       const dmg=Math.max(1,Math.round(h.atk*(h.partySynergy||1)*.55));
       t.hp-=dmg; if(typeof markHeroAggro==='function') markHeroAggro(t,h);
@@ -743,6 +783,10 @@ function processHeroTick(h,dt){
       state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'flame',text:'💥',footprint:1});
     }
   }
+  if(h.mimicHoldUntil&&now<h.mimicHoldUntil&&now>=(h.mimicNextTickAt||0)){
+    const dmg=Math.max(1,Math.round(h.mimicTickDamage||1));h.hp-=dmg;h.lastTrapHitAt=now;h.mimicNextTickAt=now+MIMIC_TICK_MS;
+    state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff79c6'},{type:'obstacleBurst',r:h.r,c:h.c,ob:'stun_cage',text:'👅',footprint:1});
+  }
   if(h.hp<=0) return;
   // v35 함정 연구소 "불안정 지반"(구덩이 연구 Lv.3)/"함몰의 심연"(Lv.5):
   // 구덩이에서 막 풀려난 순간을 감지해서, Lv.3이면 짧게 휘청이고(추가 경직), Lv.5면 40% 확률로 다시 짧게 구속합니다.
@@ -766,9 +810,9 @@ function processHeroTick(h,dt){
     }
     return;
   }
-  // v46: 포박의 철창 — 구덩이와 동일한 패턴의 완전 구속입니다.
-  if(h.cageStunUntil&&now<h.cageStunUntil){
-    if(now-(h.cageFxAt||0)>500){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'stun_cage',text:'⛓'});h.cageFxAt=now;}
+  // v92: 미믹 상자에 붙잡힌 동안 이동/공격/스킬 시전을 모두 중지합니다.
+  if(h.mimicHoldUntil&&now<h.mimicHoldUntil){
+    if(now-(h.cageFxAt||0)>500){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'stun_cage',text:'👅'});h.cageFxAt=now;}
     return;
   }
   if(h.barricadeSlowUntil&&now<h.barricadeSlowUntil){ if(now-(h.barricadeFxAt||0)>450){state.fxEvents.push({type:'obstacleBurst',r:h.r,c:h.c,ob:'barricade',text:'🛡'});h.barricadeFxAt=now;} return; }
@@ -1064,7 +1108,7 @@ function processHeroTick(h,dt){
   }
   if(coreDetected(h)){
     if(!h.coreFound){ h.coreFound=true; sayHero(h,'!','alert',1200,true); setTimeout(()=>{ if(state&&state.heroes.includes(h)&&h.hp>0) sayHero(h,pickHeroDialogue('coreFound'),'normal',2400,true); },950); }
-    const coreGoals=neighbors4(CORE_R,CORE_C).filter(([r,c])=>{const t=state.grid[r][c];return t.type==='floor'&&t.obstacle!=='barricade'&&t.obstacle!=='pit';});
+    const coreGoals=neighbors4(CORE_R,CORE_C).filter(([r,c])=>{const t=state.grid[r][c];return t.type==='floor'&&t.obstacle!=='barricade'&&t.obstacle!=='pit'&&!(t.obstacle==='collapse_bridge'&&runeGateIsBlocking(t));});
     const coreStep=pathStepToGoal(h,coreGoals);
     if(coreStep){ if(!heroMovementAllowedThisStep(h)) return; h.prevR=h.r;h.prevC=h.c;h.r=coreStep[0];h.c=coreStep[1];h.stuckTicks=0;h.lastMoveAt=performance.now(); handleHeroTileEnter(h,state.grid[h.r][h.c]); return; }
   }
@@ -1082,7 +1126,7 @@ function processHeroTick(h,dt){
 
   if(h.digging){
     const activeRootTile=h.digKind==='obstacle'?obstacleRootTile(h.digTargetR,h.digTargetC):null;
-    const attackingIronWall=activeRootTile?.obstacle==='barricade';
+    const attackingIronWall=activeRootTile?.obstacle==='barricade'||(activeRootTile?.obstacle==='collapse_bridge'&&activeRootTile.runeGatePermanent);
     if(!attackingIronWall && performance.now()>=(h.soundNextDigAt||0)){ Sound.dig(); h.soundNextDigAt=performance.now()+520; }
     if(!attackingIronWall) h.digProgress+=dt;
     const digHt=heroTypeOf(h);
@@ -1095,7 +1139,7 @@ function processHeroTick(h,dt){
       // v49: 아래에서 root를 쓰는데 선언이 없어 ReferenceError가 매 틱 발생하고 바리케이드가 절대 부서지지 않던 버그 수정
       const root=obstacleRootPos(h.digTargetR,h.digTargetC) || {r:h.digTargetR,c:h.digTargetC};
       need=obstacleBreakTime(ob,h,rootTile);
-      if(ob==='barricade'){
+      if(ob==='barricade'||(ob==='collapse_bridge'&&rootTile.runeGatePermanent)){
         const attackNow=performance.now();
         if(attackNow>=(h.obstacleAttackNextAt||0)){
           h.obstacleAttackNextAt=attackNow+Math.max(430,760-((h.level||1)*4));
@@ -1195,7 +1239,7 @@ function processHeroTick(h,dt){
       if(t.type==='rock') return t.obstacle ? 5.5 : 3;
       if(!t.obstacle) return 1;
       const ht=heroTypeOf(h)||{};
-      const danger={spike:4.8,poison:4.5,frost:2.8,web:4.0,curse:4.3,statue:5.0,flame:6.0,lightning:5.5,pit:99,barricade:7.0}[t.obstacle]||3.5;
+      const danger={spike:4.8,poison:4.5,frost:2.8,web:4.0,curse:4.3,statue:5.0,flame:6.0,lightning:5.5,pit:99,barricade:7.0,gust:6.2,magnet:5.2,stun_cage:6.0,collapse_bridge:runeGateIsBlocking(t)?8.5:2.2}[t.obstacle]||3.5;
       // 광부/숙련형은 장애물을 직접 처리하는 편을 선호합니다.
       if(ht.digTimeMul && ht.digTimeMul<1) return Math.max(1.3,danger*0.58);
       // 사냥꾼은 위험을 빨리 발견하고, 함정이 많은 길을 적극 회피합니다.
@@ -1267,6 +1311,14 @@ function processHeroTick(h,dt){
   }
   if(tile.obstacle){
     const obId=tile.obstacle;
+    if(obId==='collapse_bridge'&&runeGateIsBlocking(tile)){
+      if(tile.runeGatePermanent){
+        if(findHeroDiggingSameTarget(h,'obstacle',tr,tc)){heroWaitBehindDigger(h);return;}
+        h.digging=true;h.digKind='obstacle';h.digTargetR=tr;h.digTargetC=tc;h.digProgress=0;h.showedQuestion=false;h.dungeonIntent='영구 봉인 룬문 파괴';
+        sayHero(h,'!','alert',900,true);return;
+      }
+      h.dungeonIntent='룬문 개방 대기';h.stuckTicks=Math.min(h.stuckTicks,1.5);return;
+    }
     const profile=heroDungeonResponseProfile(h); const detected=(obId==='barricade') || Math.random()<Math.min(.98,Math.max(.05,obstacleDetectChance(h,obId)+profile.detectBonus));
     if(detected){
       state.dungeonStats.obstaclesSeen=(state.dungeonStats.obstaclesSeen||0)+1;
@@ -1294,10 +1346,10 @@ function processHeroTick(h,dt){
 
 
 function obstacleRange(kind, tile){
-  const baseTile=tile || (state ? findObstacleTileByKind(kind) : null);
-  // v72: 지정 개편 장애물은 설치된 실제 점유 영역 자체가 효과 범위입니다.
-  if(['flame','lightning','poison','barricade','pit','frost','web'].includes(kind)) return 0;
-  const lv=obstacleLevel(baseTile);
+  const baseTile=tile || (state ? findObstacleTileByKind(kind) : null),lv=obstacleLevel(baseTile);
+  if(['flame','lightning','poison','barricade','pit','frost','web','stun_cage','collapse_bridge'].includes(kind)) return 0;
+  if(kind==='gust') return FLAME_SPRAYER_RANGE+(lv>=5?1:0)+(lv>=10?1:0);
+  if(kind==='magnet') return HARPOON_RANGE+(lv>=5?1:0);
   const local=Math.min(4,(lv>=10?2:lv>=5?1:0));
   return Math.max(0,local+(state?.obstacleRangeBonus||0)+mawangSkillLevel('maze_master'));
 }
@@ -1334,30 +1386,6 @@ function processStatue(r,c,tile,dt){
   }
 }
 
-// v46: 붕락지대의 지연 폭발을 처리합니다. 예고 후 일정 시간이 지나면
-// 그 순간 범위 안에 있는(용사가 미리 피했을 수도 있는) 용사들에게 낙석 피해를 줍니다.
-function processPendingRockfalls(){
-  if(!state.pendingRockfalls || !state.pendingRockfalls.length) return;
-  const now=performance.now();
-  const remain=[];
-  for(const p of state.pendingRockfalls){
-    if(now<p.detonateAt){ remain.push(p); continue; }
-    const ob=OBSTACLE_TYPES.find(o=>o.id==='rockfall');
-    const globalMul=trapAmplifyMul()*trapMasteryAttackDmgMul()*mawangObstacleMultiplier();
-    const base=ROCKFALL_DMG*lerpLv(p.lv,1,4)*globalMul;
-    const hit=state.heroes.filter(x=>x.hp>0&&obstacleDistanceToHero(p.r,p.c,x.r,x.c)<=p.range);
-    for(const x of hit){
-      const dmg=Math.max(1,Math.round(base));
-      x.hp-=dmg; x.lastTrapHitAt=now;
-      state.fxEvents.push({type:'damageNumber',r:x.r,c:x.c,amount:dmg,color:'#ffb15c'});
-      sayHero(x,pickHeroDialogue('trapRockfall'),'trapHit',1400,true);
-    }
-    state.fxEvents.push({type:'obstacleBurst',r:p.r+0.5,c:p.c+0.5,ob:'rockfall',text:'🪨',footprint:2});
-    Sound.trap('rockfall');
-    if(p.tile){ p.tile.rockfallArmed=false; markObstacleTrigger(p.tile,ROCKFALL_FX_MS); }
-  }
-  state.pendingRockfalls=remain;
-}
 let _combatObstacleRootCache={state:null,grid:null,version:-1,roots:[]};
 function combatObstacleRoots(){
   const version=state?.dungeonLayoutVersion||0,grid=state?.grid;
@@ -1374,6 +1402,9 @@ function processObstacleVisualsAndZones(dt){
     const r=root.r,c=root.c,tile=root.tile,ob=tile.obstacle;if(!ob)continue;
     if(typeof physicalDef==='function' && physicalDef(ob)) continue;
     const lv=obstacleLevel(tile),range=obstacleRange(ob,tile);
+    if(ob==='collapse_bridge'){processRuneGateState(r,c,tile,lv,now);continue;}
+    if(ob==='gust'){triggerFlameSprayer({r,c},tile,lv,now);continue;}
+    if(ob==='magnet'){triggerHarpoonPulse({r,c},tile,lv,now);continue;}
     for(const h of state.heroes){
       if(h.hp<=0)continue; const d=obstacleDistanceToHero(r,c,h.r,h.c); if(d>range)continue;
       if(ob==='poison'){
@@ -1398,7 +1429,6 @@ function processObstacleVisualsAndZones(dt){
       }
       else if(ob==='lightning'||ob==='spike'){ activateObstacle(h,tile,'stay'); }
       else if(ob==='pit'){ /* 정상 이동으로는 진입하지 않으며 강제 이동에서만 낙사 처리 */ }
-      else if(ob==='magnet'){ triggerMagnetPulse({r,c},tile,lv,now); }
       else if(ob==='barricade'){ /* 철벽은 통행 차단 + 직접 공격 파괴 */ }
       else if(ob==='frost'){
         const rlv=trapResearchLevel('frost');h.frostSlowUntil=now+650;h.frostSlowMul=Math.max(.2,lerpLv(lv,.80,.45)-(rlv-1)*.025-((state.archetypeActive&&state.archetypeActive.glacial)?0.06:0));
@@ -1669,7 +1699,6 @@ function simulateStep(dt){
   }
   if(typeof processPhysicalTraps==='function') processPhysicalTraps(dt);
   processObstacleVisualsAndZones(dt);
-  processPendingRockfalls();
   for(const p of state.auraPositions.statue){
     processStatue(p.r,p.c,state.grid[p.r][p.c],dt);
   }

@@ -460,20 +460,37 @@ const BARRICADE_DIG_TIME=5.0;
 const POISON_DPS=2;
 const PIT_ROOT_MS=2200;
 const PIT_DAMAGE=5;
-// v46: 신규 장애물 1차 5종 밸런스 상수
-const GUST_KNOCK_TILES=2;        // 돌풍진: 기본 밀치는 칸 수(Lv.5부터 +1)
-const MAGNET_PULL_TILES=1;       // 흡인진: 펄스 1회당 당기는 칸 수(Lv.10은 +1)
-const MAGNET_PULL_INTERVAL_MS=380;// 흡인진: 범위 안에서 반복 흡인되는 기본 간격
-const CURSE_PULSE_INTERVAL_MS=2200; // 저주의 밀바닥: 같은 용사에게 저주를 다시 거는 최소 간격
-const CURSE_PULSE_MIN_MS=1200;    // 저주의 밀바닥: Lv.1 저주 지속시간
-const CURSE_PULSE_MAX_MS=1800;    // 저주의 밀바닥: Lv.10 저주 지속시간
-const STUN_CAGE_MS=1500;         // 포박의 철창: 완전 구속 시간(Lv.10에서 +900ms)
-const STUN_CAGE_FX_MS=900;       // 포박의 철창: "발동" 프레임을 보여주는 시간
-const ROCKFALL_DELAY_MS=1400;    // 붕락지대: 예고 후 실제로 무너지기까지 걸리는 시간
-const ROCKFALL_DMG=22;           // 붕락지대: 기본 낙석 피해
-const ROCKFALL_FX_MS=550;        // 붕락지대: 낙석 순간 프레임을 보여주는 시간
-const BRIDGE_HITS_TO_COLLAPSE=3; // 붕락교: 무너지기까지 필요한 피격 횟수(Lv.5+는 +1, Lv.10은 +2)
-const BRIDGE_COLLAPSE_DMG=14;    // 붕락교: 무너지는 순간 발밑에 있던 용사가 받는 피해
+// 개성형 장애물 4종 밸런스 상수
+const FLAME_SPRAYER_DMG=18;
+const FLAME_SPRAYER_BURN_DPS=4;
+const FLAME_SPRAYER_BURN_MS=3000;
+const FLAME_SPRAYER_COOLDOWN_MS=4000;
+const FLAME_SPRAYER_RANGE=3;
+const FLAME_SPRAYER_KNOCK_TILES=1;
+const HARPOON_DMG=10;
+const HARPOON_PULL_TILES=2;
+const HARPOON_COOLDOWN_MS=5000;
+const HARPOON_STUN_MS=500;
+const HARPOON_RANGE=3;
+const HARPOON_REHIT_IMMUNE_MS=3000;
+const MIMIC_HOLD_MS=2000;
+const MIMIC_TOTAL_DMG=18;
+const MIMIC_VULN_MUL=1.20;
+const MIMIC_COOLDOWN_MS=7000;
+const MIMIC_TICK_MS=500;
+const MIMIC_REHIT_IMMUNE_MS=3000;
+const RUNE_GATE_OPEN_MS=3000;
+const RUNE_GATE_CLOSED_MS=3000;
+const RUNE_GATE_STABILITY=3;
+const RUNE_GATE_SEAL_DMG=12;
+// Legacy aliases retained only for old save/runtime compatibility paths.
+const GUST_KNOCK_TILES=FLAME_SPRAYER_KNOCK_TILES;
+const MAGNET_PULL_TILES=HARPOON_PULL_TILES;
+const MAGNET_PULL_INTERVAL_MS=HARPOON_COOLDOWN_MS;
+const STUN_CAGE_MS=MIMIC_HOLD_MS;
+const STUN_CAGE_FX_MS=1100;
+const BRIDGE_HITS_TO_COLLAPSE=RUNE_GATE_STABILITY;
+const BRIDGE_COLLAPSE_DMG=RUNE_GATE_SEAL_DMG;
 const CURSE_ATK_MUL=0.78;
 const MONSTER_CURSE_ATK_MUL=0.78;
 const MONSTER_CURSE_MS=2800;
@@ -481,25 +498,23 @@ const HEALER_PULSE_SEC=2.4;
 const HEALER_RANGE=2;
 
 const OBSTACLE_SPRITES={
-  spike:"assets/images/img_002_9b6ea36137.png",
-  flame:"assets/images/img_003_7b27332b9c.png",
-  lightning:"assets/images/img_004_89672f4e98.png",
-  poison:"assets/images/img_005_d6157108a0.png",
-  barricade:"assets/images/img_006_65130337ab.png",
-  pit:"assets/images/img_007_f35055bf10.png",
-  statue:"assets/images/img_008_7b2e105ddd.png",
-  frost:"assets/images/img_009_5d0d5e70cd.png",
-  web:"assets/images/img_010_c4c82e3b3e.png",
-  curse:"assets/images/img_011_74edfa14f4.png",
-  // v46: 신규 장애물 1차 5종 (기존 "2x2 바닥 + 범위 틱 효과" 틀을 확장한 것들)
-  gust:"assets/images/obstacle_gust.png",
-  magnet:"assets/images/obstacle_magnet.png",
-  stun_cage:"assets/images/obstacle_stun_cage.png",
-  stun_cage_alt:"assets/images/obstacle_stun_cage_alt.png",
-  rockfall:"assets/images/obstacle_rockfall.png",
-  rockfall_alt:"assets/images/obstacle_rockfall_alt.png",
-  collapse_bridge:"assets/images/obstacle_collapse_bridge.png",
-  collapse_bridge_alt:"assets/images/obstacle_collapse_bridge_alt.png"
+  spike:"assets/images/obstacles/icons/spike.png",
+  flame:"assets/images/obstacles/icons/flame.png",
+  lightning:"assets/images/obstacles/icons/lightning.png",
+  poison:"assets/images/obstacles/icons/poison.png",
+  barricade:"assets/images/obstacles/icons/barricade.png",
+  pit:"assets/images/obstacles/icons/pit.png",
+  statue:"assets/images/obstacles/icons/statue.png",
+  frost:"assets/images/obstacles/icons/frost.png",
+  web:"assets/images/obstacles/icons/web.png",
+  curse:"assets/images/obstacles/icons/curse.png",
+  // 리메이크 장애물 자산
+  gust:"assets/images/obstacles/remade/gust.png",
+  magnet:"assets/images/obstacles/remade/magnet.png",
+  stun_cage:"assets/images/obstacles/remade/stun_cage.png",
+  stun_cage_alt:"assets/images/obstacles/remade/stun_cage_alt.png",
+  collapse_bridge:"assets/images/obstacles/remade/collapse_bridge.png",
+  collapse_bridge_alt:"assets/images/obstacles/remade/collapse_bridge_alt.png"
 };
 
 const OBSTACLE_LEVEL_MAX=10;
@@ -553,12 +568,11 @@ const OBSTACLE_TYPES=[
   {id:'frost',name:'빙판',icon:'❄️',kind:'debuff',cost:54,range:0,color:'rgba(102,200,255,.55)',desc:'1×1 빙판입니다. 위를 걷는 용사는 이동속도가 Lv.1 기준 20% 느려지며 레벨이 오를수록 감속이 강해집니다.',short:'빙판',sprite:OBSTACLE_SPRITES.frost},
   {id:'web',name:'거미둥지',icon:'🕸️',kind:'debuff',cost:44,range:0,color:'rgba(210,210,220,.45)',desc:'2×2 거미둥지입니다. 위를 걷는 용사는 느려지며 20% 확률로 기절합니다. 기절한 용사는 5초 동안 독 상태가 됩니다.',short:'거미둥지',sprite:OBSTACLE_SPRITES.web},
   {id:'curse',name:'저주의 밀바닥',icon:'💀',kind:'debuff',cost:72,range:1,color:'rgba(150,60,90,.6)',desc:'범위 안 용사에게 주기적으로 짧은 저주를 걸어 공격력과 회복 효율을 낮춥니다. 저주는 계속 이어지지 않고 재발동 사이에 숨 돌릴 틈이 있습니다.',short:'저주의 밀바닥',sprite:OBSTACLE_SPRITES.curse},
-  // v46: 신규 장애물 1차 5종
-  {id:'gust',name:'돌풍진',icon:'💨',kind:'debuff',cost:48,range:1,color:'rgba(140,210,255,.55)',desc:'강한 돌풍이 밟은 용사를 진행 방향 반대로 밀쳐냅니다. 뒤에 함정이나 구덩이를 깔아두면 더욱 위력적입니다.',short:'돌풍진',sprite:OBSTACLE_SPRITES.gust},
-  {id:'magnet',name:'흡인진',icon:'🧲',kind:'debuff',cost:52,range:2,color:'rgba(183,107,242,.6)',desc:'주변 2칸 안의 용사를 일정 간격으로 진의 2×2 중심부 쪽으로 끌어당깁니다. 직접 피해보다 다른 함정과의 위치 콤보에 특화됩니다.',short:'흡인진',sprite:OBSTACLE_SPRITES.magnet},
-  {id:'stun_cage',name:'포박의 철창',icon:'⛓️',kind:'defense',cost:80,range:0,color:'rgba(224,73,95,.55)',desc:'밟으면 철창이 솟아올라 용사를 잠시 완전히 묶어둡니다. 주변 몬스터가 집중 공격할 처형 포인트로 좋습니다.',short:'포박의 철창',sprite:OBSTACLE_SPRITES.stun_cage,spriteAlt:OBSTACLE_SPRITES.stun_cage_alt},
-  {id:'rockfall',name:'붕락지대',icon:'🪨',kind:'attack',cost:66,range:1,color:'rgba(255,150,90,.55)',desc:'금이 간 천장이 예고 후 잠시 뒤 무너져 범위 내 용사에게 큰 낙석 피해를 줍니다.',short:'붕락지대',sprite:OBSTACLE_SPRITES.rockfall,spriteAlt:OBSTACLE_SPRITES.rockfall_alt},
-  {id:'collapse_bridge',name:'붕락교',icon:'🌉',kind:'defense',cost:90,range:0,color:'rgba(200,180,140,.55)',desc:'다리 형태의 장애물로, 일정 횟수 이상 밟히면 완전히 무너져 그 통로를 영구히 막아버립니다.',short:'붕락교',sprite:OBSTACLE_SPRITES.collapse_bridge,spriteAlt:OBSTACLE_SPRITES.collapse_bridge_alt}
+  // 리메이크 장애물
+  {id:'gust',name:'화염 분사기',icon:'🔥',kind:'attack',cost:85,range:3,color:'rgba(255,138,74,.58)',desc:'벽 설치형 화염 장치. 입구가 아닌 어느 벽에도 부착할 수 있고 상·하·좌·우 방향을 지정합니다. 지정 방향 직선으로 화염을 뿜어 피해·화상·넉백을 줍니다.',short:'화염 분사기',sprite:OBSTACLE_SPRITES.gust},
+  {id:'magnet',name:'사슬 작살탑',icon:'🪝',kind:'debuff',cost:95,range:3,color:'rgba(183,107,242,.6)',desc:'벽 설치형 견인 장치. 입구가 아닌 어느 벽에도 부착할 수 있고 방향을 지정합니다. 지정 방향 직선 사거리 안 영웅을 작살로 맞혀 벽 쪽으로 끌어당기고 경직시킵니다.',short:'사슬 작살탑',sprite:OBSTACLE_SPRITES.magnet},
+  {id:'stun_cage',name:'미믹 상자',icon:'📦',kind:'debuff',cost:90,range:0,color:'rgba(224,73,95,.55)',desc:'1×1 포획형 장애물. 밟은 영웅을 물고 고정해 지속 피해를 주며, 붙잡힌 동안 몬스터와 마왕에게 받는 피해가 증가합니다.',short:'미믹 상자',sprite:OBSTACLE_SPRITES.stun_cage,spriteAlt:OBSTACLE_SPRITES.stun_cage_alt},
+  {id:'collapse_bridge',name:'봉쇄 룬문',icon:'🌀',kind:'defense',cost:130,range:0,color:'rgba(176,122,255,.55)',desc:'1×1 전장 제어 관문. 전투 중 3초 개방/3초 봉쇄를 반복하며, 영웅이 통과할 때 안정도가 감소해 3회 통과 후 영구 봉인됩니다.',short:'봉쇄 룬문',sprite:OBSTACLE_SPRITES.collapse_bridge,spriteAlt:OBSTACLE_SPRITES.collapse_bridge_alt}
 ];
 
 /* ==========================================================================
@@ -569,28 +583,25 @@ const OBSTACLE_TYPES=[
    seq    : 재생할 프레임 번호 순서(0부터). 생략하면 0..frames-1
    durs   : seq 각 프레임을 보여주는 시간(ms). 길이는 seq와 같아야 합니다.
    hold   : (trigger) 재생이 끝난 뒤 마지막 프레임을 유지(발동 시간이 끝나 클래스가 빠질 때까지)
-   armed  : (trigger) 경고 상태(rockfallArmed) 동안 반복 재생할 {seq,durs}
-   signal : 'custom' 이면 밟는 즉시가 아니라 해당 장애물 고유 코드가 발동 신호를 직접 보냅니다(붕락지대: 실제 낙석 순간)
    scale  : 애니메이션 레이어 배율(기본 1). 시트의 타일이 캔버스를 꽉 채우면 1, 여백이 있으면 그만큼 키워 원본 크기에 맞춥니다.
    시트가 로드되기 전/실패 시에는 기존 정지 그림(sprite)이 그대로 보입니다.
    ========================================================================== */
 const OBSTACLE_ANIMS={
-  flame:    {sheet:'assets/images/obstacle_anim_flame.png',    frames:5, mode:'loop',    durs:[150,140,150,140,150]},          // 불꽃 일렁임
-  poison:   {sheet:'assets/images/obstacle_anim_poison.png',   frames:5, mode:'loop',    durs:[420,320,320,340,420]},          // 거품 발생 → 터짐
-  lightning:{sheet:'assets/images/obstacle_anim_lightning.png',frames:5, mode:'loop',    durs:[1100,90,130,110,900]},          // 대부분 어둡다가 순간 번쩍
-  pit:      {sheet:'assets/images/obstacle_anim_pit.png',      frames:6, mode:'loop',    durs:[260,240,240,240,240,260]},      // 소용돌이 회전
-  frost:    {sheet:'assets/images/obstacle_anim_frost.png',    frames:5, mode:'loop',    durs:[520,420,420,420,520]},          // 빛 이동/결정 반짝임
-  statue:   {sheet:'assets/images/obstacle_anim_statue.png',   frames:5, mode:'loop',    durs:[520,360,520,360,520]},          // 룬 빛 맥동
-  curse:    {sheet:'assets/images/obstacle_anim_curse.png',    frames:6, mode:'loop',    durs:[360,360,360,360,360,480]},      // 저주 기운 상승/소멸
-  web:      {sheet:'assets/images/obstacle_anim_web.png',      frames:4, mode:'loop',    durs:[900,240,240,720]},              // 거미줄 흔들림
-  spike:    {sheet:'assets/images/obstacle_anim_spike.png',    frames:4, mode:'trigger', seq:[1,2,3], durs:[90,300,180]},        // 솟기 시작 → 완전히 솟음 → 내려감
-  barricade:{sheet:'assets/images/obstacle_anim_barricade.png',frames:4, mode:'trigger', seq:[1,2,3], durs:[70,110,120]},        // 충격(밀림) → 최대 밀림 → 복귀
+  flame:    {sheet:'assets/images/obstacles/animations/obstacle_anim_flame.png',    frames:5, mode:'loop',    durs:[150,140,150,140,150]},          // 불꽃 일렁임
+  poison:   {sheet:'assets/images/obstacles/animations/obstacle_anim_poison.png',   frames:5, mode:'loop',    durs:[420,320,320,340,420]},          // 거품 발생 → 터짐
+  lightning:{sheet:'assets/images/obstacles/animations/obstacle_anim_lightning.png',frames:5, mode:'loop',    durs:[1100,90,130,110,900]},          // 대부분 어둡다가 순간 번쩍
+  pit:      {sheet:'assets/images/obstacles/animations/obstacle_anim_pit.png',      frames:6, mode:'loop',    durs:[260,240,240,240,240,260]},      // 소용돌이 회전
+  frost:    {sheet:'assets/images/obstacles/animations/obstacle_anim_frost.png',    frames:5, mode:'loop',    durs:[520,420,420,420,520]},          // 빛 이동/결정 반짝임
+  statue:   {sheet:'assets/images/obstacles/animations/obstacle_anim_statue.png',   frames:5, mode:'loop',    durs:[520,360,520,360,520]},          // 룬 빛 맥동
+  curse:    {sheet:'assets/images/obstacles/animations/obstacle_anim_curse.png',    frames:6, mode:'loop',    durs:[360,360,360,360,360,480]},      // 저주 기운 상승/소멸
+  web:      {sheet:'assets/images/obstacles/animations/obstacle_anim_web.png',      frames:4, mode:'loop',    durs:[900,240,240,720]},              // 거미줄 흔들림
+  spike:    {sheet:'assets/images/obstacles/animations/obstacle_anim_spike.png',    frames:4, mode:'trigger', seq:[1,2,3], durs:[90,300,180]},        // 솟기 시작 → 완전히 솟음 → 내려감
+  barricade:{sheet:'assets/images/obstacles/animations/obstacle_anim_barricade.png',frames:4, mode:'trigger', seq:[1,2,3], durs:[70,110,120]},        // 충격(밀림) → 최대 밀림 → 복귀
   // ── 원본 그림(전체 화면 타일)을 그대로 두고 움직이는 부분만 얹은 시트: 타일이 캔버스를 꽉 채웁니다 ──
-  gust:     {sheet:'assets/images/obstacle_anim_gust.png',     frames:6, mode:'loop',    durs:[115,115,115,115,115,115]},      // 소용돌이 회전 + 바람 줄기/먼지
-  magnet:   {sheet:'assets/images/obstacle_anim_magnet.png',   frames:6, mode:'loop',    durs:[140,140,140,140,140,140]},      // 고리 빛 파동 + 코어 맥동 + 빨려드는 입자
-  stun_cage:{sheet:'assets/images/obstacle_anim_stun_cage.png',frames:6, mode:'trigger', seq:[1,2,3,4,5], durs:[70,80,90,110,STUN_CAGE_FX_MS-350], hold:true},   // 철창이 솟아올라 닫힘 (총 STUN_CAGE_FX_MS)
-  rockfall: {sheet:'assets/images/obstacle_anim_rockfall.png', frames:6, mode:'trigger', signal:'custom', seq:[3,4,5], durs:[110,180,ROCKFALL_FX_MS-290], hold:true,
-             armed:{seq:[1,2],durs:[280,280]}}                                                                               // 경고 중 1↔2 반복, 낙석 순간 3→4→5 (총 ROCKFALL_FX_MS)
+  gust:     {sheet:'assets/images/obstacles/remade/animations/gust.png',     frames:10, mode:'trigger', seq:[0,1,2,3,4,5,6,7,8,9], durs:[80,80,90,100,120,140,140,120,100,80]},
+  magnet:   {sheet:'assets/images/obstacles/remade/animations/magnet.png',   frames:10, mode:'trigger', seq:[0,1,2,3,4,5,6,7,8,9], durs:[70,70,80,90,110,130,140,120,100,90]},
+  stun_cage:{sheet:'assets/images/obstacles/remade/animations/stun_cage.png',frames:10, mode:'trigger', seq:[0,1,2,3,4,5,6,7,8,9], durs:[80,80,90,100,120,140,160,140,110,80], hold:true},
+  collapse_bridge:{sheet:'assets/images/obstacles/remade/animations/collapse_bridge.png',frames:10, mode:'loop', seq:[0,1,2,3,4,5,6,7,8,9], durs:[600,600,600,600,600,600,600,600,600,600]}
 };
 function obstacleAnimSeq(a){ return a.seq||Array.from({length:a.frames},(_,i)=>i); }
 function obstacleAnimTotalMs(a){ return a.durs.reduce((s,x)=>s+x,0); }
@@ -625,9 +636,9 @@ const TOOL_INFO={
   obstacle:{icon:'🧱',title:'벽 / 장애물',desc:'벽 파기·벽 생성과 함정/장애물 설치·제거를 한 메뉴에서 관리합니다.'},
 };
 const MONSTER_COMMAND_META={
-  attack:{icon:'⚔️',name:'공격 명령',desc:'던전 전체를 돌아다니며 용사를 적극적으로 찾아 나섭니다. 마력의 핵 주변 7칸 제한을 무시하고 연결된 통로 전체를 수색합니다.'},
-  defense:{icon:'🛡️',name:'수비 명령',desc:'현재 방식과 동일합니다. 마력의 핵 주변을 중심으로 순찰하며 방어구역 안으로 들어온 용사를 상대합니다.'},
-  neutral:{icon:'⚖️',name:'중립 명령',desc:'몬스터 역할에 따라 나뉩니다. 탱커·수호형·힐러는 핵 주변을 지키고, 나머지는 적극적으로 용사를 추적합니다.'},
+  attack:{icon:'⚔️',name:'공격 명령',desc:'입구까지 캠핑하지 않고 던전 전방에 요격선을 형성합니다. 한 용사에게 전군이 몰리지 않도록 추격 인원을 분산해 압박합니다.'},
+  defense:{icon:'🛡️',name:'수비 명령',desc:'몬스터와 마왕은 핵 주변 3칸의 방어선을 지킵니다. 도발이나 피격을 받아도 방어선을 넘어서 추격하지 않습니다.'},
+  neutral:{icon:'⚖️',name:'중립 명령',desc:'탱커·수호형·힐러는 핵 주변을 지키고, 나머지는 입구를 침범하지 않는 전방 요격 행동을 사용합니다.'},
 };
 function monsterCommandLabel(command){
   return MONSTER_COMMAND_META[command]?.name || MONSTER_COMMAND_META.defense.name;
@@ -648,6 +659,78 @@ function monsterUsesDefenseBehavior(m){
   if(command==='defense') return true;
   if(command==='attack') return false;
   return isMonsterDefensiveType(m);
+}
+
+// v87: 명령 AI 전선 제한.
+// 공격 명령이 용사 스폰 입구까지 밀고 가 농성하던 문제를 막기 위해,
+// 입구 주변에는 교전 금지 완충지대를 두고 공격형 유닛의 전진선을 던전 중간 지점으로 제한합니다.
+// 수비 명령의 마왕은 별도의 더 좁은 핵 방어 반경을 사용합니다.
+const MONSTER_COMMAND_ATTACK_SPAWN_BUFFER_MAX=4;
+const MONSTER_COMMAND_MAX_CHASERS_PER_HERO=4;
+const MONSTER_COMMAND_DEFENSE_LEASH_RADIUS=3;
+const MONSTER_COMMAND_DEFENSE_ENGAGE_MARGIN=2;
+const MAWANG_DEFENSE_LEASH_RADIUS=3;
+const MAWANG_DEFENSE_ENGAGE_MARGIN=2;
+function activeHeroSpawnPoints(){
+  if(Array.isArray(state?.heroSpawnPoints)&&state.heroSpawnPoints.length) return state.heroSpawnPoints;
+  if(state?.heroSpawnPoint) return [state.heroSpawnPoint];
+  return Array.isArray(typeof ENTRANCES!=='undefined'?ENTRANCES:null)?ENTRANCES:[];
+}
+function nearestHeroSpawnDistance(r,c){
+  const points=activeHeroSpawnPoints();
+  if(!points.length) return Infinity;
+  let best=Infinity;
+  for(const p of points){
+    if(!p) continue;
+    best=Math.min(best,Math.abs(r-p.r)+Math.abs(c-p.c));
+  }
+  return best;
+}
+function monsterAttackSpawnBufferRadius(){
+  const points=activeHeroSpawnPoints();
+  if(!points.length) return 0;
+  let coreToEntrance=Infinity;
+  for(const p of points) coreToEntrance=Math.min(coreToEntrance,Math.abs(CORE_R-p.r)+Math.abs(CORE_C-p.c));
+  if(!Number.isFinite(coreToEntrance)) return 0;
+  return Math.max(2,Math.min(MONSTER_COMMAND_ATTACK_SPAWN_BUFFER_MAX,Math.floor(coreToEntrance*.30)));
+}
+function monsterAttackAdvanceRadius(){
+  const points=activeHeroSpawnPoints();
+  if(!points.length) return MONSTER_LEASH_RADIUS+2;
+  let coreToEntrance=Infinity;
+  for(const p of points) coreToEntrance=Math.min(coreToEntrance,Math.abs(CORE_R-p.r)+Math.abs(CORE_C-p.c));
+  if(!Number.isFinite(coreToEntrance)) return MONSTER_LEASH_RADIUS+2;
+  const buffer=monsterAttackSpawnBufferRadius();
+  const desired=Math.max(3,Math.round(coreToEntrance*.65));
+  const beforeSpawn=Math.max(3,coreToEntrance-buffer-1);
+  return Math.max(3,Math.min(beforeSpawn,desired));
+}
+function heroInsideMonsterAttackZone(h){
+  if(!h||h.hp<=0) return false;
+  if(nearestHeroSpawnDistance(h.r,h.c)<=monsterAttackSpawnBufferRadius()) return false;
+  const coreDist=Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C);
+  return coreDist<=monsterAttackAdvanceRadius()+2;
+}
+function monsterCellAllowedByAttackCommand(r,c){
+  if(nearestHeroSpawnDistance(r,c)<=monsterAttackSpawnBufferRadius()) return false;
+  return Math.abs(r-CORE_R)+Math.abs(c-CORE_C)<=monsterAttackAdvanceRadius();
+}
+function monsterAttackChaseSlotAvailable(m,h){
+  if(!m||!h) return false;
+  if(m.targetHeroId===h.id) return true;
+  let assigned=0;
+  for(const o of state?.monsters||[]){
+    if(o===m||o.hp<=0) continue;
+    if(o.targetHeroId===h.id) assigned++;
+  }
+  return assigned<MONSTER_COMMAND_MAX_CHASERS_PER_HERO;
+}
+function mawangDefenseHeroAllowed(h){
+  if(!h||h.hp<=0) return false;
+  return Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C)<=MAWANG_DEFENSE_LEASH_RADIUS+MAWANG_DEFENSE_ENGAGE_MARGIN;
+}
+function mawangDefenseCellAllowed(r,c){
+  return Math.abs(r-CORE_R)+Math.abs(c-CORE_C)<=MAWANG_DEFENSE_LEASH_RADIUS;
 }
 function setMonsterCommand(command){
   if(!state) return false;
@@ -739,7 +822,7 @@ const HERO_TRAP_AVOID_WEIGHT=0;        // 장애물 사전 회피 비용 비활�
 const HERO_HARMFUL_OBSTACLES=new Set(['spike','flame','lightning','poison','pit','frost','web','curse']);
 
 function monsterHuntRadius(m){
-  const mt=MONSTER_TYPES.find(x=>x.id===m.typeId);
+  const mt=monsterTypeOfId(m.typeId);
   return (mt && mt.huntRadius) || MONSTER_HUNT_RADIUS_DEFAULT;
 }
 function heroMonsterSightRange(h){
@@ -773,62 +856,62 @@ const CARD_TYPES=[
 ];
 
 const SPRITE_DATA={
-  druid:"assets/images/img_012_b2f0e767fe.png",
-  miko:"assets/images/img_013_0de6f36a6e.png",
-  bard:"assets/images/img_014_cfeabb2093.png",
-  alchemist:"assets/images/img_015_5c1a0f67a4.png",
-  ice_mage:"assets/images/img_016_2ec067e67f.png",
-  spirit_caller:"assets/images/img_017_c362ad68d4.png",
-  lancer:"assets/images/img_018_26682440b2.png",
-  martial_artist:"assets/images/img_019_c56c909239.png",
-  dual_wielder:"assets/images/img_020_0a2f297d27.png",
-  curse_caster:"assets/images/img_021_0fdaff7a65.png",
-  dark_knight:"assets/images/img_022_c3de8007ee.png",
-  ironclad:"assets/images/img_023_627b346f6d.png",
-  slime:"assets/images/img_024_beeaac4cd3.png",goblin:"assets/images/img_025_a2bacd70a4.png",skeleton:"assets/images/img_026_bf662094ce.png",wolf:"assets/images/img_027_7014427c94.png",orc:"assets/images/img_028_207a683c52.png",spider:"assets/images/img_029_1085a063de.png",fire:"assets/images/img_030_e77952c715.png",darkmage:"assets/images/img_031_998e0661ec.png",dragon:"assets/images/img_032_c36318aa54.png",golem:"assets/images/img_033_f43bebfefb.png",swordsman:"assets/images/img_034_2ce9db2794.png",archer:"assets/images/img_035_9c15574eba.png",mage:"assets/images/img_036_544ca8a3fb.png",paladin:"assets/images/img_037_fce5694923.png",assassin:"assets/images/img_038_1fdf8814f2.png",berserker:"assets/images/img_039_0c3e27b6b7.png",priest:"assets/images/img_040_d386803af1.png",gunslinger:"assets/images/img_041_0a67d627f3.png",dragoon:"assets/images/img_042_1867fb84f6.png",summoner:"assets/images/img_043_0458e8a3f9.png", skeleton_archer:"assets/images/img_044_b83d2e4be7.png", slime_king:"assets/images/img_045_4c357b1fb7.png", berserker_orc:"assets/images/img_046_19d98b262b.png", skeleton_warrior:"assets/images/img_047_8d3a652f21.png", grim_reaper:"assets/images/img_048_e665e39958.png", flame_spirit:"assets/images/img_049_1b6747e2fc.png", ice_golem:"assets/images/img_050_ef2bed40a1.png", dark_sorcerer:"assets/images/img_051_f774d1239c.png", rock_colossus:"assets/images/img_052_7a26987528.png", lich_lord:"assets/images/img_053_35dbbf0245.png"};
-SPRITE_DATA.shieldbearer="assets/images/img_054_1f1d6fc6c7.png";
-SPRITE_DATA.hunter="assets/images/img_055_b13b0faa6e.png";
-SPRITE_DATA.miner="assets/images/img_056_98f1d65752.png";
-SPRITE_DATA.archmage="assets/images/img_057_bfa2619a44.png";
-SPRITE_DATA.swordsaint="assets/images/img_058_692dcfd278.png";
-SPRITE_DATA.vampire="assets/images/img_059_5ea520717b.png";
-SPRITE_DATA.shadowrogue="assets/images/img_060_794885339d.png";
-SPRITE_DATA.dragonslayer="assets/images/img_061_edfddb5559.png";
-SPRITE_DATA.goblin_archer="assets/images/img_062_ae371c5037.png";
-SPRITE_DATA.ghost_sniper="assets/images/img_063_d405057a2e.png";
-SPRITE_DATA.angry_orc="assets/images/img_064_7393664cde.png";
-SPRITE_DATA.blood_berserker="assets/images/img_065_89c3c77a27.png";
-SPRITE_DATA.shadow_goblin="assets/images/img_066_047353cfa3.png";
-SPRITE_DATA.nightstalker="assets/images/img_067_59d4ae8fe7.png";
-SPRITE_DATA.bone_priest="assets/images/img_068_faaf5713f8.png";
-SPRITE_DATA.fallen_seraph="assets/images/img_069_3cc7d9ef14.png";
-SPRITE_DATA.cursed_shaman="assets/images/img_070_4518f5c2ba.png";
+  druid:"assets/images/characters/heroes/druid.png",
+  miko:"assets/images/characters/heroes/miko.png",
+  bard:"assets/images/characters/heroes/bard.png",
+  alchemist:"assets/images/characters/heroes/alchemist.png",
+  ice_mage:"assets/images/characters/heroes/ice_mage.png",
+  spirit_caller:"assets/images/characters/heroes/spirit_caller.png",
+  lancer:"assets/images/characters/heroes/lancer.png",
+  martial_artist:"assets/images/characters/heroes/martial_artist.png",
+  dual_wielder:"assets/images/characters/heroes/dual_wielder.png",
+  curse_caster:"assets/images/characters/heroes/curse_caster.png",
+  dark_knight:"assets/images/characters/heroes/dark_knight.png",
+  ironclad:"assets/images/characters/heroes/ironclad.png",
+  slime:"assets/images/characters/monsters/slime.png",goblin:"assets/images/characters/monsters/goblin.png",skeleton:"assets/images/characters/monsters/skeleton.png",wolf:"assets/images/characters/monsters/wolf.png",orc:"assets/images/characters/monsters/orc.png",spider:"assets/images/characters/monsters/spider.png",fire:"assets/images/characters/monsters/fire.png",darkmage:"assets/images/characters/monsters/darkmage.png",dragon:"assets/images/characters/monsters/dragon.png",golem:"assets/images/characters/monsters/golem.png",swordsman:"assets/images/characters/heroes/swordsman.png",archer:"assets/images/characters/heroes/archer.png",mage:"assets/images/characters/heroes/mage.png",paladin:"assets/images/characters/heroes/paladin.png",assassin:"assets/images/characters/heroes/assassin.png",berserker:"assets/images/characters/heroes/berserker.png",priest:"assets/images/characters/heroes/priest.png",gunslinger:"assets/images/characters/heroes/gunslinger.png",dragoon:"assets/images/characters/heroes/dragoon.png",summoner:"assets/images/characters/heroes/summoner.png", skeleton_archer:"assets/images/characters/monsters/skeleton_archer.png", slime_king:"assets/images/characters/monsters/slime_king.png", berserker_orc:"assets/images/characters/monsters/berserker_orc.png", skeleton_warrior:"assets/images/characters/monsters/skeleton_warrior.png", grim_reaper:"assets/images/characters/monsters/grim_reaper.png", flame_spirit:"assets/images/characters/monsters/flame_spirit.png", ice_golem:"assets/images/characters/monsters/ice_golem.png", dark_sorcerer:"assets/images/characters/monsters/dark_sorcerer.png", rock_colossus:"assets/images/characters/monsters/rock_colossus.png", lich_lord:"assets/images/characters/monsters/lich_lord.png"};
+SPRITE_DATA.shieldbearer="assets/images/characters/heroes/shieldbearer.png";
+SPRITE_DATA.hunter="assets/images/characters/heroes/hunter.png";
+SPRITE_DATA.miner="assets/images/characters/heroes/miner.png";
+SPRITE_DATA.archmage="assets/images/characters/heroes/archmage.png";
+SPRITE_DATA.swordsaint="assets/images/characters/heroes/swordsaint.png";
+SPRITE_DATA.vampire="assets/images/characters/heroes/vampire.png";
+SPRITE_DATA.shadowrogue="assets/images/characters/heroes/shadowrogue.png";
+SPRITE_DATA.dragonslayer="assets/images/characters/heroes/dragonslayer.png";
+SPRITE_DATA.goblin_archer="assets/images/characters/monsters/goblin_archer.png";
+SPRITE_DATA.ghost_sniper="assets/images/characters/monsters/ghost_sniper.png";
+SPRITE_DATA.angry_orc="assets/images/characters/monsters/angry_orc.png";
+SPRITE_DATA.blood_berserker="assets/images/characters/monsters/blood_berserker.png";
+SPRITE_DATA.shadow_goblin="assets/images/characters/monsters/shadow_goblin.png";
+SPRITE_DATA.nightstalker="assets/images/characters/monsters/nightstalker.png";
+SPRITE_DATA.bone_priest="assets/images/characters/monsters/bone_priest.png";
+SPRITE_DATA.fallen_seraph="assets/images/characters/monsters/fallen_seraph.png";
+SPRITE_DATA.cursed_shaman="assets/images/characters/monsters/cursed_shaman.png";
 // v60: 신규 몬스터 12종 (시트 A)
-SPRITE_DATA.lizardman="assets/images/monster_lizardman.png";
-SPRITE_DATA.minotaur="assets/images/monster_minotaur.png";
-SPRITE_DATA.spiked_turtle="assets/images/monster_spiked_turtle.png";
-SPRITE_DATA.bomb_goblin="assets/images/monster_bomb_goblin.png";
-SPRITE_DATA.vine_archer="assets/images/monster_vine_archer.png";
-SPRITE_DATA.wisp="assets/images/monster_wisp.png";
-SPRITE_DATA.frost_witch="assets/images/monster_frost_witch.png";
-SPRITE_DATA.lightning_mage="assets/images/monster_lightning_mage.png";
-SPRITE_DATA.goblin_shaman="assets/images/monster_goblin_shaman.png";
-SPRITE_DATA.swamp_hag="assets/images/monster_swamp_hag.png";
-SPRITE_DATA.thief_rat="assets/images/monster_thief_rat.png";
-SPRITE_DATA.frenzied_bear="assets/images/monster_frenzied_bear.png";
+SPRITE_DATA.lizardman="assets/images/characters/monsters/monster_lizardman.png";
+SPRITE_DATA.minotaur="assets/images/characters/monsters/monster_minotaur.png";
+SPRITE_DATA.spiked_turtle="assets/images/characters/monsters/monster_spiked_turtle.png";
+SPRITE_DATA.bomb_goblin="assets/images/characters/monsters/monster_bomb_goblin.png";
+SPRITE_DATA.vine_archer="assets/images/characters/monsters/monster_vine_archer.png";
+SPRITE_DATA.wisp="assets/images/characters/monsters/monster_wisp.png";
+SPRITE_DATA.frost_witch="assets/images/characters/monsters/monster_frost_witch.png";
+SPRITE_DATA.lightning_mage="assets/images/characters/monsters/monster_lightning_mage.png";
+SPRITE_DATA.goblin_shaman="assets/images/characters/monsters/monster_goblin_shaman.png";
+SPRITE_DATA.swamp_hag="assets/images/characters/monsters/monster_swamp_hag.png";
+SPRITE_DATA.thief_rat="assets/images/characters/monsters/monster_thief_rat.png";
+SPRITE_DATA.frenzied_bear="assets/images/characters/monsters/monster_frenzied_bear.png";
 // v51: 왕국 정예 영웅 12종 (중반~후반 웨이브 전용)
-SPRITE_DATA.horseman="assets/images/hero_horseman.png";
-SPRITE_DATA.pikeman="assets/images/hero_pikeman.png";
-SPRITE_DATA.sun_lancer="assets/images/hero_sun_lancer.png";
-SPRITE_DATA.griffon_knight="assets/images/hero_griffon_knight.png";
-SPRITE_DATA.royal_elite="assets/images/hero_royal_elite.png";
-SPRITE_DATA.royal_lance="assets/images/hero_royal_lance.png";
-SPRITE_DATA.dragon_rider="assets/images/hero_dragon_rider.png";
-SPRITE_DATA.royal_guard="assets/images/hero_royal_guard.png";
-SPRITE_DATA.battle_mage="assets/images/hero_battle_mage.png";
-SPRITE_DATA.rune_guardian="assets/images/hero_rune_guardian.png";
-SPRITE_DATA.imperial_magus="assets/images/hero_imperial_magus.png";
-SPRITE_DATA.royal_longbow="assets/images/hero_royal_longbow.png";
+SPRITE_DATA.horseman="assets/images/characters/heroes/hero_horseman.png";
+SPRITE_DATA.pikeman="assets/images/characters/heroes/hero_pikeman.png";
+SPRITE_DATA.sun_lancer="assets/images/characters/heroes/hero_sun_lancer.png";
+SPRITE_DATA.griffon_knight="assets/images/characters/heroes/hero_griffon_knight.png";
+SPRITE_DATA.royal_elite="assets/images/characters/heroes/hero_royal_elite.png";
+SPRITE_DATA.royal_lance="assets/images/characters/heroes/hero_royal_lance.png";
+SPRITE_DATA.dragon_rider="assets/images/characters/heroes/hero_dragon_rider.png";
+SPRITE_DATA.royal_guard="assets/images/characters/heroes/hero_royal_guard.png";
+SPRITE_DATA.battle_mage="assets/images/characters/heroes/hero_battle_mage.png";
+SPRITE_DATA.rune_guardian="assets/images/characters/heroes/hero_rune_guardian.png";
+SPRITE_DATA.imperial_magus="assets/images/characters/heroes/hero_imperial_magus.png";
+SPRITE_DATA.royal_longbow="assets/images/characters/heroes/hero_royal_longbow.png";
 
 
 // ── 몬스터 역할(빌드) 체계 ──
@@ -910,6 +993,10 @@ const MONSTER_TYPES=[
   {id:'frenzied_bear',  grade:'S', name:'광폭 곰',       desc:'분노로 눈이 붉게 물든 거대한 곰. 체력이 낮아질수록 미쳐 날뛰며, 포효로 용사들을 기절시킨다.', cost:215, hp:380, atk:26, def:5, range:1, special:'rage', role:'berserker', cardOnly:true},
 ];
 
+// v88 combat-opt: 고정 몬스터 정의의 ID 인덱스. 전투 중 반복 선형 탐색만 줄이며 데이터는 그대로 공유합니다.
+const MONSTER_TYPE_BY_ID=new Map(MONSTER_TYPES.map(x=>[x.id,x]));
+function monsterTypeOfId(id){ return MONSTER_TYPE_BY_ID.get(id); }
+
 // v66 · 몬스터 근접 공격의 사운드/타격 FX 무기 분류. 실제 외형/설명에 맞춰 검·창·둔기로 재사용합니다.
 const MONSTER_MELEE_AUDIO_TYPE={
   slime:'blunt', goblin:'sword', skeleton:'sword', wolf:'sword', orc:'blunt', golem:'blunt', dragon:'blunt',
@@ -920,7 +1007,7 @@ const MONSTER_MELEE_AUDIO_TYPE={
 function monsterMeleeAudioType(m){
   if(!m) return 'blunt';
   if(MONSTER_MELEE_AUDIO_TYPE[m.typeId]) return MONSTER_MELEE_AUDIO_TYPE[m.typeId];
-  const mt=MONSTER_TYPES.find(x=>x.id===m.typeId);
+  const mt=monsterTypeOfId(m.typeId);
   if(mt?.role==='assassin') return 'sword';
   if(mt?.role==='tank'||mt?.role==='berserker') return 'blunt';
   return 'sword';
@@ -1361,7 +1448,10 @@ const HERO_TYPES=[
   {id:'rune_guardian',  name:'룬 수호자',         hpMult:1.50,atkMult:0.90,rewardMult:2.00,range:3, unlockAt:36, role:'support', support:true},
   {id:'imperial_magus', name:'황실 근위 마도단',  hpMult:1.40,atkMult:1.00,rewardMult:2.30,range:3, unlockAt:46, role:'healer',  support:true},
 ];
-function heroTypeOf(h){ return HERO_TYPES.find(x=>x.id===h.typeId); }
+// v88 combat-opt: 전투 틱에서 반복되는 선형 HERO_TYPES.find()를 O(1) 조회로 치환합니다.
+// HERO_TYPES 자체는 변경하지 않으므로 UI/데이터/밸런스는 기존과 동일합니다.
+const HERO_TYPE_BY_ID=new Map(HERO_TYPES.map(x=>[x.id,x]));
+function heroTypeOf(h){ return h?HERO_TYPE_BY_ID.get(h.typeId):undefined; }
 
 const HERO_MELEE_WEAPON_TYPE={
   swordsman:'sword', assassin:'sword', paladin:'blunt', priest:'blunt', berserker:'blunt', summoner:'blunt', dragoon:'spear',
@@ -1934,11 +2024,10 @@ const HERO_DIALOGUES={
   coreFound:['저기다!','마력의 핵을 찾았다!','저 빛… 핵이 틀림없어!','드디어 중심부다!','마왕의 심장인가?!','저곳만 돌파하면 된다!','찾았다! 저게 핵이야!','모두 저쪽이다!','던전의 핵을 발견했다!','이제 끝이 보인다!','저게 던전의 근원인가!','엄청난 마력이 느껴진다!','드디어 목표를 확인했다!','저 핵만 깨면 된다!','중심부가 눈앞이야!','저 빛을 놓치지 마!','모두 집중해!','저것이 던전을 움직이는군!','마력이 너무 강해…','좋아, 마지막 돌파다!'],
   levelup:['더 강해졌어!','좋아, 힘이 올라왔다!','한 단계 성장했군!','이제 전보다 강하다!','좋아! 감각이 더 선명해!','내 힘을 시험해보자!','레벨 업!','이 정도 적은 상대도 안 돼!','힘이 차오른다!','다음 단계로 간다!','한계가 조금 더 멀어졌군!','새로운 힘이 느껴진다!','이제 더 깊이 갈 수 있어!','다시 싸운다면 이길 수 있다!','검이 훨씬 가벼워졌어!','마력이 한층 안정됐다!','좋아, 다음 상대를 찾아보자!','내가 얼마나 강해졌는지 시험해보자!','성장의 감각이 익숙해지고 있어!','아직 올라갈 길은 멀다!'],
   flee:['저건 너무 강해!','일단 후퇴하자!','상대가 안 돼!','도망쳐!','이건 무리야!','살아서 돌아가야 해!','다른 길로 가자!','저 녀석과는 못 싸워!','후퇴한다!','다음에 다시 상대하자!','잠깐 숨을 고르자!','정면승부는 아직 이르다!','한 걸음 물러서서 다시 보자!','놈의 패턴을 파악해야 해!','지금은 살아남는 게 먼저야!','통로를 바꾸자!','힘을 아껴야 한다!','조금만 쉬면 다시 싸울 수 있어!','저 몬스터의 약점을 찾자!','좋아, 다음에는 반드시 이긴다!'],
-  // v50: 신규 장애물 1차 5종 전용 리액션 — 맞는 순간 용사가 놀라거나 당황하는 대사입니다.
+  // 리메이크 장애물 전용 리액션 — 맞는 순간 용사가 놀라거나 당황하는 대사입니다.
   trapGust:['으악!?','바람이!?','밀려난다!','이런, 통제가 안 돼!','뒤로 날아갔다!','대형이 무너졌어!','발이 땅에서 떨어졌어!','무슨 바람이야 이게!'],
   trapMagnet:['끌려간다!','뭐가 당기고 있어!','버틸 수가 없어!','발이 안 떨어져!','저항해봐도 소용없다!','자꾸 끌려들어가!'],
   trapStunCage:['철창이!?','움직일 수가 없어!','갇혔다!','이거 놔!','꼼짝을 못 하겠어!','함정이었나!'],
-  trapRockfall:['위다! 피해!','돌이 쏟아진다!','으윽, 맞았다!','천장이 무너진다!','미처 피하지 못했어!','조심했어야 했는데!'],
   trapBridgeCollapse:['다리가!?','바닥이 꺼진다!','떨어진다!!','발밑을 조심해!','이런, 길이 무너졌어!','다시 돌아가야겠어!'],
   // v51: 기존 10종 함정에도 개별 리액션을 추가합니다.
   trapSpike:['으악!','가시다!','발밑에서!','따가워!','이런, 방심했다!'],

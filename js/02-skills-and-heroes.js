@@ -149,19 +149,17 @@ function refreshMawangEntityStats(m){
   m.maxMana=st.maxMana; m.mana=Math.min(st.maxMana,m.mana??st.maxMana); m.atk=st.atk; m.def=st.def; m.level=st.level;
 }
 function findHeroForMawang(m){
-  const provoked=(typeof heroAggroTarget==='function')?heroAggroTarget(m):null;
-  if(provoked) return {hero:provoked,dist:Math.abs(provoked.r-m.r)+Math.abs(provoked.c-m.c)};
   let best=null,bestD=Infinity;
   const command=normalizeMonsterCommand(state?.monsterCommand||mawangProfile.command||'defense');
   const defensive=command==='defense';
+  const allowed=(h)=>defensive?mawangDefenseHeroAllowed(h):heroInsideMonsterAttackZone(h);
+  // v87: 피격/도발을 받아도 현재 명령의 활동구역 밖까지 끌려가지 않습니다.
+  const provoked=(typeof heroAggroTarget==='function')?heroAggroTarget(m):null;
+  if(provoked&&allowed(provoked)) return {hero:provoked,dist:Math.abs(provoked.r-m.r)+Math.abs(provoked.c-m.c)};
   for(const h of state.heroes){
-    if(h.hp<=0)continue;
+    if(h.hp<=0||!allowed(h))continue;
     const d=Math.abs(h.r-m.r)+Math.abs(h.c-m.c);
-    if(defensive){
-      const hd=Math.abs(h.r-CORE_R)+Math.abs(h.c-CORE_C);
-      if(hd>MONSTER_LEASH_RADIUS+2) continue;
-      if(d<bestD){best=h;bestD=d;}
-    }else if(d<bestD){best=h;bestD=d;}
+    if(d<bestD){best=h;bestD=d;}
   }
   return {hero:best,dist:bestD};
 }
@@ -181,6 +179,7 @@ function mawangAttackHero(m,h,dist){
   if(h.isBoss)dmg=Math.round(dmg*(1+mawangSkillRate('king_slayer',.08)));
   if(h.hp<=h.maxHp*.3)dmg=Math.round(dmg*(1+mawangSkillRate('execution_aura',.08)));
   if(mawangNearWall(m.r,m.c))dmg=Math.round(dmg*(1+mawangSkillRate('wall_domain',.05)));
+  if(h.mimicVulnerabilityUntil&&now<h.mimicVulnerabilityUntil)dmg=Math.max(1,Math.round(dmg*(h.mimicVulnerabilityMul||MIMIC_VULN_MUL)));
   h.hp-=dmg;
   h.lastMawangHitAt=now;
   m.lastAttackAt=now;
@@ -240,10 +239,11 @@ function mawangAutoAnnihilation(m){
   for(const h of state.heroes){
     if(h.hp<=0)continue;
     if(Math.abs(h.r-target.r)+Math.abs(h.c-target.c)<=1){
-      h.hp-=dmg;
+      const dealt=(h.mimicVulnerabilityUntil&&now<h.mimicVulnerabilityUntil)?Math.max(1,Math.round(dmg*(h.mimicVulnerabilityMul||MIMIC_VULN_MUL))):dmg;
+      h.hp-=dealt;
       if(h.hp<=0)h.killerMawang=true;
       const dR=Math.sign(h.r-m.r), dC=Math.sign(h.c-m.c);
-      state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dmg,color:'#ff5b73'});
+      state.fxEvents.push({type:'damageNumber',r:h.r,c:h.c,amount:dealt,color:'#ff5b73'});
       state.fxEvents.push({type:'battleHit',r:h.r,c:h.c,color:'#d13155',strong:true,damage:dmg,dr:dR,dc:dC,weaponType:'sword',critical:false,attackerType:'mawang',skill:true,skillVariant:'annihilation'});
     }
   }
@@ -294,27 +294,37 @@ function processMawangTick(m,dt){
   mawangAutoAnnihilation(m); mawangAutoLegion(); mawangAutoHellBloom(m);
   const {hero,dist}=findHeroForMawang(m);
   m.targetHeroId=hero?.id??null;
+  const command=normalizeMonsterCommand(state.monsterCommand);
+  const defenseBehavior=command==='defense';
   if(hero){
     if(dist<=st.range){ mawangAttackHero(m,hero,dist); return; }
     m.moveCooldown-=dt;
     if(m.moveCooldown>0)return;
     m.moveCooldown=st.moveInterval;
     const step=pathStepToGoal(m,[[hero.r,hero.c]]);
-    if(step){m.prevR=m.r;m.prevC=m.c;m.r=step[0];m.c=step[1];return;}
+    if(step){
+      const allowed=defenseBehavior?mawangDefenseCellAllowed(step[0],step[1]):monsterCellAllowedByAttackCommand(step[0],step[1]);
+      if(allowed){m.prevR=m.r;m.prevC=m.c;m.r=step[0];m.c=step[1];return;}
+    }
   }else{
     m.moveCooldown-=dt;
     if(m.moveCooldown>0)return;
     m.moveCooldown=st.moveInterval;
   }
-  const defenseBehavior=normalizeMonsterCommand(state.monsterCommand)==='defense';
   const coreDistance=Math.abs(m.r-CORE_R)+Math.abs(m.c-CORE_C);
-  if(defenseBehavior && coreDistance>MONSTER_LEASH_RADIUS){
+  const outsideCommandZone=defenseBehavior
+    ? coreDistance>MAWANG_DEFENSE_LEASH_RADIUS
+    : !monsterCellAllowedByAttackCommand(m.r,m.c);
+  if(outsideCommandZone){
     const goals=neighbors4(CORE_R,CORE_C).filter(([r,c])=>{const t=state.grid[r]?.[c];return t&&(t.type==='floor'||t.type==='core')&&t.obstacle!=='barricade'&&!monsterAt(r,c);});
     const step=goals.length?pathStepToGoal(m,goals):null;
-    if(step){m.r=step[0];m.c=step[1];return;}
+    if(step){m.prevR=m.r;m.prevC=m.c;m.r=step[0];m.c=step[1];return;}
   }
   const passable=(r,c)=>{const t=state.grid[r]?.[c];return !!t&&(t.type==='floor'||t.type==='core')&&t.obstacle!=='barricade';};
-  const choices=neighbors4(m.r,m.c).filter(([r,c])=>passable(r,c)&&!monsterAt(r,c));
+  const choices=neighbors4(m.r,m.c).filter(([r,c])=>{
+    if(!passable(r,c)||monsterAt(r,c)) return false;
+    return defenseBehavior?mawangDefenseCellAllowed(r,c):monsterCellAllowedByAttackCommand(r,c);
+  });
   if(choices.length && Math.random()<.35){const p=choices[Math.floor(Math.random()*choices.length)];m.r=p[0];m.c=p[1];}
 }
 function mawangSupportMultiplier(m){
@@ -1077,11 +1087,14 @@ function freshState(){
     spawnCooldown:2, spawnInterval:SPAWN_INTERVAL_START,
     wave:0, waveHeroesTotal:0, waveHeroesSpawned:0, bossSpawnedThisWave:false, bossesSpawnedThisWave:0,
     nextWaveRiskMul:1, nextWaveRewardMul:1, villageRaidEffects:[],
+    // v87: 선택형 마을 습격 — 10웨이브마다 습격권 +1, 최대 2개 보관.
+    villageRaidCharges:0, villageRaidChargeMax:2, lastVillageGrantWave:0,
+    lastVillageLaunchWave:-999, villageRaidCooldownUntilWave:0,
     stageEvent:null, stageEventText:'', stageEventHistory:[], stageEventLastId:null, stageHeroAtkMul:1, stageHeroHpMul:1, stageSpawnMul:1, stageMonsterAtkMul:1, stageCoreDmgMul:1, stageWaveGoldBonus:0,
     killCount:0, selected:null, deathFx:[], fxEvents:[],
     running:false, gameOver:false,
     lastMinuteLogged:0,
-    activeTool:'dig', selectedMonsterType:null, selectedObstacleType:null, monsterCommand:normalizeMonsterCommand(mawangProfile.command||'defense'),
+    activeTool:'dig', selectedMonsterType:null, selectedObstacleType:null, selectedObstacleDirection:1, monsterCommand:normalizeMonsterCommand(mawangProfile.command||'defense'),
     auraPositions:{statue:[],curse:[]},
     unlockedMonsterIds:[...getPermanentUnlockedMonsterIds()],
     startedAt:0, totalMonsterSpawns:0, monsterSpawnCounts:{}, monsterPurchaseCounts:{},
@@ -1199,14 +1212,12 @@ const Sound = (()=>{
   const BGM_MEDIA_MASTER=.52;
   const BGM_SAMPLE_BASE='assets/audio/bgm/';
   const BGM_FILES={
-    prepare:'user_dungeon.ogg', battle:'battle_invasion.ogg', late:'battle_late.ogg',
-    mawang:'mawang_theme.ogg', boss:'boss_encounter.ogg', village:'user_village_raid.ogg',
-    victory:'victory_stinger.ogg', defeat:'defeat_stinger.ogg'
+    prepare:'user_dungeon.ogg',
+    village:'user_village_raid.ogg'
   };
   const BGM_FALLBACK_FILES={
-    prepare:'user_dungeon.mp3', battle:'battle_invasion.mp3', late:'battle_late.mp3',
-    mawang:'mawang_theme.mp3', boss:'boss_encounter.mp3', village:'user_village_raid.mp3',
-    victory:'victory_stinger.mp3', defeat:'defeat_stinger.mp3'
+    prepare:'user_dungeon.mp3',
+    village:'user_village_raid.mp3'
   };
   // v69 · 사용자 제공 BGM 2곡. 던전/마을습격에서만 전환하며 SFX에 따른 덕킹은 하지 않습니다.
   const DUNGEON_BGM_KEY='prepare';
@@ -1221,6 +1232,15 @@ const Sound = (()=>{
     'magic_cast_wind','magic_impact_wind','magic_cast_spirit','magic_impact_spirit','magic_cast_curse','magic_impact_curse',
     'heal','buff','curse','mawang_attack','mawang_hell_slash','mawang_annihilation','mawang_execution','death'
   ]);
+  // Audio diet: 반복 빈도가 높은 충돌음은 2종, 나머지는 1종 + 재생속도 미세변화로 운용합니다.
+  const SFX_SINGLE_VARIANT_KEYS=new Set([
+    'ui_click',
+    'magic_cast_arcane','magic_cast_fire','magic_cast_ice','magic_cast_holy','magic_cast_dark',
+    'magic_cast_nature','magic_cast_wind','magic_cast_spirit','magic_cast_curse',
+    'heal','buff','curse',
+    'mawang_attack','mawang_hell_slash','mawang_annihilation','mawang_execution'
+  ]);
+  function sfxVariantCount(key){ return SFX_SINGLE_VARIANT_KEYS.has(key)?1:2; }
   const now=()=>performance.now();
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   const STAGES=[
@@ -1271,7 +1291,8 @@ const Sound = (()=>{
     const job=(async()=>{
       try{
         const bufs=[];
-        for(let i=1;i<=3;i++){
+        const variantCount=sfxVariantCount(key);
+        for(let i=1;i<=variantCount;i++){
           const res=await fetch(samplePath(key,i),{cache:'force-cache'});
           if(!res.ok) throw new Error(`SFX ${key} ${res.status}`);
           const arr=await res.arrayBuffer();
@@ -1404,8 +1425,13 @@ const Sound = (()=>{
     // 승리/패배 등 상황별 음악 삽입을 사용하지 않습니다. 기존 SFX 피드백만 유지합니다.
   }
   function pickVariant(key){
-    const prev=sampleLastVariant.get(key)||0; let n=1+Math.floor(Math.random()*3);
-    if(n===prev) n=(n%3)+1; sampleLastVariant.set(key,n); return n;
+    const count=sfxVariantCount(key);
+    if(count<=1){ sampleLastVariant.set(key,1); return 1; }
+    const prev=sampleLastVariant.get(key)||0;
+    let n=1+Math.floor(Math.random()*count);
+    if(n===prev) n=(n%count)+1;
+    sampleLastVariant.set(key,n);
+    return n;
   }
   function playSample(key,{vol=.62,rate=1,pan=0,delay=0}={}){
     if(muted||!SFX_SAMPLE_KEYS.has(key)||!ensure()) return false;
@@ -1701,12 +1727,6 @@ const Sound = (()=>{
           thump(.12,90);
           tone(150,.1,'square',.05,.6);
           noise(.05,.03,900,0,5000);
-        }
-      } else if(id==='rockfall'){
-        if(cooldown('trap_rockfall',200)){
-          noise(.28,.08,140,0,2200);
-          tone(58,.3,'sine',.07,.4);
-          thump(.18,60);
         }
       } else if(id==='collapse_bridge'){
         if(cooldown('trap_collapse_bridge',250)){

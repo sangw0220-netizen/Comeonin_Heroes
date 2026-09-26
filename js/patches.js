@@ -392,7 +392,7 @@
   if(window.ObstacleCardIcons) return;
 
   const VERSION='1.0.0';
-  const IDS=['gust','magnet','stun_cage','rockfall','collapse_bridge'];
+  const IDS=['gust','magnet','stun_cage','collapse_bridge'];
   const imageCache=new Map(), results=new Map();
   const mounted=new WeakMap(), warned=new Set();
   const settings=Object.create(null);
@@ -435,7 +435,7 @@
       columns:anim.columns,rows:anim.rows,frameWidth:anim.frameWidth,frameHeight:anim.frameHeight});
     // The supplied bridge has no OBSTACLE_ANIMS entry. This is a documented optional
     // file convention, NOT a change to its map animation or collapse behaviour.
-    if(!anim || !anim.sheet) add('assets/images/obstacle_anim_'+ob.id+'.png',{kind:'sheet'});
+    if(!anim || !anim.sheet) add('assets/images/obstacles/animations/obstacle_anim_'+ob.id+'.png',{kind:'sheet'});
     if(ob.sprite) add(ob.sprite,{kind:'sprite',frame:0});
     return out;
   }
@@ -655,290 +655,161 @@
 })();
 
 
-/* Collapse bridge art integration v1.0.0
- * Append after the game scripts (included at the end of js/patches.js).
- * Rendering only: the existing activateObstacle owns hit counts, damage,
- * evacuation, and the conversion into a 2x2 barricade. Never do those twice.
- */
-(function installCollapseBridgeArt(){
+/* Collapse bridge art integration disabled for the single-tile rune-gate remake.
+ * The obstacle now renders through the generic sprite + animation pipeline like
+ * the other remodeled dungeon obstacles. Gameplay logic remains unchanged. */
+(function disableCollapseBridgeArt(){
   'use strict';
-  if(typeof window==='undefined' || typeof document==='undefined') return;
-  if(window.CollapseBridgeArt) return;
-  if(typeof OBSTACLE_TYPES==='undefined' || typeof renderMapCells!=='function' ||
-     typeof activateObstacle!=='function'){
-    console.warn('[CollapseBridgeArt] Load this patch after the game scripts.');
-    return;
-  }
+  if(typeof window!=='undefined') window.CollapseBridgeArt={version:'disabled-single-tile-rune-gate'};
+})();
 
-  const ASSETS=Object.freeze({
-    normal:'assets/images/obstacle_collapse_bridge.png',
-    destroyed:'assets/images/obstacle_collapse_bridge_alt.png',
-    sheet:'assets/images/obstacle_anim_collapse_bridge.png',
-    icon:'assets/images/obstacle_collapse_bridge_icon.png'
-  });
-  const FRAME_SIZE=256, FRAME_COUNT=8;
-  const COLLAPSE_SEQUENCE=Object.freeze([3,4,5,6,7]);
-  const COLLAPSE_DURATIONS=Object.freeze([110,140,160,180,160]);
-  const COLLAPSE_MS=COLLAPSE_DURATIONS.reduce((a,b)=>a+b,0);
-  const visuals=new Map();
-  const playing=new Map();
-  let sheetReady=false, sheetStatus='loading', raf=null;
-
-  function game(){return typeof state==='undefined'?null:state;}
-  function inDungeon(s){return !!s && !!s.grid && !s.village && s.phase!=='village';}
-  function isBridge(t){
-    return !!t && (t.obstacle==='collapse_bridge' || (t.obstacle==='barricade' && !!t.wasBridge));
-  }
-  function isRoot(t,r,c){return (t.obstacleRootR??r)===r && (t.obstacleRootC??c)===c;}
-  function speed(){
-    const n=typeof gameSpeed==='undefined'?1:Number(gameSpeed);
-    return Number.isFinite(n)?Math.max(0,n):1;
-  }
-  function neededHits(tile){
-    const lv=typeof obstacleLevel==='function'?obstacleLevel(tile):Math.max(1,Number(tile?.obstacleLevel)||1);
-    const base=typeof BRIDGE_HITS_TO_COLLAPSE==='undefined'?3:BRIDGE_HITS_TO_COLLAPSE;
-    return base+(lv>=10?2:lv>=5?1:0);
-  }
-  function crackFrame(hits,need){
-    hits=Math.max(0,Number(hits)||0);
-    need=Math.max(2,Number(need)||3);
-    return hits===0?0:Math.min(2,Math.ceil(hits*2/(need-1)));
-  }
-  function collapseFrame(elapsedMs){
-    let elapsed=Math.max(0,Number(elapsedMs)||0);
-    for(let i=0;i<COLLAPSE_SEQUENCE.length;i++){
-      if(elapsed<COLLAPSE_DURATIONS[i]) return COLLAPSE_SEQUENCE[i];
-      elapsed-=COLLAPSE_DURATIONS[i];
-    }
-    return 7;
-  }
-  function frameFor(tile){
-    if(!isBridge(tile)) return null;
-    if(tile.wasBridge || tile.bridgeCollapsed){
-      const runtime=playing.get(tile);
-      return runtime?collapseFrame(runtime.elapsed):7;
-    }
-    return crackFrame(tile.bridgeHits,neededHits(tile));
-  }
-  function valid(record){
-    const s=game();
-    return inDungeon(s) && record.owner===s && record.grid===s.grid &&
-      s.grid[record.r]?.[record.c]===record.tile && isBridge(record.tile) &&
-      isRoot(record.tile,record.r,record.c);
-  }
-  function dropVisual(record){
-    if(record.node) record.node.remove();
-    if(record.cell) record.cell.classList.remove('bridge-art-ready');
-  }
-  function paint(record){
-    if(!valid(record) || !record.node?.isConnected) return;
-    const frame=frameFor(record.tile);
-    if(record.node.dataset.frame!==String(frame)){
-      record.node.style.backgroundPosition=(frame*100/(FRAME_COUNT-1))+'% 0%';
-      record.node.dataset.frame=String(frame);
-    }
-    const phase=playing.has(record.tile)?'collapsing':record.tile.wasBridge?'settled':frame?'cracked':'intact';
-    if(record.node.dataset.phase!==phase)record.node.dataset.phase=phase;
-  }
-  function refresh(){
-    const s=game();
-    if(!inDungeon(s) || typeof cellEls==='undefined' || !cellEls.length){
-      for(const record of visuals.values())dropVisual(record);
-      visuals.clear();
-      for(const [tile,record] of playing)if(!valid(record))playing.delete(tile);
-      return;
-    }
-    const seen=new Set(),px=typeof currentCellPx==='number'?currentCellPx:0;
-    for(let r=0;r<s.grid.length;r++)for(let c=0;c<s.grid[r].length;c++){
-      const tile=s.grid[r][c],cell=cellEls[r]?.[c];
-      if(!isBridge(tile)||!isRoot(tile,r,c)||!cell) continue;
-      const key=r+'_'+c;seen.add(key);
-      let record=visuals.get(key);
-      if(record && (record.tile!==tile || record.cell!==cell || !record.node?.isConnected)){
-        dropVisual(record);visuals.delete(key);record=null;
-      }
-      if(!sheetReady){cell.classList.remove('bridge-art-ready');continue;}
-      if(!record){
-        const node=document.createElement('div');
-        node.className='collapse-bridge-visual';node.setAttribute('aria-hidden','true');
-        node.style.backgroundImage='url('+JSON.stringify(ASSETS.sheet)+')';
-        node.dataset.rootRow=String(r);node.dataset.rootCol=String(c);node.dataset.footprint='2';
-        cell.appendChild(node);
-        record={node,cell,tile,owner:s,grid:s.grid,r,c};visuals.set(key,record);
-      }
-      // A single sprite spans four cells. Member cells never create a second sprite.
-      record.node.style.width=(px>0?2*px+'px':'200%');
-      record.node.style.height=(px>0?2*px+'px':'200%');
-      cell.classList.add('bridge-art-ready');
-      paint(record);
-    }
-    for(const [key,record] of visuals)if(!seen.has(key)||!valid(record)){
-      dropVisual(record);visuals.delete(key);
-    }
-    for(const [tile,record] of playing)if(!valid(record))playing.delete(tile);
-  }
-  function update(now){
-    const stamp=Number.isFinite(now)?now:performance.now();
-    const s=game(),paused=!!(s&&(s.paused||s.isPaused))||document.hidden;
-    for(const [tile,record] of playing){
-      if(!valid(record)){playing.delete(tile);continue;}
-      const delta=Math.min(200,Math.max(0,stamp-record.lastStamp));
-      record.lastStamp=stamp;
-      if(!paused)record.elapsed+=delta*speed();
-      if(record.elapsed>=COLLAPSE_MS)playing.delete(tile);
-    }
-    for(const [key,record] of visuals){
-      if(!valid(record)||!record.node.isConnected){dropVisual(record);visuals.delete(key);continue;}
-      paint(record);
-    }
-  }
-  function schedule(){
-    if(raf!==null||playing.size===0)return;
-    raf=requestAnimationFrame(now=>{raf=null;update(now);schedule();});
-  }
-  function startCollapse(tile,r,c){
-    const s=game();
-    if(!inDungeon(s)||!isBridge(tile)||playing.has(tile))return;
-    playing.set(tile,{tile,r,c,owner:s,grid:s.grid,lastStamp:performance.now(),elapsed:0});
-    // The original code switches to barricade immediately; keep drawing the bridge
-    // sequence until it settles rather than replacing it with the generic barricade art.
-    s._mapDirty=true;
-    refresh();schedule();
-  }
-  function clearBridgeFields(tile){
-    for(const key of ['wasBridge','bridgeCollapsed','bridgeHits','justCollapsedUntil','triggerFxUntil'])delete tile[key];
-    playing.delete(tile);
-  }
-  function snapshotMembers(r,c){
-    const s=game();
-    if(!s?.grid)return [];
-    const root=typeof obstacleRootPos==='function'?obstacleRootPos(r,c):{r,c};
-    if(!root)return [];
-    const rootTile=s.grid[root.r]?.[root.c];
-    if(!isBridge(rootTile))return [];
-    const entries=[],id=rootTile.obstacle;
-    for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++){
-      const tile=s.grid[rr]?.[cc];
-      if(tile && tile.obstacle===id && (tile.obstacleRootR??root.r)===root.r && (tile.obstacleRootC??root.c)===root.c)
-        entries.push({tile,r:rr,c:cc,id,rootR:root.r,rootC:root.c});
-    }
-    return entries;
-  }
-
-  // Bind the delivered PNGs to the exact identifiers used by the original game.
-  const bridge=OBSTACLE_TYPES.find(ob=>ob.id==='collapse_bridge');
-  if(bridge){bridge.sprite=ASSETS.normal;bridge.spriteAlt=ASSETS.destroyed;bridge.cardSprite=ASSETS.icon;}
-  if(typeof OBSTACLE_SPRITES!=='undefined'){
-    OBSTACLE_SPRITES.collapse_bridge=ASSETS.normal;
-    OBSTACLE_SPRITES.collapse_bridge_alt=ASSETS.destroyed;
-  }
-
-  const originalActivate=activateObstacle;
-  activateObstacle=function(h,tile){
-    const s=game();
-    let root=null,rootTile=null;
-    if(s&&h&&tile?.obstacle==='collapse_bridge'){
-      root=obstacleRootPos(tile.obstacleRootR??h.r,tile.obstacleRootC??h.c)||obstacleRootPos(h.r,h.c);
-      rootTile=root?s.grid[root.r]?.[root.c]:null;
-    }
-    const before=!!rootTile && !rootTile.wasBridge && !rootTile.bridgeCollapsed;
-    const result=originalActivate.apply(this,arguments);
-    if(rootTile&&game()===s){
-      if(before&&rootTile.wasBridge&&rootTile.bridgeCollapsed)startCollapse(rootTile,root.r,root.c);
-      else if(result){s._mapDirty=true;refresh();}
-    }
-    return result;
+/* Obstacle card image fallback fix v1.0.0
+ * Ensures the obstacle generation / research card menus always have valid
+ * thumbnail assets for gust, magnet, stun cage, and collapse bridge.
+ * Rendering-only patch: does not alter obstacle gameplay logic.
+ */
+(function installObstacleCardImageFallbacks(){
+  'use strict';
+  if(typeof window==='undefined') return;
+  const CARD_MAP={
+    gust:{sheet:'assets/images/obstacles/remade/cards/gust.png',frames:1,columns:1,rows:1,frame:0},
+    magnet:{sheet:'assets/images/obstacles/remade/cards/magnet.png',frames:1,columns:1,rows:1,frame:0},
+    stun_cage:{sheet:'assets/images/obstacles/remade/cards/stun_cage.png',frames:1,columns:1,rows:1,frame:0},
+    collapse_bridge:{sheet:'assets/images/obstacles/remade/cards/collapse_bridge.png',frames:1,columns:1,rows:1,frame:0}
   };
-
-  // 'alt' used to display the destroyed picture even on a harmless bridge footstep.
-  // Before collapse, damage stages come from the sheet, with an intact still fallback.
-  if(typeof applyObstacleSpriteImage==='function'){
-    const originalSprite=applyObstacleSpriteImage;
-    applyObstacleSpriteImage=function(img,ob,opts){
-      if(ob?.id==='collapse_bridge'&&!opts?.srcOverride)opts=Object.assign({},opts,{alt:false});
-      return originalSprite.call(this,img,ob,opts);
-    };
+  window.DUNGEON_OBSTACLE_CARD_IMAGES=Object.assign({},window.DUNGEON_OBSTACLE_CARD_IMAGES||{},CARD_MAP);
+  const directSprites={
+    gust:'assets/images/obstacles/remade/gust.png',
+    magnet:'assets/images/obstacles/remade/magnet.png',
+    stun_cage:'assets/images/obstacles/remade/stun_cage.png',
+    collapse_bridge:'assets/images/obstacles/remade/collapse_bridge.png'
+  };
+  if(typeof OBSTACLE_TYPES!=='undefined' && Array.isArray(OBSTACLE_TYPES)){
+    OBSTACLE_TYPES.forEach(ob=>{ if(ob && directSprites[ob.id]) ob.sprite=directSprites[ob.id]; });
   }
-  const originalMap=renderMapCells;
-  renderMapCells=function(){const result=originalMap.apply(this,arguments);refresh();return result;};
+  if(window.ObstacleCardIcons){
+    Object.entries(CARD_MAP).forEach(([id,cfg])=>{
+      try{ window.ObstacleCardIcons.configure(id,cfg); }catch(_){ /* no-op */ }
+    });
+    try{ window.ObstacleCardIcons.refresh(true); }catch(_){ /* no-op */ }
+  }
+})();
 
-  if(typeof clearObstacleFootprint==='function'){
-    const originalClear=clearObstacleFootprint;
-    clearObstacleFootprint=function(r,c){
-      const s=game(),members=snapshotMembers(r,c);
-      const result=originalClear.apply(this,arguments);
-      if(result&&s===game()){
-        for(const entry of members){
-          const t=s.grid[entry.r]?.[entry.c];
-          if(t!==entry.tile)continue;
-          const own=t.obstacle===entry.id&&(t.obstacleRootR??entry.rootR)===entry.rootR&&(t.obstacleRootC??entry.rootC)===entry.rootC;
-          if(!t.obstacle||own){
-            // Also tolerate the pre-2x2-fix clear routine that left three members behind.
-            if(own){t.obstacle=null;for(const key of ['obstacleRootR','obstacleRootC','obstacleLevel','obstacleHp','obstacleMaxHp'])delete t[key];}
-            clearBridgeFields(t);
+
+/* New obstacle image routing hard-fix v1.0.0
+ * Unifies the remade obstacle assets across card thumbnails,
+ * placement preview, battlefield render, and animation sheets.
+ * No gameplay logic is changed.
+ */
+(function installRemadeObstacleImageHardFix(){
+  'use strict';
+  if(typeof window==='undefined') return;
+  const MAP={
+    gust:{
+      sprite:'assets/images/obstacles/remade/gust.png',
+      anim:'assets/images/obstacles/remade/animations/gust.png',
+      frames:10
+    },
+    magnet:{
+      sprite:'assets/images/obstacles/remade/magnet.png',
+      anim:'assets/images/obstacles/remade/animations/magnet.png',
+      frames:10
+    },
+    stun_cage:{
+      sprite:'assets/images/obstacles/remade/stun_cage.png',
+      spriteAlt:'assets/images/obstacles/remade/stun_cage_alt.png',
+      anim:'assets/images/obstacles/remade/animations/stun_cage.png',
+      frames:10
+    },
+    collapse_bridge:{
+      sprite:'assets/images/obstacles/remade/collapse_bridge.png',
+      spriteAlt:'assets/images/obstacles/remade/collapse_bridge_alt.png',
+      icon:'assets/images/obstacles/remade/cards/collapse_bridge.png',
+      anim:'assets/images/obstacles/remade/animations/collapse_bridge.png',
+      frames:10
+    }
+  };
+  const IDS=Object.keys(MAP);
+
+  function routeAssets(){
+    if(typeof OBSTACLE_TYPES!=='undefined' && Array.isArray(OBSTACLE_TYPES)){
+      OBSTACLE_TYPES.forEach(ob=>{
+        if(!ob || !MAP[ob.id]) return;
+        const cfg=MAP[ob.id];
+        ob.sprite=cfg.sprite;
+        if(cfg.spriteAlt) ob.spriteAlt=cfg.spriteAlt;
+      });
+    }
+    if(typeof OBSTACLE_SPRITES!=='undefined' && OBSTACLE_SPRITES){
+      IDS.forEach(id=>{
+        const cfg=MAP[id];
+        OBSTACLE_SPRITES[id]=cfg.sprite;
+        if(cfg.spriteAlt) OBSTACLE_SPRITES[id+'_alt']=cfg.spriteAlt;
+      });
+    }
+    if(typeof OBSTACLE_ANIMS!=='undefined' && OBSTACLE_ANIMS){
+      IDS.forEach(id=>{
+        const cfg=MAP[id];
+        if(!OBSTACLE_ANIMS[id]) OBSTACLE_ANIMS[id]={};
+        OBSTACLE_ANIMS[id].sheet=cfg.anim;
+        if(!OBSTACLE_ANIMS[id].frames) OBSTACLE_ANIMS[id].frames=cfg.frames;
+      });
+    }
+    window.DUNGEON_OBSTACLE_CARD_IMAGES=Object.assign({},window.DUNGEON_OBSTACLE_CARD_IMAGES||{}, {
+      gust:{sheet:'assets/images/obstacles/remade/cards/gust.png',frames:1,columns:1,rows:1,frame:0},
+      magnet:{sheet:'assets/images/obstacles/remade/cards/magnet.png',frames:1,columns:1,rows:1,frame:0},
+      stun_cage:{sheet:'assets/images/obstacles/remade/cards/stun_cage.png',frames:1,columns:1,rows:1,frame:0},
+      collapse_bridge:{sheet:'assets/images/obstacles/remade/cards/collapse_bridge.png',frames:1,columns:1,rows:1,frame:0}
+    });
+    if(window.ObstacleCardIcons){
+      try{
+        window.ObstacleCardIcons.configure('gust',window.DUNGEON_OBSTACLE_CARD_IMAGES.gust);
+        window.ObstacleCardIcons.configure('magnet',window.DUNGEON_OBSTACLE_CARD_IMAGES.magnet);
+        window.ObstacleCardIcons.configure('stun_cage',window.DUNGEON_OBSTACLE_CARD_IMAGES.stun_cage);
+        window.ObstacleCardIcons.configure('collapse_bridge',window.DUNGEON_OBSTACLE_CARD_IMAGES.collapse_bridge);
+        window.ObstacleCardIcons.refresh(true);
+      }catch(_){ }
+    }
+  }
+
+  const originalApply=window.applyObstacleSpriteImage;
+  if(typeof originalApply==='function'){
+    window.applyObstacleSpriteImage=function(img,ob,opts){
+      if(ob && MAP[ob.id]){
+        const cfg=MAP[ob.id];
+        if(!ob.sprite) ob.sprite=cfg.sprite;
+        if(cfg.spriteAlt && !ob.spriteAlt) ob.spriteAlt=cfg.spriteAlt;
+        if(opts && opts.srcOverride && typeof opts.srcOverride==='string'){
+          return originalApply.call(this,img,ob,opts);
+        }
+        const useAlt=!!(opts && opts.alt && ob.spriteAlt);
+        const src=useAlt ? ob.spriteAlt : ob.sprite;
+        if(img){
+          img.loading='eager';
+          img.decoding='async';
+          img.draggable=false;
+          const key=ob.id+(useAlt?':alt':'');
+          if(img.dataset.obstacleSpriteId!==key || !img.getAttribute('src') || /undefined|null$/i.test(img.getAttribute('src')||'')){
+            img.setAttribute('src',src||'');
+            img.dataset.obstacleSpriteId=key;
           }
+          img.onerror=function(){
+            if(this.getAttribute('src')!==cfg.sprite){
+              this.setAttribute('src',cfg.sprite);
+              this.dataset.obstacleSpriteId=ob.id;
+            }
+          };
+          return;
         }
-        if(members.length){s._mapDirty=true;refresh();}
       }
-      return result;
-    };
-  }
-  if(typeof placeObstacle==='function'){
-    const originalPlace=placeObstacle;
-    placeObstacle=function(r,c,id){
-      const s=game(),result=originalPlace.apply(this,arguments);
-      if(result&&s===game()){
-        // Clear stale bridge markers when reusing the same cells, not on a failed placement.
-        const root=obstacleRootPos(r,c);
-        if(root)for(let rr=root.r;rr<root.r+2;rr++)for(let cc=root.c;cc<root.c+2;cc++){
-          const tile=s.grid[rr]?.[cc];
-          if(tile?.obstacle===id&&(tile.obstacleRootR??rr)===root.r&&(tile.obstacleRootC??cc)===root.c)clearBridgeFields(tile);
-        }
-        refresh();
-      }
-      return result;
+      return originalApply.apply(this,arguments);
     };
   }
 
-  const style=document.createElement('style');style.id='collapseBridgeArtStyles';
-  style.textContent=`
-    #map .cell.obstacle-root .collapse-bridge-visual {
-      position:absolute;left:0;top:0;width:200%;height:200%;z-index:4;
-      display:block;box-sizing:border-box;pointer-events:none;user-select:none;
-      background-size:800% 100%;background-position:0% 0%;background-repeat:no-repeat;
-      image-rendering:auto;animation:none!important;transform:none!important;
-    }
-    #map .cell.ob-collapse_bridge.bridge-art-ready > .obstacle-icon,
-    #map .cell.ob-collapse_bridge.bridge-art-ready > .obstacle-anim {display:none!important;}
-    #map .cell.ob-collapse_bridge > .obstacle-icon {
-      width:200%;height:200%;left:0;top:0;object-fit:contain;
-      transform:none!important;animation:none!important;filter:none!important;
-    }
-    #map .cell.ob-collapse_bridge.bridge-art-ready .ob-lv-badge {z-index:5;}
-  `;
-  document.head.appendChild(style);
-
-  // Cards use a real one-frame PNG. They must not display the entire 8-frame strip.
-  const card={sheet:ASSETS.icon,frames:1,columns:1,rows:1,frame:0};
-  window.DUNGEON_OBSTACLE_CARD_IMAGES=Object.assign({},window.DUNGEON_OBSTACLE_CARD_IMAGES,{collapse_bridge:card});
-  if(window.ObstacleCardIcons)window.ObstacleCardIcons.configure('collapse_bridge',card);
-
-  const sheet=new Image();sheet.decoding='async';
-  sheet.onload=()=>{
-    sheetReady=sheet.naturalWidth===FRAME_COUNT*FRAME_SIZE&&sheet.naturalHeight===FRAME_SIZE;
-    sheetStatus=sheetReady?'ready':'invalid-size';
-    if(!sheetReady)console.warn('[CollapseBridgeArt] Expected a 2048x256 PNG; using still sprites.');
-    refresh();
-  };
-  sheet.onerror=()=>{sheetReady=false;sheetStatus='missing';refresh();console.warn('[CollapseBridgeArt] Sheet missing; using still sprites.');};
-  sheet.src=ASSETS.sheet;
-
-  window.CollapseBridgeArt={
-    version:'1.0.0',ASSETS,FRAME_SIZE,FRAME_COUNT,COLLAPSE_MS,
-    crackFrame,collapseFrame,frameFor,refresh,
-    update, // Visual clock only; never applies gameplay damage or terrain changes.
-    inspect(){return {sheet:sheetStatus,active:playing.size,visible:visuals.size,
-      bridges:[...visuals.values()].map(v=>({r:v.r,c:v.c,frame:frameFor(v.tile),phase:v.node.dataset.phase}))};}
-  };
-  refresh();
+  routeAssets();
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',routeAssets,{once:true});
+  }else{
+    setTimeout(routeAssets,0);
+  }
 })();

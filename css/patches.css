@@ -1647,7 +1647,7 @@
 /* v74 · 마을 습격 벽 그래픽 교체 */
 #map .cell.v-block{
   background-color:#0d171d;
-  background-image:url('../assets/images/village_wall_moss.png');
+  background-image:url('../assets/images/raid/wall_moss.png');
   background-repeat:no-repeat;
   background-position:center;
   background-size:108% 108%;
@@ -1762,7 +1762,7 @@
   background-color:#141a20;
   background-image:
     linear-gradient(180deg, rgba(84,106,132,.12), rgba(0,0,0,.06) 44%, rgba(0,0,0,.16) 100%),
-    url('../assets/images/village_wall_moss.png');
+    url('../assets/images/raid/wall_moss.png');
   background-repeat:no-repeat,no-repeat;
   background-position:center,center;
   background-size:100% 100%,100% 100%;
@@ -1858,7 +1858,7 @@
   background-color:#111a20 !important;
   background-image:
     linear-gradient(180deg,rgba(72,98,124,.10),rgba(0,0,0,.045) 52%,rgba(0,0,0,.15)),
-    url('../assets/images/village_wall_moss.png') !important;
+    url('../assets/images/raid/wall_moss.png') !important;
   background-size:100% 100%,400% 400% !important;
   background-position:center,var(--v-wall-x,50%) var(--v-wall-y,50%) !important;
   background-repeat:no-repeat !important;
@@ -1959,7 +1959,7 @@
   background-color:#182029 !important;
   background-image:
     linear-gradient(180deg, rgba(96,120,150,.06), rgba(0,0,0,.08)),
-    url('../assets/images/village_wall_moss.png') !important;
+    url('../assets/images/raid/wall_moss.png') !important;
   background-repeat:no-repeat,no-repeat !important;
   background-size:100% 100%, 100% 100% !important;
   background-position:center, center !important;
@@ -2074,7 +2074,7 @@
   background-image:
     linear-gradient(180deg, rgba(35,49,79,.18), rgba(8,14,25,.18)),
     linear-gradient(90deg, rgba(28,36,68,.13), rgba(18,30,50,.08)),
-    url('../assets/images/village_wall_moss.png') !important;
+    url('../assets/images/raid/wall_moss.png') !important;
   background-repeat:no-repeat,no-repeat,no-repeat !important;
   background-size:100% 100%,100% 100%,100% 100% !important;
   background-position:center,center,center !important;
@@ -2109,7 +2109,7 @@
   background-color:#182029 !important;
   background-image:
     linear-gradient(180deg, rgba(96,120,150,.06), rgba(0,0,0,.08)),
-    url('../assets/images/raid/city_wall_user.png') !important;
+    url('../assets/images/raid/wall_moss.png') !important;
   background-repeat:no-repeat,no-repeat !important;
   background-size:100% 100%, 100% 100% !important;
   background-position:center, center !important;
@@ -2123,7 +2123,7 @@
    배경을 shorthand로 완전히 재선언하고 가림막 pseudo-layer도 제거합니다. */
 #map .cell.v-block,
 #map .cell.v-cell.v-block{
-  background: url('../assets/images/raid/city_wall_user.png') center / 100% 100% no-repeat !important;
+  background: url('../assets/images/raid/wall_moss.png') center / 100% 100% no-repeat !important;
   background-color:#241d22 !important;
   image-rendering: pixelated !important;
   filter:none !important;
@@ -2142,4 +2142,822 @@
 #map .cell.v-block.v-crack2::after,
 #map .cell.v-block.v-crack3::after{
   z-index: 4 !important;
+}
+
+/* ========================================================================== */
+/* Village Raid 2.0 - battle-first visual pass                                */
+/* ========================================================================== */
+#map.vr2-shake{animation:vr2MapShake .18s linear 1;transform-origin:center center}
+@keyframes vr2MapShake{0%{transform:translate(0,0)}20%{transform:translate(var(--vr2-shake,1px),calc(var(--vr2-shake,1px)*-1))}40%{transform:translate(calc(var(--vr2-shake,1px)*-1),var(--vr2-shake,1px))}60%{transform:translate(var(--vr2-shake,1px),var(--vr2-shake,1px))}80%{transform:translate(calc(var(--vr2-shake,1px)*-1),0)}100%{transform:translate(0,0)}}
+.v-sprite.vr2-dmg1{filter:brightness(.9) saturate(.92) contrast(1.05)}
+.v-sprite.vr2-dmg2{filter:brightness(.72) saturate(.8) contrast(1.12)}
+.v-sprite.vr2-critical{animation:vr2Critical .18s ease-in-out infinite;filter:brightness(.64) saturate(.72) contrast(1.2)}
+@keyframes vr2Critical{0%,100%{transform:translate(0,0) rotate(-.35deg)}50%{transform:translate(1px,-1px) rotate(.45deg)}}
+.v-cell.vr2-burning:after{content:'🔥';position:absolute;z-index:12;right:-9%;top:-34%;font-size:clamp(12px,1.4vw,24px);filter:drop-shadow(0 2px 4px #000);animation:vr2Fire .48s ease-in-out infinite alternate;pointer-events:none}
+.v-cell.vr2-burning:before{content:'';position:absolute;z-index:11;left:45%;top:-30%;width:48%;height:45%;border-radius:50%;background:radial-gradient(circle,rgba(90,90,90,.62),rgba(40,40,40,0) 68%);filter:blur(3px);animation:vr2Smoke 1.2s ease-out infinite;pointer-events:none}
+.v-cell.vr2-castle-burning:after{font-size:clamp(18px,2.2vw,34px);right:-34%;top:-48%}
+@keyframes vr2Fire{from{transform:translateY(1px) scale(.92)}to{transform:translateY(-2px) scale(1.08)}}
+@keyframes vr2Smoke{from{transform:translate(0,4px) scale(.7);opacity:.2}to{transform:translate(5px,-13px) scale(1.25);opacity:.75}}
+
+.vr2-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 13px;border:1px solid rgba(255,145,72,.34);border-radius:12px;background:linear-gradient(135deg,rgba(68,24,20,.86),rgba(23,17,28,.9));box-shadow:inset 0 0 24px rgba(255,79,31,.08)}
+.vr2-head small{font-size:9px;letter-spacing:1.6px;color:#f4a36f}.vr2-head h3{margin:2px 0 0;font-size:18px;color:#fff2df}.vr2-time{min-width:58px;text-align:center;font-size:28px;font-weight:900;line-height:.9;color:#ffd166;text-shadow:0 2px 10px rgba(255,144,43,.35)}.vr2-time small{display:block;margin-top:5px;font-size:8px;color:#cdb8aa}
+.vr2-alert{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin:9px 0;padding:8px 9px;border-radius:9px;background:rgba(23,19,28,.82);border:1px solid rgba(255,255,255,.08);font-size:10px}.vr2-alert>div{height:6px;border-radius:999px;background:#2b2530;overflow:hidden}.vr2-alert>div i{display:block;height:100%;background:linear-gradient(90deg,#f6b44c,#e2483f);box-shadow:0 0 8px rgba(226,72,63,.5)}.vr2-alert em{font-style:normal;color:#ffd166;font-weight:800}
+.vr2-progress{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:8px 1px 6px;font-size:10px}.vr2-progress b{color:#f7e8d4}.vr2-progress span{color:#aaa0b2;font-size:9px}
+.vr2-objectives{display:grid;grid-template-columns:1fr 1fr;gap:6px}.vr2-obj{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;padding:8px 7px;border-radius:9px;border:1px solid rgba(255,255,255,.09);background:rgba(28,24,33,.9);color:#ddd;cursor:pointer}.vr2-obj b{font-size:10px;text-align:left}.vr2-obj em{font-size:9px;font-style:normal;color:#ffcb75}.vr2-obj.active{border-color:#ff9c4a;box-shadow:0 0 0 1px rgba(255,156,74,.25),inset 0 0 16px rgba(255,107,47,.08)}.vr2-obj.done{opacity:.45;filter:grayscale(.35)}
+.vr2-castle{display:grid;grid-template-columns:auto 1fr auto;gap:7px;align-items:center;margin:8px 0 5px;padding:8px 9px;border-radius:9px;background:rgba(44,28,35,.82);border:1px solid rgba(255,176,92,.14);font-size:10px}.vr2-castle>div{height:7px;border-radius:999px;background:#2b2530;overflow:hidden}.vr2-castle>div i{display:block;height:100%;background:linear-gradient(90deg,#be6149,#ffb15e)}.vr2-castle.locked{opacity:.5}.vr2-castle-btn{width:100%;padding:7px;border-radius:8px;border:1px solid rgba(255,178,88,.4);background:rgba(106,54,38,.48);color:#ffd9a0;font-size:10px;font-weight:800;cursor:pointer}
+.vr2-command-title{display:flex;justify-content:space-between;align-items:center;margin:10px 1px 5px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);font-size:10px}.vr2-command-title b{letter-spacing:3px;color:#ff784b}.vr2-commands{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.vr2-commands button{padding:8px 2px 7px;border:1px solid rgba(255,126,73,.25);border-radius:9px;background:linear-gradient(180deg,rgba(89,39,39,.72),rgba(37,25,34,.92));color:#f6e4d8;cursor:pointer}.vr2-commands strong{display:block;font-size:10px}.vr2-commands small{display:block;margin-top:3px;font-size:8px;color:#baa7a8}.vr2-commands button:hover{transform:translateY(-1px);border-color:rgba(255,158,80,.55);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.vr2-retreat{width:100%;margin-top:7px;padding:8px;border-radius:8px;border:1px solid rgba(173,188,204,.16);background:rgba(22,27,34,.7);color:#b7c0cb;font-size:9px;cursor:pointer}
+
+
+/* v87 · 선택형 마을 습격 진입 버튼 */
+.village-raid-launch{
+  width:100%; margin-top:6px; min-height:42px; padding:6px 10px;
+  border:1px solid rgba(255,164,78,.72); border-radius:10px;
+  background:linear-gradient(180deg,rgba(112,55,28,.96),rgba(63,30,24,.98));
+  color:#fff1d1; font-family:inherit; cursor:pointer;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  box-shadow:0 0 0 1px rgba(255,139,67,.10),0 4px 15px rgba(81,31,17,.34);
+  transition:filter .14s,transform .08s,opacity .14s,border-color .14s;
+}
+.village-raid-launch.hidden{display:none !important;}
+.village-raid-launch:not(.cooldown):hover{filter:brightness(1.12);}
+.village-raid-launch:not(.cooldown):active{transform:translateY(1px);}
+.village-raid-launch .vrl-main{font-size:12px;font-weight:900;white-space:nowrap;}
+.village-raid-launch .vrl-main b{color:#ffd166;font-size:12px;}
+.village-raid-launch .vrl-sub{font-size:8.5px;line-height:1.25;color:#dbc9b9;text-align:right;}
+.village-raid-launch.cooldown{
+  cursor:default; opacity:.68; border-color:rgba(142,122,115,.46);
+  background:linear-gradient(180deg,rgba(55,46,53,.96),rgba(34,29,39,.98));
+  box-shadow:none;
+}
+.village-raid-launch.cooldown .vrl-main b{color:#b9aec6;}
+@media (max-height:700px){
+  .village-raid-launch{margin-top:4px;min-height:36px;padding:4px 8px;}
+  .village-raid-launch .vrl-main{font-size:11px;}
+  .village-raid-launch .vrl-sub{font-size:7.5px;}
+}
+
+
+/* =========================================================
+   5-wave reward cards: concise/read-at-a-glance copy
+   Display-only. Reward effects and balance are unchanged.
+   ========================================================= */
+.reward-choice.reward-choice-simple{
+  min-height:205px;
+}
+.reward-choice.reward-choice-simple .rc-name{
+  font-size:15px;
+  line-height:1.28;
+  letter-spacing:-.15px;
+}
+.reward-choice.reward-choice-simple .rc-effect-simple{
+  margin-top:12px;
+  padding:10px 9px;
+  border-top:1px solid rgba(255,255,255,.08);
+  border-radius:8px;
+  background:rgba(255,255,255,.035);
+  font-size:11px;
+  line-height:1.5;
+  font-weight:700;
+  color:#f1edf7;
+}
+@media(max-width:680px){
+  .reward-choice.reward-choice-simple{min-height:0;}
+  .reward-choice.reward-choice-simple .rc-effect-simple{grid-column:2;margin-top:7px;}
+}
+
+/* =========================================================
+   5-wave reward cards: benefit / drawback color coding
+   Display-only. Reward effects and balance are unchanged.
+   ========================================================= */
+.reward-choice.reward-choice-simple .rc-effect-simple{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  color:inherit;
+}
+.reward-choice.reward-choice-simple .rc-effect-line{
+  display:flex;
+  align-items:flex-start;
+  gap:7px;
+  padding:6px 8px;
+  border-radius:7px;
+  line-height:1.4;
+}
+.reward-choice.reward-choice-simple .rc-effect-mark{
+  flex:0 0 auto;
+  width:12px;
+  text-align:center;
+  font-size:9px;
+  line-height:1.7;
+}
+.reward-choice.reward-choice-simple .rc-good{
+  color:#8ff0a4;
+  background:rgba(62,190,96,.10);
+  border:1px solid rgba(89,214,121,.16);
+}
+.reward-choice.reward-choice-simple .rc-good .rc-effect-mark{
+  color:#70ef91;
+}
+.reward-choice.reward-choice-simple .rc-bad{
+  color:#ff8e8e;
+  background:rgba(218,65,65,.10);
+  border:1px solid rgba(255,100,100,.16);
+}
+.reward-choice.reward-choice-simple .rc-bad .rc-effect-mark{
+  color:#ff7171;
+}
+.reward-choice.reward-choice-simple .rc-neutral{
+  color:#c9c2d2;
+  background:rgba(180,170,195,.055);
+  border:1px solid rgba(205,195,220,.10);
+}
+.reward-choice.reward-choice-simple .rc-neutral .rc-effect-mark{
+  color:#91889e;
+}
+@media(max-width:680px){
+  .reward-choice.reward-choice-simple .rc-effect-line{padding:5px 7px;gap:6px;}
+}
+
+/* Village Raid 2.1 · True Siege visual pass */
+#map .cell.v-zone-assault,
+#map .cell.v-zone-frontline,
+#map .cell.v-zone-barricade,
+#map .cell.v-zone-town,
+#map .cell.v-zone-castle,
+#map .cell.v-zone-ruin{
+  position:relative;
+}
+#map .cell.v-zone-assault,
+#map .cell.v-zone-frontline{
+  background-image:
+    linear-gradient(180deg, rgba(126,92,65,.08), rgba(58,44,34,.18)),
+    radial-gradient(circle at 50% 72%, rgba(255,160,96,.12), rgba(255,160,96,0) 58%),
+    linear-gradient(145deg, rgba(87,75,62,.95), rgba(61,51,43,.96)) !important;
+}
+#map .cell.v-zone-assault::after{
+  content:''; position:absolute; inset:8% 14%; border-radius:999px; opacity:.35;
+  background:repeating-linear-gradient(90deg, rgba(0,0,0,.14), rgba(0,0,0,.14) 4px, transparent 4px, transparent 11px);
+}
+#map .cell.v-zone-frontline{
+  background-image:
+    linear-gradient(180deg, rgba(255,214,117,.06), rgba(98,62,41,.2)),
+    linear-gradient(145deg, rgba(102,82,65,.98), rgba(70,56,45,.98)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,215,128,.08);
+}
+#map .cell.v-zone-frontline::before{
+  content:''; position:absolute; left:0; right:0; top:40%; height:20%; opacity:.45;
+  background:linear-gradient(90deg, transparent, rgba(255,228,158,.45), transparent);
+}
+#map .cell.v-zone-town,
+#map .cell.v-struct{
+  background-image:
+    linear-gradient(180deg, rgba(82,118,84,.08), rgba(40,62,49,.18)),
+    linear-gradient(145deg, rgba(77,92,76,.98), rgba(55,69,57,.98)) !important;
+}
+#map .cell.v-zone-castle,
+#map .cell.v-castlecell{
+  background-image:
+    linear-gradient(180deg, rgba(128,143,176,.12), rgba(52,64,87,.14)),
+    linear-gradient(145deg, rgba(88,102,128,.98), rgba(59,71,92,.98)) !important;
+}
+#map .cell.v-block.v-feature-barricade{
+  background:
+    linear-gradient(180deg, rgba(132,84,43,.95), rgba(84,51,29,.98)) !important;
+  box-shadow: inset 0 0 0 1px rgba(39,21,8,.55), inset 0 7px 14px rgba(255,200,138,.1), 0 0 0 1px rgba(0,0,0,.24);
+}
+#map .cell.v-block.v-feature-barricade::after{
+  content:''; position:absolute; inset:10% 8% 12%; z-index:8; pointer-events:none;
+  background:
+    repeating-linear-gradient(90deg, rgba(56,27,12,.55), rgba(56,27,12,.55) 6px, transparent 6px, transparent 12px),
+    linear-gradient(180deg, transparent 0 55%, rgba(0,0,0,.18) 55% 100%);
+  clip-path: polygon(0 100%, 0 60%, 8% 12%, 16% 60%, 24% 14%, 32% 60%, 40% 10%, 48% 60%, 56% 15%, 64% 60%, 72% 12%, 80% 60%, 88% 16%, 96% 60%, 100% 100%);
+}
+#map .cell.v-road.v-feature-entry{
+  box-shadow: inset 0 0 0 1px rgba(240,123,97,.28), 0 0 20px rgba(255,126,74,.08);
+}
+#map .cell.v-road.v-feature-entry::before{
+  content:'⚔️'; position:absolute; left:50%; top:56%; transform:translate(-50%,-50%);
+  font-size:clamp(9px,1vw,14px); opacity:.5; filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));
+}
+#map .cell.v-road.v-feature-mainlane{
+  box-shadow: inset 0 0 0 1px rgba(255,244,188,.07);
+}
+#map .cell.v-road.v-feature-mainlane::after{
+  content:''; position:absolute; inset:0; opacity:.2;
+  background:linear-gradient(180deg, transparent, rgba(255,232,158,.28), transparent);
+}
+#map .cell.v-road.v-feature-banner::after{
+  content:'🚩'; position:absolute; left:50%; top:30%; transform:translate(-50%,-50%);
+  font-size:clamp(10px,1.1vw,16px); z-index:8; filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));
+}
+#map .cell.v-road.v-ruin,
+#map .cell.v-zone-ruin{
+  background-image:
+    linear-gradient(180deg, rgba(121,76,49,.12), rgba(49,36,29,.2)),
+    linear-gradient(145deg, rgba(86,68,61,.96), rgba(57,46,41,.98)) !important;
+}
+#map .v-ruin-deco{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  z-index:7; font-size:clamp(8px,1vw,15px); opacity:.62; filter:drop-shadow(0 1px 1px rgba(0,0,0,.6)); pointer-events:none;
+}
+#map .cell.v-ruin-barricade .v-ruin-deco{opacity:.72}
+
+/* v90 · Village Raid art integration
+   - 적용 대상: 실제 마을 습격 화면
+   - 새로 만든 48px 기준 픽셀 아트 바닥 / 벽 / 건물 사용 */
+#map .v-ruin-deco{display:none !important;}
+
+/* 기본 바닥 */
+#map .cell.v-road,
+#map .cell.v-struct,
+#map .cell.v-castlecell{
+  background:#26211f url('../assets/images/raid/raid_floor_village.png') center/100% 100% no-repeat !important;
+  image-rendering:pixelated !important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03) !important;
+  filter:none !important;
+}
+
+/* 구역별 바닥 변주 */
+#map .cell.v-road.v-zone-assault,
+#map .cell.v-struct.v-zone-assault{
+  background:#2d231d url('../assets/images/raid/raid_floor_assault.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-zone-frontline,
+#map .cell.v-struct.v-zone-frontline{
+  background:#2c241e url('../assets/images/raid/raid_floor_frontline.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-zone-barricade,
+#map .cell.v-struct.v-zone-barricade{
+  background:#2a221c url('../assets/images/raid/raid_floor_barricade.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-zone-town,
+#map .cell.v-struct.v-zone-town{
+  background:#26211f url('../assets/images/raid/raid_floor_village.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-zone-castle,
+#map .cell.v-struct.v-zone-castle,
+#map .cell.v-castlecell{
+  background:#302a26 url('../assets/images/raid/raid_floor_castle.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-ruin,
+#map .cell.v-struct.v-ruin,
+#map .cell.v-castlecell.v-ruin{
+  background:#231d1c url('../assets/images/raid/raid_floor_ruin.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-feature-mainlane,
+#map .cell.v-struct.v-feature-mainlane,
+#map .cell.v-castlecell.v-feature-mainlane{
+  background:#30261b url('../assets/images/raid/raid_floor_mainlane.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-road.v-feature-townlane,
+#map .cell.v-struct.v-feature-townlane{
+  background:#2d2723 url('../assets/images/raid/raid_floor_townsquare.png') center/100% 100% no-repeat !important;
+}
+
+/* 벽 / 바리케이드 */
+#map .cell.v-block,
+#map .cell.v-cell.v-block{
+  background:#24201d url('../assets/images/raid/wall_stone.png') center/100% 100% no-repeat !important;
+  image-rendering:pixelated !important;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.035) !important;
+  filter:none !important;
+}
+#map .cell.v-block.v-feature-barricade,
+#map .cell.v-cell.v-block.v-feature-barricade{
+  background:#2a1f17 url('../assets/images/raid/wall_barricade.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-block.v-crack3,
+#map .cell.v-cell.v-block.v-crack3{
+  background:#292420 url('../assets/images/raid/wall_stone_broken.png') center/100% 100% no-repeat !important;
+}
+#map .cell.v-block::before,
+#map .cell.v-cell.v-block::before{content:none !important; background:none !important;}
+
+/* 건물/성 그래픽이 바닥 위에 더 자연스럽게 올라오도록 위치 미세 조정 */
+#map .v-sprite:not(.v-sprite-castle){
+  left:-2% !important;
+  top:-6% !important;
+  width:204% !important;
+  height:202% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 6px 7px rgba(0,0,0,.56)) !important;
+}
+#map .v-sprite.v-sprite-castle{
+  left:-2% !important;
+  top:-5% !important;
+  width:404% !important;
+  height:402% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 8px 10px rgba(0,0,0,.60)) !important;
+}
+
+/* v91 · readability-first raid art pass */
+#map .cell.v-road,
+#map .cell.v-struct,
+#map .cell.v-castlecell,
+#map .cell.v-block{
+  image-rendering:pixelated !important;
+}
+
+/* stronger separation between raid zones */
+#map .cell.v-road.v-zone-assault,
+#map .cell.v-struct.v-zone-assault{
+  box-shadow: inset 0 0 0 1px rgba(28,16,10,.55), inset 0 1px 0 rgba(255,220,170,.05) !important;
+}
+#map .cell.v-road.v-zone-frontline,
+#map .cell.v-struct.v-zone-frontline{
+  box-shadow: inset 0 0 0 1px rgba(76,36,24,.58), inset 0 0 0 2px rgba(207,173,100,.18) !important;
+}
+#map .cell.v-road.v-zone-town,
+#map .cell.v-struct.v-zone-town{
+  box-shadow: inset 0 0 0 1px rgba(48,42,39,.50), inset 0 1px 0 rgba(255,255,255,.05) !important;
+}
+#map .cell.v-road.v-zone-castle,
+#map .cell.v-struct.v-zone-castle,
+#map .cell.v-castlecell{
+  box-shadow: inset 0 0 0 1px rgba(37,45,55,.60), inset 0 0 0 2px rgba(164,190,220,.12) !important;
+}
+#map .cell.v-road.v-ruin,
+#map .cell.v-struct.v-ruin,
+#map .cell.v-castlecell.v-ruin{
+  box-shadow: inset 0 0 0 1px rgba(28,24,23,.62) !important;
+}
+
+/* clearer walls and barricade line */
+#map .cell.v-block,
+#map .cell.v-cell.v-block{
+  box-shadow: inset 0 0 0 1px rgba(20,24,18,.7), 0 0 0 1px rgba(0,0,0,.16) !important;
+}
+#map .cell.v-block.v-feature-barricade,
+#map .cell.v-cell.v-block.v-feature-barricade{
+  box-shadow: inset 0 0 0 1px rgba(51,28,14,.72), inset 0 -6px 0 rgba(0,0,0,.18) !important;
+}
+
+/* building readability */
+#map .v-base{
+  filter: drop-shadow(0 4px 4px rgba(0,0,0,.45));
+}
+#map .v-base.v-objective::after{
+  box-shadow: 0 0 0 2px rgba(255,221,95,.55), 0 0 12px rgba(255,180,50,.25) !important;
+}
+#map .v-sprite:not(.v-sprite-castle){
+  filter: drop-shadow(0 5px 6px rgba(0,0,0,.58)) contrast(1.05) saturate(1.04) !important;
+}
+#map .v-sprite.v-sprite-castle{
+  filter: drop-shadow(0 7px 8px rgba(0,0,0,.62)) contrast(1.06) saturate(1.04) !important;
+}
+
+/* v92 · Village Raid single-background scene
+   15x15 grid remains logic-only; terrain is rendered as one 720x720 background image. */
+#map.village-bg-scene{
+  background:#2e2924 url('../assets/images/raid/village_siege_bg.png') center / 100% 100% no-repeat !important;
+  image-rendering:pixelated !important;
+  overflow:hidden !important;
+  isolation:isolate;
+}
+
+/* Hide all per-cell terrain art. Cells are now invisible collision / positioning nodes. */
+#map.village-bg-scene .cell.v-cell,
+#map.village-bg-scene .cell.v-road,
+#map.village-bg-scene .cell.v-struct,
+#map.village-bg-scene .cell.v-castlecell,
+#map.village-bg-scene .cell.v-block,
+#map.village-bg-scene .cell.v-ruin{
+  background:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  filter:none !important;
+  outline:none !important;
+}
+#map.village-bg-scene .cell.v-cell::before,
+#map.village-bg-scene .cell.v-cell::after,
+#map.village-bg-scene .cell.v-block::before,
+#map.village-bg-scene .cell.v-block::after,
+#map.village-bg-scene .cell.v-road::before,
+#map.village-bg-scene .cell.v-road::after{
+  content:none !important;
+  background:none !important;
+  box-shadow:none !important;
+}
+#map.village-bg-scene .v-ruin-deco{display:none !important;}
+
+/* The opening barricade is a single scene object instead of 13 repeated tiles. */
+#map.village-bg-scene.v-breach-closed::after{
+  content:'';
+  position:absolute;
+  left:6.66%;
+  top:59.6%;
+  width:86.68%;
+  height:7.35%;
+  z-index:7;
+  pointer-events:none;
+  background:url('../assets/images/raid/wall_barricade.png') center / auto 100% repeat-x;
+  image-rendering:pixelated;
+  filter:drop-shadow(0 5px 4px rgba(0,0,0,.48)) contrast(1.06) saturate(.98);
+}
+#map.village-bg-scene.v-breach-open::after{content:none !important;}
+
+/* Buildings are separate objects sitting on the scene background. */
+#map.village-bg-scene .cell.v-cell.v-build-root,
+#map.village-bg-scene .cell.v-cell.v-castle-root{
+  overflow:visible !important;
+  z-index:12 !important;
+}
+#map.village-bg-scene .v-base{display:none !important;}
+#map.village-bg-scene .v-sprite:not(.v-sprite-castle){
+  left:-7% !important;
+  top:-11% !important;
+  width:214% !important;
+  height:210% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 7px 7px rgba(0,0,0,.62)) contrast(1.06) saturate(1.02) !important;
+}
+#map.village-bg-scene .v-sprite.v-sprite-castle{
+  left:-4% !important;
+  top:-10% !important;
+  width:408% !important;
+  height:405% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 10px 10px rgba(0,0,0,.68)) contrast(1.07) saturate(1.02) !important;
+}
+#map.village-bg-scene .v-hp{
+  background:rgba(18,14,20,.92) !important;
+  box-shadow:0 2px 5px rgba(0,0,0,.62) !important;
+}
+
+/* Keep traps / gameplay markers as object overlays. */
+#map.village-bg-scene .v-trap-icon{z-index:13 !important;}
+
+/* v93 · Village Raid visual separation pass (steps 1-4 only)
+   1) Village raid board uses a true 720x720 playfield.
+   2) 15x15 cells remain logic-only and invisible.
+   3) Terrain is a single scene background image.
+   4) Opening defense line is one long barricade object.
+   Dungeon mode is unaffected because every layout rule is scoped to body.village-raid-layout. */
+body.village-raid-layout{
+  overflow:auto !important;
+}
+body.village-raid-layout #app{
+  max-width:780px !important;
+  width:min(100%,780px) !important;
+  height:auto !important;
+  min-height:100vh !important;
+  overflow:visible !important;
+}
+body.village-raid-layout #boardWrap{
+  flex:0 0 auto !important;
+  min-height:732px !important;
+  height:732px !important;
+  width:100% !important;
+  justify-content:center !important;
+}
+body.village-raid-layout #board-frame{
+  flex:0 0 732px !important;
+  width:732px !important;
+  height:732px !important;
+  min-width:0 !important;
+  min-height:0 !important;
+  max-width:100% !important;
+  padding:5px !important;
+  margin:0 auto !important;
+  align-items:flex-start !important;
+  justify-content:flex-start !important;
+  overflow:auto !important;
+}
+body.village-raid-layout #board-inner{
+  flex:0 0 720px !important;
+  width:720px !important;
+  height:720px !important;
+  margin:0 !important;
+}
+body.village-raid-layout #stageBackdrop{
+  display:none !important;
+}
+body.village-raid-layout #map.village-bg-scene{
+  width:720px !important;
+  height:720px !important;
+  min-width:720px !important;
+  min-height:720px !important;
+  background:#2e2924 url('../assets/images/raid/village_siege_bg.png') center/720px 720px no-repeat !important;
+  border-radius:6px !important;
+  overflow:hidden !important;
+}
+body.village-raid-layout #rangeLayer,
+body.village-raid-layout #tokenLayer{
+  width:720px !important;
+  height:720px !important;
+}
+
+/* The logic grid is fully invisible during the raid. */
+body.village-raid-layout #map.village-bg-scene .cell.v-cell,
+body.village-raid-layout #map.village-bg-scene .cell.v-road,
+body.village-raid-layout #map.village-bg-scene .cell.v-struct,
+body.village-raid-layout #map.village-bg-scene .cell.v-castlecell,
+body.village-raid-layout #map.village-bg-scene .cell.v-block,
+body.village-raid-layout #map.village-bg-scene .cell.v-ruin{
+  background:transparent !important;
+  background-image:none !important;
+  border:0 !important;
+  outline:0 !important;
+  box-shadow:none !important;
+  filter:none !important;
+}
+body.village-raid-layout #map.village-bg-scene .cell.v-cell::before,
+body.village-raid-layout #map.village-bg-scene .cell.v-cell::after{
+  content:none !important;
+  display:none !important;
+}
+
+/* One continuous barricade image, not 13 repeated cell graphics. */
+body.village-raid-layout #map.village-bg-scene.v-breach-closed::after{
+  content:'' !important;
+  display:block !important;
+  position:absolute !important;
+  left:48px !important;
+  top:414px !important;
+  width:624px !important;
+  height:96px !important;
+  z-index:7 !important;
+  pointer-events:none !important;
+  background:url('../assets/images/raid/village_barricade_full.png') center/624px 96px no-repeat !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 7px 6px rgba(0,0,0,.55)) !important;
+}
+body.village-raid-layout #map.village-bg-scene.v-breach-open::after{
+  content:none !important;
+  display:none !important;
+}
+
+/* Small viewports keep the 720px game scene and scroll it instead of shrinking it into an unreadable thumbnail. */
+@media(max-width:760px){
+  body.village-raid-layout #app{max-width:100% !important;padding-left:4px !important;padding-right:4px !important;}
+  body.village-raid-layout #boardWrap{height:min(732px,72vh) !important;min-height:min(732px,72vh) !important;}
+  body.village-raid-layout #board-frame{width:100% !important;height:100% !important;flex:1 1 auto !important;}
+}
+
+/* v94 · Village Raid object layer integration
+   High-detail illustrated battlefield as one background, with actual target structures above it. */
+body.village-raid-layout #map.village-bg-scene{
+  background:#241b16 url('../assets/images/raid/village_siege_bg.png') center / 720px 720px no-repeat !important;
+}
+
+/* Actual destructible building objects. */
+body.village-raid-layout #map.village-bg-scene .cell.v-build-root,
+body.village-raid-layout #map.village-bg-scene .cell.v-castle-root,
+body.village-raid-layout #map.village-bg-scene .cell.v-ruin-root{
+  overflow:visible !important;
+  z-index:18 !important;
+}
+body.village-raid-layout #map.village-bg-scene .v-sprite:not(.v-sprite-castle){
+  left:-48% !important;
+  top:-42% !important;
+  width:300% !important;
+  height:286% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  z-index:19 !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 10px 8px rgba(0,0,0,.72)) contrast(1.08) saturate(1.08) !important;
+}
+body.village-raid-layout #map.village-bg-scene .v-sprite.v-sprite-castle{
+  left:-76% !important;
+  top:-22% !important;
+  width:560% !important;
+  height:485% !important;
+  object-fit:contain !important;
+  object-position:center bottom !important;
+  z-index:18 !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 13px 11px rgba(0,0,0,.76)) contrast(1.08) saturate(1.05) !important;
+}
+body.village-raid-layout #map.village-bg-scene .v-sprite.v-objective{
+  filter:drop-shadow(0 0 7px rgba(255,210,78,.92)) drop-shadow(0 10px 8px rgba(0,0,0,.72)) contrast(1.08) saturate(1.08) !important;
+}
+body.village-raid-layout #map.village-bg-scene .v-sprite.v-priority{
+  filter:drop-shadow(0 0 11px rgba(255,132,52,.98)) drop-shadow(0 10px 8px rgba(0,0,0,.74)) contrast(1.10) saturate(1.10) !important;
+}
+
+/* Clear readable HP bars bound to the real structure state. */
+body.village-raid-layout #map.village-bg-scene .v-hp{
+  left:-28% !important;
+  top:-24% !important;
+  width:256% !important;
+  height:7px !important;
+  z-index:24 !important;
+  border:1px solid rgba(15,10,12,.9) !important;
+  background:rgba(22,15,17,.92) !important;
+  box-shadow:0 2px 6px rgba(0,0,0,.8) !important;
+}
+body.village-raid-layout #map.village-bg-scene .v-hp.v-hp-castle{
+  left:-42% !important;
+  top:-10% !important;
+  width:485% !important;
+  height:8px !important;
+}
+
+/* Central defense line is one real visual object tied to the existing breach block state. */
+body.village-raid-layout #map.village-bg-scene.v-breach-closed::after{
+  content:'' !important;
+  display:block !important;
+  position:absolute !important;
+  left:48px !important;
+  top:329px !important;
+  width:624px !important;
+  height:170px !important;
+  z-index:15 !important;
+  pointer-events:none !important;
+  background:url('../assets/images/raid/village_barricade_full.png') center bottom / 624px 170px no-repeat !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 11px 8px rgba(0,0,0,.65)) contrast(1.05) saturate(1.04) !important;
+}
+body.village-raid-layout #map.village-bg-scene.v-breach-open::after{
+  content:'' !important;
+  display:block !important;
+  position:absolute !important;
+  left:48px !important;
+  top:329px !important;
+  width:624px !important;
+  height:170px !important;
+  z-index:9 !important;
+  pointer-events:none !important;
+  background:url('../assets/images/raid/village_barricade_broken.png') center bottom / 624px 170px no-repeat !important;
+  image-rendering:pixelated !important;
+  filter:drop-shadow(0 8px 6px rgba(0,0,0,.52)) brightness(.86) !important;
+}
+
+/* Destroyed targets remain as actual ruin objects instead of disappearing. */
+body.village-raid-layout #map.village-bg-scene .v-ruin-sprite{
+  position:absolute;
+  left:-42%;
+  top:-5%;
+  width:285%;
+  height:230%;
+  object-fit:contain;
+  object-position:center bottom;
+  z-index:17;
+  pointer-events:none;
+  image-rendering:pixelated;
+  filter:drop-shadow(0 6px 6px rgba(0,0,0,.68)) brightness(.78) saturate(.72);
+}
+body.village-raid-layout #map.village-bg-scene .v-ruin-sprite.v-ruin-castle{
+  left:-88%;
+  top:12%;
+  width:570%;
+  height:360%;
+  filter:drop-shadow(0 8px 7px rgba(0,0,0,.72)) brightness(.70) saturate(.60);
+}
+
+
+/* v95 · Village Raid viewport-fit and clean background/collision separation */
+body.village-raid-layout #app{
+  max-width:min(calc(100vw - 12px), 920px) !important;
+  width:min(calc(100vw - 12px), 920px) !important;
+  min-height:0 !important;
+}
+body.village-raid-layout #boardWrap{
+  width:100% !important;
+  height:min(calc((var(--vh, 1vh) * 100) - 355px), 732px) !important;
+  min-height:340px !important;
+  max-height:732px !important;
+}
+body.village-raid-layout #board-frame{
+  width:100% !important;
+  height:100% !important;
+  flex:1 1 auto !important;
+  align-items:center !important;
+  justify-content:center !important;
+  overflow:hidden !important;
+  padding:6px !important;
+}
+body.village-raid-layout #board-inner{
+  margin:0 auto !important;
+}
+body.village-raid-layout #map.village-bg-scene,
+body.village-raid-layout #rangeLayer,
+body.village-raid-layout #tokenLayer{
+  min-width:0 !important;
+  min-height:0 !important;
+  background-size:100% 100% !important;
+}
+@media (max-width: 760px){
+  body.village-raid-layout #boardWrap{
+    height:min(calc((var(--vh, 1vh) * 100) - 325px), 72vh) !important;
+    min-height:300px !important;
+  }
+}
+
+
+/* v92 redesigned obstacle facing / rune gate states */
+#map .cell.ob-gust.ob-dir-right .obstacle-icon,#map .cell.ob-gust.ob-dir-right .obstacle-anim,
+#map .cell.ob-magnet.ob-dir-right .obstacle-icon,#map .cell.ob-magnet.ob-dir-right .obstacle-anim{transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1))) rotate(0deg);}
+#map .cell.ob-gust.ob-dir-down .obstacle-icon,#map .cell.ob-gust.ob-dir-down .obstacle-anim,
+#map .cell.ob-magnet.ob-dir-down .obstacle-icon,#map .cell.ob-magnet.ob-dir-down .obstacle-anim{transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1))) rotate(90deg);}
+#map .cell.ob-gust.ob-dir-left .obstacle-icon,#map .cell.ob-gust.ob-dir-left .obstacle-anim,
+#map .cell.ob-magnet.ob-dir-left .obstacle-icon,#map .cell.ob-magnet.ob-dir-left .obstacle-anim{transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1))) rotate(180deg);}
+#map .cell.ob-gust.ob-dir-up .obstacle-icon,#map .cell.ob-gust.ob-dir-up .obstacle-anim,
+#map .cell.ob-magnet.ob-dir-up .obstacle-icon,#map .cell.ob-magnet.ob-dir-up .obstacle-anim{transform:scale(calc(var(--ob-level-scale,1) * var(--ob-anim-scale,1))) rotate(-90deg);}
+#map .cell.rune-gate-open{box-shadow:inset 0 0 0 1px rgba(150,105,220,.14),inset 0 0 8px rgba(91,59,150,.08);}
+#map .cell.rune-gate-closed{box-shadow:inset 0 0 0 1px rgba(205,125,255,.62),inset 0 0 14px rgba(161,73,255,.36),0 0 8px rgba(161,73,255,.24);}
+#map .cell.rune-gate-closed .obstacle-anim{filter:brightness(1.22) saturate(1.22) drop-shadow(0 0 7px rgba(176,88,255,.85));}
+#map .cell.rune-gate-sealed{box-shadow:inset 0 0 0 2px rgba(220,142,255,.85),inset 0 0 18px rgba(139,51,220,.48),0 0 10px rgba(174,83,255,.38);}
+#map .cell.rune-gate-sealed .obstacle-icon{filter:brightness(1.18) saturate(1.25) drop-shadow(0 0 9px rgba(190,92,255,.9));}
+
+
+/* ==========================================================
+   v93 · Remade obstacle dedicated combat FX
+   Visual-only layer. Does not alter obstacle damage or timing.
+   ========================================================== */
+.trapfx-flamejet,.trapfx-harpoon,.trapfx-mimic,.trapfx-rune{position:absolute;width:0;height:0;pointer-events:none;z-index:46;transform:translate(-50%,-50%)}
+.trapfx-flamejet{transform:translate(-50%,-50%) rotate(var(--jet-ang,0deg));transform-origin:center}
+.tf-jet-beam{position:absolute;left:0;top:0;width:var(--jet-len,144px);height:var(--jet-w,34px);transform:translateY(-50%) scaleX(.08);transform-origin:0 50%;border-radius:45% 70% 70% 45%;background:linear-gradient(90deg,rgba(255,255,220,.96) 0 7%,#fff08a 12%,#ffb12d 32%,#ff5b1e 62%,rgba(255,55,12,.12) 100%);filter:drop-shadow(0 0 7px #ff7a19) drop-shadow(0 0 15px rgba(255,48,8,.65));mix-blend-mode:screen;animation:tfJetBeam .68s cubic-bezier(.12,.7,.2,1) forwards}
+.tf-jet-core{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;transform:translate(-35%,-50%) scale(.2);background:radial-gradient(circle,#fff 0 12%,#ffd344 28%,#ff5922 54%,transparent 74%);animation:tfJetCore .6s ease-out forwards}
+.tf-jet-ember{position:absolute;left:0;top:0;width:5px;height:5px;border-radius:50%;background:#ffd166;box-shadow:0 0 6px #ff6a19;opacity:0;animation:tfJetEmber .68s ease-out var(--d,0ms) forwards}
+@keyframes tfJetBeam{0%{opacity:0;transform:translateY(-50%) scaleX(.05) scaleY(.45)}14%{opacity:1;transform:translateY(-50%) scaleX(1) scaleY(1.15)}55%{opacity:.96;transform:translateY(-50%) scaleX(1) scaleY(.92)}100%{opacity:0;transform:translateY(-50%) scaleX(.96) scaleY(.25)}}
+@keyframes tfJetCore{0%{opacity:0;transform:translate(-35%,-50%) scale(.15)}25%{opacity:1;transform:translate(-35%,-50%) scale(1.3)}100%{opacity:0;transform:translate(-35%,-50%) scale(.4)}}
+@keyframes tfJetEmber{0%{opacity:0;transform:translate(0,0) scale(.5)}15%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(.1)}}
+
+.trapfx-harpoon{transform:translate(-50%,-50%) rotate(var(--chain-ang,0deg));transform-origin:center;color:#c9a6ff}
+.tf-reel{position:absolute;left:0;top:0;width:18px;height:18px;border-radius:50%;transform:translate(-50%,-50%) scale(.3);background:radial-gradient(circle at 35% 35%,#faf4ff 0 10%,#a783d8 11% 26%,#2f2438 27% 68%,#120e18 69% 100%);box-shadow:0 0 0 2px rgba(225,196,255,.28),0 0 10px rgba(165,112,255,.45);animation:tfReelPulse .82s ease-out forwards}
+.tf-chain-spine{position:absolute;left:0;top:0;width:var(--chain-len,80px);height:3px;transform:translateY(-50%) scaleX(.05);transform-origin:0 50%;background:linear-gradient(90deg,rgba(212,188,240,.75),rgba(91,73,114,.95) 22%,rgba(215,199,241,.92) 50%,rgba(87,69,108,.95) 78%,rgba(223,204,255,.7));box-shadow:0 0 5px rgba(169,105,255,.6);opacity:0;animation:tfChainSpine .82s cubic-bezier(.18,.72,.2,1) forwards}
+.tf-chain-link{position:absolute;top:0;width:13px;height:8px;border:2px solid #ddd3f0;border-radius:999px;transform:translate(-50%,-50%) scale(.18) rotate(18deg);transform-origin:center;background:linear-gradient(180deg,#f8f3ff,#7a678d 45%,#241a2e);box-shadow:0 0 4px rgba(185,123,255,.45);opacity:0;animation:tfChainLink .82s var(--d,0ms) cubic-bezier(.2,.72,.2,1) forwards}
+.tf-chain-link.alt{transform:translate(-50%,-50%) scale(.18) rotate(-18deg)}
+.tf-hook-head{position:absolute;left:var(--chain-len,80px);top:0;width:28px;height:10px;border-radius:5px;background:linear-gradient(180deg,#f8f0ff,#bda7d8 40%,#5d496d 70%,#241a30);transform:translate(-20%,-50%) scale(.22);transform-origin:15% 50%;box-shadow:0 0 7px rgba(177,119,255,.7);opacity:0;animation:tfHookHead .82s cubic-bezier(.18,.72,.2,1) forwards}
+.tf-hook-head:before{content:'';position:absolute;right:-13px;top:50%;transform:translateY(-50%);width:15px;height:12px;background:linear-gradient(90deg,#dfd3f3,#9070cb 55%,#3b2a48);clip-path:polygon(0 50%,100% 0,100% 100%)}
+.tf-hook-head:after{content:'';position:absolute;left:4px;top:50%;transform:translateY(-50%);width:8px;height:18px;background:linear-gradient(180deg,transparent 0 15%,#d9c7f4 15% 40%,transparent 40% 60%,#d9c7f4 60% 85%,transparent 85% 100%);opacity:.92}
+.tf-hook-bind{position:absolute;left:var(--chain-len,80px);top:0;width:24px;height:24px;transform:translate(-50%,-50%) scale(.15);opacity:0;animation:tfHookBind .56s .25s ease-out forwards}
+.tf-hook-bind i{position:absolute;inset:0;border:2px solid rgba(230,218,255,.95);border-radius:50%;transform:rotate(var(--rot,0deg)) scaleX(.58);box-shadow:0 0 7px rgba(164,108,255,.35)}
+.tf-hook-hit{position:absolute;left:var(--chain-len,80px);top:0;width:24px;height:24px;border:2px solid #e9d8ff;border-radius:50%;transform:translate(-50%,-50%) scale(.1);opacity:0;animation:tfHookHit .54s .16s ease-out forwards}
+.tf-hook-spark{position:absolute;left:var(--chain-len,80px);top:0;width:7px;height:3px;border-radius:3px;background:linear-gradient(90deg,#fff3cc,#d79dff 65%,transparent);transform:translate(-50%,-50%) rotate(var(--a,0deg)) translateX(1px) scale(.2);opacity:0;box-shadow:0 0 6px rgba(205,144,255,.9);animation:tfHookSpark .42s .18s ease-out forwards}
+@keyframes tfReelPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(.12)}18%{opacity:1}50%{transform:translate(-50%,-50%) scale(1.08)}100%{opacity:0;transform:translate(-50%,-50%) scale(.72)}}
+@keyframes tfChainSpine{0%{opacity:0;transform:translateY(-50%) scaleX(.02)}14%{opacity:1}56%{opacity:.95;transform:translateY(-50%) scaleX(1)}72%{opacity:.9;transform:translateY(-50%) scaleX(1)}100%{opacity:0;transform:translateY(-50%) scaleX(.34)}}
+@keyframes tfChainLink{0%{opacity:0;filter:brightness(.8)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.02) rotate(18deg)}55%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(18deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.55) rotate(18deg)}}
+.tf-chain-link.alt{animation-name:tfChainLinkAlt}
+@keyframes tfChainLinkAlt{0%{opacity:0;filter:brightness(.8)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.02) rotate(-18deg)}55%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-18deg)}100%{opacity:0;transform:translate(-50%,-50%) scale(.55) rotate(-18deg)}}
+@keyframes tfHookHead{0%{left:0;opacity:0;transform:translate(-20%,-50%) scale(.18)}18%{opacity:1}55%{left:var(--chain-len);opacity:1;transform:translate(-20%,-50%) scale(1.06)}72%{left:var(--chain-len);opacity:1;transform:translate(-20%,-50%) scale(1)}100%{left:var(--chain-return);opacity:0;transform:translate(-20%,-50%) scale(.7)}}
+@keyframes tfHookBind{0%{opacity:0;transform:translate(-50%,-50%) scale(.1)}20%{opacity:1}55%{opacity:.95;transform:translate(-50%,-50%) scale(1.12)}100%{opacity:0;transform:translate(-50%,-50%) scale(.55)}}
+@keyframes tfHookHit{0%{opacity:0;transform:translate(-50%,-50%) scale(.1)}25%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}}
+@keyframes tfHookSpark{0%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a,0deg)) translateX(1px) scale(.2)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--a,0deg)) translateX(18px) scale(1)}}
+
+.trapfx-mimic{color:#ff62c7}
+.tf-mimic-aura{position:absolute;width:var(--mimic-size);height:var(--mimic-size);left:0;top:0;border-radius:50%;transform:translate(-50%,-50%) scale(.25);background:radial-gradient(circle,rgba(255,82,199,.48),rgba(126,38,170,.16) 45%,transparent 72%);animation:tfMimicAura .75s ease-out forwards}
+.tf-jaw{position:absolute;left:0;width:calc(var(--mimic-size)*.85);height:calc(var(--mimic-size)*.34);background:linear-gradient(#38223f,#141018);border:3px solid #c974da;box-shadow:0 0 9px #ff54cb;overflow:hidden}
+.tf-jaw:after{content:"";position:absolute;left:4%;right:4%;height:13px;background:repeating-linear-gradient(90deg,#fff6df 0 7px,transparent 7px 13px);clip-path:polygon(0 0,100% 0,92% 100%,84% 0,76% 100%,68% 0,60% 100%,52% 0,44% 100%,36% 0,28% 100%,20% 0,12% 100%,4% 0)}
+.tf-jaw-top{top:0;transform:translate(-50%,-95%) rotate(-10deg);border-radius:10px 10px 3px 3px;transform-origin:50% 100%;animation:tfJawTop .68s cubic-bezier(.3,.85,.3,1) forwards}.tf-jaw-top:after{bottom:-1px}
+.tf-jaw-bottom{top:0;transform:translate(-50%,5%) rotate(10deg);border-radius:3px 3px 10px 10px;transform-origin:50% 0;animation:tfJawBottom .68s cubic-bezier(.3,.85,.3,1) forwards}.tf-jaw-bottom:after{top:-1px;transform:rotate(180deg)}
+.tf-mimic-tongue{position:absolute;left:0;top:0;width:calc(var(--mimic-size)*.58);height:10px;border-radius:10px;background:linear-gradient(90deg,#ff57bf,#9f3bca);box-shadow:0 0 8px #ff62d0;transform-origin:0 50%;animation:tfTongue .72s ease-out forwards}
+.tf-mimic-spark{position:absolute;left:0;top:0;width:5px;height:5px;border-radius:50%;background:#ff8fdc;box-shadow:0 0 6px currentColor;transform:rotate(var(--a)) translateX(calc(var(--mimic-size)*.22));animation:tfMimicSpark .65s ease-out forwards}
+@keyframes tfJawTop{0%{opacity:0;transform:translate(-50%,-145%) rotate(-18deg)}35%{opacity:1}58%{transform:translate(-50%,-55%) rotate(0)}75%{transform:translate(-50%,-72%) rotate(-5deg)}100%{opacity:0;transform:translate(-50%,-58%) rotate(0)}}
+@keyframes tfJawBottom{0%{opacity:0;transform:translate(-50%,55%) rotate(18deg)}35%{opacity:1}58%{transform:translate(-50%,-12%) rotate(0)}75%{transform:translate(-50%,3%) rotate(5deg)}100%{opacity:0;transform:translate(-50%,-8%) rotate(0)}}
+@keyframes tfTongue{0%{opacity:0;transform:translate(-10%,-50%) scaleX(.15) rotate(8deg)}35%{opacity:1;transform:translate(-5%,-50%) scaleX(1) rotate(-5deg)}100%{opacity:0;transform:translate(10%,-50%) scaleX(.35) rotate(8deg)}}
+@keyframes tfMimicAura{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}30%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4)}}
+@keyframes tfMimicSpark{0%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateX(calc(var(--mimic-size)*.75)) scale(.2)}}
+
+
+.trapfx-rune{color:#bc72ff}
+.tf-rune-ring{position:absolute;left:0;top:0;width:var(--rune-size);height:var(--rune-size);border:2px solid currentColor;border-radius:50%;transform:translate(-50%,-50%) scale(.25);opacity:0;box-shadow:0 0 10px currentColor;animation:tfRuneRing .72s ease-out forwards}.tf-rune-ring.r2{width:calc(var(--rune-size)*.72);height:calc(var(--rune-size)*.72);animation-delay:.06s}.tf-rune-ring.r3{width:calc(var(--rune-size)*.42);height:calc(var(--rune-size)*.42);animation-delay:.12s}
+.tf-rune-core{position:absolute;left:0;top:0;width:calc(var(--rune-size)*.42);height:calc(var(--rune-size)*.42);border-radius:50%;transform:translate(-50%,-50%) scale(.25);background:radial-gradient(circle,#fff 0 5%,#d398ff 16%,#7837d8 45%,transparent 72%);animation:tfRuneCore .72s ease-out forwards}
+.trapfx-rune.open{color:#76dcff}.trapfx-rune.closed{color:#d08bff}.trapfx-rune.sealed{color:#ff70d9}
+.tf-rune-bar{position:absolute;left:0;top:0;width:5px;height:calc(var(--rune-size)*.82);background:linear-gradient(transparent,#fff 12%,currentColor 25% 75%,#fff 88%,transparent);transform:translate(calc(-50% + var(--x)),-50%) scaleY(.1);box-shadow:0 0 7px currentColor;animation:tfRuneBar .55s ease-out forwards}
+.tf-rune-particle{position:absolute;left:0;top:0;width:5px;height:5px;background:currentColor;transform:rotate(var(--a)) translateX(calc(var(--dist)*.25));box-shadow:0 0 6px currentColor;animation:tfRuneParticle .75s ease-out forwards}
+.trapfx-rune.sealed .tf-rune-ring{border-width:4px}.trapfx-rune.sealed .tf-rune-core{filter:brightness(1.4)}
+@keyframes tfRuneRing{0%{opacity:0;transform:translate(-50%,-50%) scale(.18) rotate(-35deg)}28%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.4) rotate(35deg)}}
+@keyframes tfRuneCore{0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}35%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}100%{opacity:0;transform:translate(-50%,-50%) scale(.55)}}
+@keyframes tfRuneBar{0%{opacity:0;transform:translate(calc(-50% + var(--x)),-50%) scaleY(.05)}35%{opacity:1;transform:translate(calc(-50% + var(--x)),-50%) scaleY(1)}100%{opacity:0;transform:translate(calc(-50% + var(--x)),-50%) scaleY(.72)}}
+@keyframes tfRuneParticle{0%{opacity:1}100%{opacity:0;transform:rotate(var(--a)) translateX(var(--dist)) scale(.2)}}
+
+
+/* Wall-mounted remade obstacle controls */
+.ob-mount-dir{display:grid;grid-template-columns:repeat(4,38px);gap:6px;justify-content:start;margin:7px 0 5px}
+.ob-mount-dir button{height:34px;border:1px solid #554070;border-radius:7px;background:#181225;color:#ddd2f6;font:800 18px/1 monospace;cursor:pointer}
+.ob-mount-dir button[aria-pressed="true"]{border-color:#f0c85a;background:#3a2b20;color:#ffe99a;box-shadow:0 0 0 1px rgba(240,200,90,.22),0 0 10px rgba(240,200,90,.2)}
+.osi-dir-label{margin-top:7px;color:var(--gold);font-size:10px;font-weight:800}
+#map .cell.wall-mount-target::after{box-shadow:inset 0 0 0 2px rgba(95,230,155,.95),0 0 9px rgba(95,230,155,.48)}
+#map .cell.wall-mounted-obstacle .obstacle-icon,#map .cell.wall-mounted-obstacle .obstacle-anim{filter:drop-shadow(0 2px 2px rgba(0,0,0,.7)) drop-shadow(0 0 5px rgba(185,135,255,.26))}
+
+/* Compact wall-mounted direction controls v2
+   Keep direction selection on the same row so the bottom panel does not grow vertically. */
+.obstacle-selection-info.mounted-compact{padding-top:6px;padding-bottom:6px}
+.obstacle-selection-info .osi-title.osi-title-with-dir{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:2px;min-width:0}
+.obstacle-selection-info .osi-title-main{display:inline-flex;align-items:center;min-width:0;white-space:nowrap}
+.ob-mount-dir.compact{display:inline-flex;align-items:center;gap:3px;margin:0;flex:0 0 auto;vertical-align:middle}
+.ob-mount-dir.compact button{width:24px;min-width:24px;height:22px;min-height:22px;padding:0;border:1px solid #554070;border-radius:5px;background:#181225;color:#ddd2f6;font:800 13px/1 monospace;cursor:pointer}
+.ob-mount-dir.compact button[aria-pressed="true"]{border-color:#f0c85a;background:#3a2b20;color:#ffe99a;box-shadow:0 0 0 1px rgba(240,200,90,.18),0 0 6px rgba(240,200,90,.16)}
+.obstacle-status-line{display:flex;align-items:center;gap:5px;justify-content:space-between;flex-wrap:nowrap}
+.obstacle-status-line>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ob-inline-dir-label{margin-left:auto;color:var(--gold);font-size:8.5px;font-weight:800;white-space:nowrap}
+.panel-hint .ob-mount-dir.compact{margin-left:2px}
+@media(max-width:600px){
+  .obstacle-selection-info .osi-title.osi-title-with-dir{gap:4px}
+  .ob-mount-dir.compact{gap:2px}
+  .ob-mount-dir.compact button{width:22px;min-width:22px;height:20px;min-height:20px;font-size:12px}
+  .ob-inline-dir-label{display:none}
 }

@@ -11,7 +11,7 @@ const PHYSICAL_DIRS=[
 ];
 const PHYSICAL_TRAPS={
   wall_crusher:{id:'wall_crusher',name:'압살벽',short:'압살벽',icon:'⚙',kind:'attack',mount:'wall',cost:110,damage:48,windup:.6,recover:.6,cooldown:3.6,color:'#ffb169',physicalSize:[3,3],placementSize:[1,3],
-    desc:'벽면 3칸에 설치되는 3×3 압살 장치. 세 줄의 통로를 동시에 감지하며, 정면 1~3칸 뒤의 맞은편 벽까지 예고 후 철판으로 압착합니다.'},
+    desc:'벽면 3칸에 설치되는 3×3 압살 장치. 설치 당시 맞은편 벽까지의 기본 압착 거리가 고정됩니다. 이후 맞은편 벽이 사라져도 사거리는 늘지 않으며, 벽이 없으면 범위 끝에서 영웅을 밀쳐냅니다.'},
   wall_pusher:{id:'wall_pusher',name:'벽 충격기',short:'벽 충격기',icon:'➜',kind:'debuff',mount:'wall',cost:80,damage:9,windup:.2,recover:.5,cooldown:2.8,push:3,color:'#72d5ec',physicalSize:[2,1],placementSize:[1,1],
     desc:'벽 1칸에 설치되는 2×1 대형 충격 장치. 앞칸의 용사를 선택 방향으로 3칸 밀어내며, 벽 충돌·심연·장외 낙사를 유발합니다.'},
   spring_launcher:{id:'spring_launcher',name:'투척 발판',short:'투척 발판',icon:'↗',kind:'debuff',mount:'floor',cost:65,damage:7,windup:.2,recover:.5,cooldown:2.4,push:4,color:'#e7c66d',physicalSize:[2,2],
@@ -24,7 +24,7 @@ const PHYSICAL_TRAPS={
 function physicalDef(id){ return PHYSICAL_TRAPS[id]||null; }
 function physicalClock(){ return state?.physicalClock||0; }
 function physicalDir(tile){ return PHYSICAL_DIRS[((tile?.physicalDir??state?.physicalDirection??1)%4+4)%4]; }
-function physicalIsFloor(r,c){ const t=state?.grid?.[r]?.[c]; return !!t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade'; }
+function physicalIsFloor(r,c){ const t=state?.grid?.[r]?.[c]; return !!t && (t.type==='floor'||t.type==='core') && t.obstacle!=='barricade' && !(t.obstacle==='collapse_bridge'&&typeof runeGateIsBlocking==='function'&&runeGateIsBlocking(t)); }
 function physicalIsWall(r,c){ const t=state?.grid?.[r]?.[c]; return !!t && t.type==='rock' && !t.isEntrance; }
 function physicalOccupied(r,c){
   return state.heroes.some(h=>h.hp>0&&h.r===r&&h.c===c) || state.monsters.some(m=>m.hp>0&&m.r===r&&m.c===c) || (state.mawang&&!state.mawang.dead&&state.mawang.r===r&&state.mawang.c===c);
@@ -103,24 +103,59 @@ function physicalGeometry(r,c,id,dirIndex){
       return ordinary(nr,nc)?{ok:true,cells:[[nr,nc]],reach:1,footprintCells:fp.cells}:bad('화살표 앞에 통로가 필요합니다.');
     }
     if(id==='wall_crusher'){
-      const hitCells=[],laneReaches=[];
-      // Three adjacent wall cells create three parallel crusher lanes. The wider
-      // along-corridor sensor makes it much harder for fast heroes to slip past between ticks.
+      const rootTile=state.grid[r]?.[c],installed=physicalSameRoot(rootTile,r,c,id),dirKey=((dirIndex??1)%4+4)%4;
+      let baseReaches=(installed&&rootTile.physicalCrusherBaseDir===dirKey&&Array.isArray(rootTile.physicalCrusherBaseReaches))
+        ? rootTile.physicalCrusherBaseReaches.slice(0,fp.width).map(v=>Math.max(1,Math.min(3,Number(v)||1)))
+        : null;
+
+      // 설치 시 맞은편 벽까지의 거리를 한 번만 정하고 이후에는 고정합니다.
+      // 기존 저장본처럼 고정 범위 정보가 없는 압살벽은 현재 상태를 1회 기준으로 삼아 동결합니다.
+      if(!baseReaches||baseReaches.length!==fp.width){
+        const discovered=[];
+        for(let lateral=0;lateral<fp.width;lateral++){
+          const wr=r+fp.side.r*lateral,wc=c+fp.side.c*lateral;
+          const wallTile=state.grid[wr]?.[wc];
+          if(!physicalIsWall(wr,wc)||(wallTile?.obstacle&&!physicalSameRoot(wallTile,r,c,id)))return bad('압살벽은 나란한 벽 3칸을 단독으로 사용해야 합니다.');
+          const lane=[];let foundWall=false;
+          for(let k=1;k<=4;k++){
+            const nr=wr+dir.r*k,nc=wc+dir.c*k;
+            if(physicalIsWall(nr,nc)&&lane.length){foundWall=true;break;}
+            if(k===4||!ordinary(nr,nc))break;
+            lane.push([nr,nc]);
+          }
+          if(!foundWall||!lane.length){
+            if(!installed)return bad('압살벽은 설치할 때 벽 3칸 모두 정면 1~3칸 통로 뒤에 맞은편 벽이 필요합니다.');
+            // 오래된 저장본에서 맞은편 벽이 이미 사라진 경우에는 최대 기본 깊이 3칸을 넘기지 않습니다.
+            discovered.push(Math.max(1,Math.min(3,lane.length||3)));
+          }else discovered.push(Math.max(1,Math.min(3,lane.length)));
+        }
+        baseReaches=discovered;
+        if(installed){
+          rootTile.physicalCrusherBaseReaches=baseReaches.slice();
+          rootTile.physicalCrusherBaseDir=dirKey;
+        }
+      }
+
+      const hitCells=[],laneReaches=[],laneImpactWalls=[];
       for(let lateral=0;lateral<fp.width;lateral++){
         const wr=r+fp.side.r*lateral,wc=c+fp.side.c*lateral;
         const wallTile=state.grid[wr]?.[wc];
         if(!physicalIsWall(wr,wc)||(wallTile?.obstacle&&!physicalSameRoot(wallTile,r,c,id)))return bad('압살벽은 나란한 벽 3칸을 단독으로 사용해야 합니다.');
-        const lane=[];let foundWall=false;
-        for(let k=1;k<=4;k++){
+        const baseReach=Math.max(1,Math.min(3,baseReaches[lateral]||1)),lane=[];
+        let impactWall=false;
+        for(let k=1;k<=baseReach;k++){
           const nr=wr+dir.r*k,nc=wc+dir.c*k;
-          if(physicalIsWall(nr,nc)&&lane.length){foundWall=true;break;}
-          if(k===4||!ordinary(nr,nc))break;
-          lane.push([nr,nc]);
+          if(ordinary(nr,nc)){lane.push([nr,nc]);continue;}
+          if(physicalIsWall(nr,nc))impactWall=true;
+          break;
         }
-        if(!foundWall||!lane.length)return bad('벽 3칸 모두 정면 1~3칸 통로 뒤에 맞은편 벽이 필요합니다.');
-        laneReaches.push(lane.length);hitCells.push(...lane);
+        if(lane.length===baseReach){
+          const ir=wr+dir.r*(baseReach+1),ic=wc+dir.c*(baseReach+1);
+          impactWall=physicalIsWall(ir,ic);
+        }
+        laneReaches.push(lane.length);laneImpactWalls.push(impactWall);hitCells.push(...lane);
       }
-      return {ok:true,cells:hitCells,reach:Math.max(...laneReaches),laneReaches,footprintCells:fp.cells};
+      return {ok:true,cells:hitCells,reach:Math.max(...baseReaches),laneReaches,baseLaneReaches:baseReaches,laneImpactWalls,footprintCells:fp.cells};
     }
   }
   if(id==='pendulum'){
@@ -215,7 +250,11 @@ function placePhysicalTrap(r,c,id,free=false){
   const dir=def.fixed?1:(state.physicalDirection??1),check=physicalPlacement(r,c,id,dir); if(!check.ok){ physicalNotice(check.reason); return false; }
   const cost=obstaclePlaceCost(def); if(!free&&state.gold<cost){physicalNotice('골드가 부족합니다.');return false;}
   if(!free) state.gold-=cost;
-  physicalWriteFootprint(r,c,id,dir,{level:1,maxHp:obstacleMaxHpFor(def,1),hp:obstacleMaxHpFor(def,1),runtime:null});
+  const placedRoot=physicalWriteFootprint(r,c,id,dir,{level:1,maxHp:obstacleMaxHpFor(def,1),hp:obstacleMaxHpFor(def,1),runtime:null});
+  if(id==='wall_crusher'&&placedRoot){
+    placedRoot.physicalCrusherBaseReaches=(check.baseLaneReaches||check.laneReaches||[]).slice();
+    placedRoot.physicalCrusherBaseDir=dir;
+  }
   state.obstaclePlacements=(state.obstaclePlacements||0)+1;
   dungeonStructureInvalidate(); Sound.obstacle();
   physicalNotice(def.name+' '+physicalSize(id).join('×')+' 설치 완료');
@@ -245,7 +284,11 @@ function rotatePhysicalTrap(r,c,dir){
   const index=((dir%4)+4)%4,check=physicalPlacement(root.r,root.c,def.id,index,root);
   if(!check.ok){physicalNotice(check.reason);return false;}
   const snap={level:obstacleLevel(tile),hp:tile.obstacleHp,maxHp:tile.obstacleMaxHp,runtime:null};
-  physicalEraseFootprint(root.r,root.c,def.id);physicalWriteFootprint(root.r,root.c,def.id,index,snap);
+  physicalEraseFootprint(root.r,root.c,def.id);const newRoot=physicalWriteFootprint(root.r,root.c,def.id,index,snap);
+  if(def.id==='wall_crusher'&&newRoot){
+    newRoot.physicalCrusherBaseReaches=(check.baseLaneReaches||check.laneReaches||[]).slice();
+    newRoot.physicalCrusherBaseDir=index;
+  }
   dungeonStructureInvalidate();return true;
 }
 function physicalNotice(text){
@@ -353,7 +396,7 @@ function physicalForceMove(h,dr,dc,steps,options={}){
         const pitResult=resolveAbyssPitForcedContact(h,nr,nc,{...options,fromR,fromC});
         if(pitResult?.resolved){fall=!!pitResult.fall;blocked=!!pitResult.blocked;break;}
       }
-      if(!nt||nt.type!=='floor'||nt.isEntrance&&options.protectEntrance||nt.obstacle==='barricade'){
+      if(!nt||nt.type!=='floor'||nt.isEntrance&&options.protectEntrance||nt.obstacle==='barricade'||(nt.obstacle==='collapse_bridge'&&typeof runeGateIsBlocking==='function'&&runeGateIsBlocking(nt))){
         physicalDamage(h,options.damage||8,options.source);blocked=true;break;
       }
       if(state.monsters.some(m=>m.hp>0&&m.r===nr&&m.c===nc)||(state.mawang&&!state.mawang.dead&&state.mawang.r===nr&&state.mawang.c===nc)||state.heroes.some(o=>o!==h&&o.hp>0&&o.r===nr&&o.c===nc)){
@@ -381,25 +424,43 @@ function physicalStrike(tile,def,geo){
   // Farthest-first prevents artificial blocking when a pusher affects a packed lane later.
   targets.sort((a,b)=>(b.r*dir.r+b.c*dir.c)-(a.r*dir.r+a.c*dir.c));
   for(const h of targets){
+    if(def.id==='wall_crusher'){
+      const rootR=Number.isInteger(tile.obstacleRootR)?tile.obstacleRootR:h.r;
+      const rootC=Number.isInteger(tile.obstacleRootC)?tile.obstacleRootC:h.c;
+      const side={r:dir.c,c:-dir.r};
+      const lateral=Math.max(0,Math.min(2,Math.round((h.r-rootR)*side.r+(h.c-rootC)*side.c)));
+      const forward=Math.max(1,Math.round((h.r-rootR)*dir.r+(h.c-rootC)*dir.c));
+      const laneReach=Math.max(1,geo.baseLaneReaches?.[lateral]??geo.reach??1);
+      const hasImpactWall=geo.laneImpactWalls?.[lateral]!==false;
+      const remaining=Math.max(1,laneReach+1-forward);
+
+      if(!hasImpactWall){
+        // 맞은편 벽이 사라졌다면 설치 당시 고정 범위는 유지하되 압살 판정을 만들지 않습니다.
+        // 철판이 범위 끝까지 전진하며 영웅을 한 칸 밖으로 밀어내고, 충돌했을 때만 소량의 충돌 피해가 납니다.
+        const collisionDamage=Math.max(1,Math.round(def.damage*mul*.18));
+        physicalForceMove(h,dir.r,dir.c,remaining,{source:def.id,damage:collisionDamage,launch:false});
+        h.physicalLockUntil=Math.max(h.physicalLockUntil||0,physicalClock()+.18);
+        state.fxEvents?.push?.({type:'floatText',r:h.r,c:h.c,text:'↠ 밀쳐냄',color:'#ffd09a'});
+        continue;
+      }
+
+      physicalDamage(h,def.damage*mul,def.id);
+      if(h.hp<=0) continue;
+      // 실제 전투 좌표는 고정한 채, 스프라이트만 반대 벽 쪽으로 운반해 압착 연출을 보여줍니다.
+      h.physicalImpactKind=def.id;
+      h.physicalImpactDirR=dir.r;h.physicalImpactDirC=dir.c;
+      h.physicalImpactTravel=Math.min(1.08,.62+Math.max(0,remaining-1)*.23);
+      h.physicalImpactUntil=physicalClock()+Math.min(.58,def.recover||.58);
+      physicalInterrupt(h);h.physicalLockUntil=Math.max(h.physicalLockUntil||0,physicalClock()+(h.isBoss?.2:lv>=5?.6:.4));
+      continue;
+    }
+
     physicalDamage(h,def.damage*mul,def.id);
     if(h.hp<=0) continue;
     if(def.push) physicalForceMove(h,dir.r,dir.c,def.push+(lv>=5?1:0)+(lv>=10?1:0),{source:def.id,damage:12*mul,launch:def.id==='spring_launcher'});
     else {
       h.physicalImpactKind=def.id;
-      if(def.id==='wall_crusher'){
-        // Visual-only shove: the real combat coordinate stays untouched, but the hero sprite
-        // is carried toward the opposite wall before it is squashed against the impact face.
-        const rootR=Number.isInteger(tile.obstacleRootR)?tile.obstacleRootR:h.r;
-        const rootC=Number.isInteger(tile.obstacleRootC)?tile.obstacleRootC:h.c;
-        const side={r:dir.c,c:-dir.r};
-        const lateral=Math.round((h.r-rootR)*side.r+(h.c-rootC)*side.c);
-        const forward=Math.max(1,Math.round((h.r-rootR)*dir.r+(h.c-rootC)*dir.c));
-        const laneReach=Math.max(1,geo.laneReaches?.[lateral]??geo.reach??1);
-        const remaining=Math.max(1,laneReach+1-forward);
-        h.physicalImpactDirR=dir.r;h.physicalImpactDirC=dir.c;
-        h.physicalImpactTravel=Math.min(1.08,.62+Math.max(0,remaining-1)*.23);
-        h.physicalImpactUntil=physicalClock()+Math.min(.58,def.recover||.58);
-      }else h.physicalImpactUntil=physicalClock()+.4;
+      h.physicalImpactUntil=physicalClock()+.4;
       physicalInterrupt(h);h.physicalLockUntil=Math.max(h.physicalLockUntil||0,physicalClock()+(h.isBoss?.2:lv>=5?.6:.4));
     }
   }
@@ -608,7 +669,7 @@ function renderPhysicalTraps(){
         const d=PHYSICAL_DIRS[state.physicalDirection??1]||PHYSICAL_DIRS[1],start=def.mount==='wall'?{r:r+d.r,c:c+d.c}:{r,c};
         for(let k=0;k<=def.push;k++){
           const nr=start.r+d.r*k,nc=start.c+d.c*k,t=state.grid[nr]?.[nc];
-          if(!t||t.type==='rock'||t.type==='core'||t.obstacle==='barricade')break;
+          if(!t||t.type==='rock'||t.type==='core'||t.obstacle==='barricade'||(t.obstacle==='collapse_bridge'&&typeof runeGateIsBlocking==='function'&&runeGateIsBlocking(t)))break;
           const e=document.createElement('i');e.className='pt-preview-path';e.style.left=nc*px+'px';e.style.top=nr*px+'px';preview.appendChild(e);
           if(t.type==='chasm'||(k>0&&physicalOccupied(nr,nc)))break;
         }
