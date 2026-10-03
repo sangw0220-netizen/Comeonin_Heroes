@@ -41,7 +41,7 @@ const STAGE_MODE_DEFS={
     id:2,icon:'🏹',name:'홍련의 사냥단',theme:'원거리·추격 대응',mapName:'불타는 심연',
     short:'궁수·사냥꾼·건슬링어가 후방에서 화력을 집중하는 스테이지',heroRoles:'원거리 딜러 · 추격형 · 잠입/암살형',
     objective:'후방 딜러를 방치하지 말고 추격, 이동 방해, 원거리 대응을 활용하세요.',
-    bg:'assets/images/backgrounds/stage_02.jpg',levelBonus:4,
+    bg:'assets/images/maps/stage_02_fixed.png',levelBonus:4,
     startGoldBonus:40,monsterCapBonus:0,firstBuildBonus:3,
     hpMul:1.30,atkMul:1.12,countMul:1.00,spawnIntervalMul:.99,clearSoulBonus:40,
     entrances:[{to:20,count:2}],
@@ -66,7 +66,7 @@ const STAGE_MODE_DEFS={
     id:3,icon:'🛡️',name:'빙설 성기사단',theme:'지원·회복 대응',mapName:'빙정 설원',
     short:'전열 탱커 뒤에서 사제와 지원가가 전투를 유지하는 스테이지',heroRoles:'탱커 · 치유/지원 · 후방 마도',
     objective:'가까운 적만 때리지 말고 회복·지원 용사를 우선 제거하는 판단을 익히세요.',
-    bg:'assets/images/backgrounds/stage_03.jpg',levelBonus:8,
+    bg:'assets/images/maps/stage_03_fixed.png',levelBonus:8,
     startGoldBonus:75,monsterCapBonus:1,firstBuildBonus:5,
     hpMul:1.38,atkMul:1.15,countMul:1.02,spawnIntervalMul:.98,clearSoulBonus:60,
     entrances:[{to:20,count:3}],
@@ -89,9 +89,9 @@ const STAGE_MODE_DEFS={
   },
   4:{
     id:4,icon:'⚔️',name:'천공 돌격대',theme:'다중 전선·근접 돌파',mapName:'백운 성역',
-    short:'두 침입구와 고기동 근접 용사들이 동시에 압박하는 스테이지',heroRoles:'돌격형 · 창기병 · 기동 근접형',
-    objective:'전력을 한곳에 몰지 말고 빠른 돌격대를 상대하며 양쪽 전선을 운영하세요.',
-    bg:'assets/images/backgrounds/stage_04.jpg',levelBonus:12,
+    short:'사방 침입구와 고기동 근접 용사들이 동시에 압박하는 스테이지',heroRoles:'돌격형 · 창기병 · 기동 근접형',
+    objective:'전력을 한곳에 몰지 말고 빠른 돌격대를 상대하며 다중 전선을 운영하세요.',
+    bg:'assets/images/maps/stage_04_fixed.png',levelBonus:12,
     startGoldBonus:145,monsterCapBonus:2,firstBuildBonus:10,
     hpMul:1.46,atkMul:1.19,countMul:1.00,spawnIntervalMul:.98,clearSoulBonus:85,
     entrances:[{to:20,count:4}],
@@ -116,7 +116,7 @@ const STAGE_MODE_DEFS={
     id:5,icon:'🔮',name:'수정 심연의 마도단',theme:'마법·저주·소환',mapName:'청명 수정동굴',
     short:'소환과 빙결, 저주, 흡혈이 겹치는 중반 종합 마법 스테이지',heroRoles:'마법 화력 · 소환/저주 · 흡혈/빙결',
     objective:'시전자와 탱커의 조합을 읽고 마법 연계를 끊어내세요.',
-    bg:'assets/images/backgrounds/stage_05.jpg',levelBonus:16,
+    bg:'assets/images/maps/stage_05_fixed.png',levelBonus:16,
     startGoldBonus:190,monsterCapBonus:3,firstBuildBonus:10,
     hpMul:1.55,atkMul:1.23,countMul:1.02,spawnIntervalMul:.96,clearSoulBonus:120,
     entrances:[{to:20,count:5}],
@@ -141,7 +141,7 @@ const STAGE_MODE_DEFS={
     id:6,icon:'🐎',name:'핏빛 왕성 기병대',theme:'왕국 정예·기병 돌파',mapName:'적월 성채',
     short:'초반 용사들이 베테랑으로 복귀하고 왕국 정예 기병이 합류합니다',heroRoles:'기병 · 방진 탱커 · 장거리 지원',
     objective:'높아진 베테랑 레벨과 왕국 방진의 돌파력을 동시에 견뎌내세요.',
-    bg:'assets/images/backgrounds/stage_06.jpg',levelBonus:22,
+    bg:'assets/images/maps/stage_06_fixed.png',levelBonus:22,
     startGoldBonus:230,monsterCapBonus:4,firstBuildBonus:12,
     hpMul:1.65,atkMul:1.28,countMul:1.03,spawnIntervalMul:.95,clearSoulBonus:155,
     entrances:[{to:20,count:6}],
@@ -165,8 +165,8 @@ const STAGE_MODE_DEFS={
   7:{
     id:7,icon:'☀️',name:'독안개 황실전선',theme:'왕실 지원·마도 연계',mapName:'부패의 수렁',
     short:'룬 수호자와 황실 마도단이 강력한 전열을 마법으로 지원합니다',heroRoles:'지원 마도사 · 룬 수호 탱커 · 치유/성전',
-    objective:'두 전선을 지키면서 룬·회복·마법 지원을 먼저 무너뜨리세요.',
-    bg:'assets/images/backgrounds/stage_07.jpg',levelBonus:28,
+    objective:'여러 전선을 지키면서 룬·회복·마법 지원을 먼저 무너뜨리세요.',
+    bg:'assets/images/maps/stage_07_fixed.png',levelBonus:28,
     startGoldBonus:270,monsterCapBonus:4,firstBuildBonus:13,
     hpMul:1.76,atkMul:1.33,countMul:1.04,spawnIntervalMul:.94,clearSoulBonus:195,
     entrances:[{to:20,count:7}],
@@ -191,7 +191,7 @@ const STAGE_MODE_DEFS={
     id:8,icon:'🐉',name:'황야 용기사단',theme:'공중 기동·최상위 돌파',mapName:'태양 사막유적',
     short:'그리폰과 왕국 랜스, 용기병이 높은 기동력으로 방어선을 찢습니다',heroRoles:'공중 기동 · 돌파형 기사 · 원거리 엄호',
     objective:'최상위 돌파 용사와 장거리 지원의 진입 타이밍을 분산시켜 막으세요.',
-    bg:'assets/images/backgrounds/stage_08.jpg',levelBonus:34,
+    bg:'assets/images/maps/stage_08_fixed.png',levelBonus:34,
     startGoldBonus:310,monsterCapBonus:5,firstBuildBonus:15,
     hpMul:1.88,atkMul:1.39,countMul:1.05,spawnIntervalMul:.93,clearSoulBonus:240,
     entrances:[{to:20,count:8}],
@@ -216,7 +216,7 @@ const STAGE_MODE_DEFS={
     id:9,icon:'🏰',name:'자색 마계 최정예',theme:'베테랑 조합전',mapName:'황혼 마계성',
     short:'지금까지 만난 모든 계열이 고레벨 베테랑 조합으로 재편성됩니다',heroRoles:'최정예 혼성군 · 고레벨 근접 · 고레벨 마도',
     objective:'익숙한 용사라도 훨씬 높은 레벨입니다. 조합을 읽고 대응 순서를 바꾸세요.',
-    bg:'assets/images/backgrounds/stage_09.jpg',levelBonus:41,
+    bg:'assets/images/maps/stage_09_fixed.png',levelBonus:41,
     startGoldBonus:350,monsterCapBonus:6,firstBuildBonus:16,
     hpMul:2.02,atkMul:1.45,countMul:1.07,spawnIntervalMul:.92,clearSoulBonus:290,
     entrances:[{to:20,count:9}],
@@ -242,7 +242,7 @@ const STAGE_MODE_DEFS={
     id:10,icon:'👑',name:'천공왕궁 최후의 결전',theme:'10스테이지 최종 종합 시험',mapName:'백금 천공왕궁',
     short:'초기 용사부터 용기병까지 모든 시대의 베테랑이 최종 공세에 합류합니다',heroRoles:'전 계열 총동원 · 베테랑 혼성군 · 최종 결전대',
     objective:'초반에 익숙했던 용사도 고레벨로 강화됩니다. 모든 대응법을 동원해 최종 공세를 막으세요.',
-    bg:'assets/images/backgrounds/stage_10.jpg',levelBonus:46,
+    bg:'assets/images/maps/stage_10_fixed.png',levelBonus:46,
     startGoldBonus:400,monsterCapBonus:7,firstBuildBonus:18,
     hpMul:2.18,atkMul:1.52,countMul:1.08,spawnIntervalMul:.90,clearSoulBonus:360,
     entrances:[{to:20,count:10}],
@@ -516,8 +516,42 @@ function stageModeWaveHpGrowthMul(wave){
   return 1+0.45*Math.pow(t,1.22);
 }
 function stageModeHeroAtkMul(id=stageModeCurrentId()){ return stageModeDef(id).atkMul||1; }
-function stageModeHeroCountMul(id=stageModeCurrentId()){ return stageModeDef(id).countMul||1; }
-function stageModeSpawnIntervalMul(id=stageModeCurrentId()){ return stageModeDef(id).spawnIntervalMul||1; }
+
+/* ==========================================================================
+   v2.4 · Stage Balance & Identity
+   - 각 스테이지가 자기 역할군을 더 자주 보여 주도록 일반 와일드카드 비율을 낮춥니다.
+   - 한 스테이지 안에서도 1~5 / 6~10 / 11~15 / 16~20 웨이브의 압박 템포가 점진적으로 상승합니다.
+   - 기존 스테이지별 기본 배율은 유지하고, 아래 값은 '웨이브 흐름'만 보정합니다.
+   ========================================================================== */
+const STAGE_MODE_IDENTITY={
+  1:{label:'기본 전술 훈련',wildcard:.26},
+  2:{label:'원거리 집중 사격',wildcard:.14},
+  3:{label:'철벽·회복 진형',wildcard:.12},
+  4:{label:'고기동 다중 돌격',wildcard:.12},
+  5:{label:'마법·저주 연계',wildcard:.12},
+  6:{label:'왕국 기병 방진',wildcard:.13},
+  7:{label:'룬·지원 마도전',wildcard:.12},
+  8:{label:'천공 기동 돌파',wildcard:.12},
+  9:{label:'베테랑 혼성 결전',wildcard:.18},
+  10:{label:'전 계열 최종 공세',wildcard:.22},
+};
+function stageModeIdentity(id=stageModeCurrentId()){ return STAGE_MODE_IDENTITY[id]||STAGE_MODE_IDENTITY[1]; }
+function stageModeWildcardChance(id=stageModeCurrentId()){ return stageModeIdentity(id).wildcard; }
+function stageModeWavePhase(wave){
+  const w=Math.max(1,Math.min(STAGE_MODE_WAVES,Number(wave)||1));
+  if(w<=5) return {name:'정찰전',count:.94,spawn:1.05};
+  if(w<=10) return {name:'압박전',count:1.00,spawn:1.00};
+  if(w<=15) return {name:'정예전',count:1.04,spawn:.97};
+  return {name:'총공세',count:1.08,spawn:.94};
+}
+function stageModeHeroCountMul(id=stageModeCurrentId()){
+  const phase=stageModeWavePhase(state?.wave||1);
+  return (stageModeDef(id).countMul||1)*phase.count;
+}
+function stageModeSpawnIntervalMul(id=stageModeCurrentId()){
+  const phase=stageModeWavePhase(state?.wave||1);
+  return (stageModeDef(id).spawnIntervalMul||1)*phase.spawn;
+}
 function stageModeEarlyEnemyMul(wave,id=stageModeCurrentId()){
   const w=Math.max(1,Number(wave)||1);
   const ranges={
@@ -600,7 +634,8 @@ function renderStageSelect(){
   if(summary){
     const d=stageModeDef(selectedStageId);
     const entrances=stageModeEntranceSummary(selectedStageId);
-    summary.innerHTML=`<b>${d.icon} Stage ${d.id} · ${d.name}</b><span class="sss-map">맵 이름 · ${d.mapName||d.name}</span><span>${d.objective}</span><small>등장 역할군 ${d.heroRoles||d.theme} · 침입구 ${entrances} · 기본 용사 Lv.+${d.levelBonus} · 시작 지원 +${d.startGoldBonus}G · Wave 20 최종 보스</small>`;
+    const identity=stageModeIdentity(selectedStageId);
+    summary.innerHTML=`<b>${d.icon} Stage ${d.id} · ${d.name}</b><span class="sss-map">맵 이름 · ${d.mapName||d.name}</span><span>${d.objective}</span><small>전투 개성 · ${identity.label} · 등장 역할군 ${d.heroRoles||d.theme}</small><small>웨이브 흐름 · 1~5 정찰전 → 6~10 압박전 → 11~15 정예전 → 16~20 총공세</small><small>침입구 ${entrances} · 기본 용사 Lv.+${d.levelBonus} · 시작 지원 +${d.startGoldBonus}G · Wave 20 최종 보스</small>`;
     summary.style.backgroundImage=`linear-gradient(180deg, rgba(15,10,24,.78), rgba(15,10,24,.88)), url("${d.bg}")`;
     summary.style.backgroundSize='cover';
     summary.style.backgroundPosition='center';

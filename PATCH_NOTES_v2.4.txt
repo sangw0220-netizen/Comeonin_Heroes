@@ -1,0 +1,32 @@
+﻿Comeonin Heroes v2.4 - Stage Balance & Identity
+
+기준 버전
+- v2.3 FixedMap GameplayPolish 로컬 작업본 기반
+- GitHub 미사용
+
+주요 변경
+1. Stage 2~10 스테이지 선택 화면 배경을 실제 고정맵 이미지로 통일
+2. 스테이지별 전투 개성 강화
+   - Stage 1: 기본 전술 훈련
+   - Stage 2: 원거리 집중 사격
+   - Stage 3: 철벽·회복 진형
+   - Stage 4: 고기동 다중 돌격
+   - Stage 5: 마법·저주 연계
+   - Stage 6: 왕국 기병 방진
+   - Stage 7: 룬·지원 마도전
+   - Stage 8: 천공 기동 돌파
+   - Stage 9: 베테랑 혼성 결전
+   - Stage 10: 전 계열 최종 공세
+3. 테마 파티가 더 자주 등장하도록 스테이지별 와일드카드 등장 비율 조정
+4. 웨이브 진행 템포 추가
+   - Wave 1~5: 정찰전
+   - Wave 6~10: 압박전
+   - Wave 11~15: 정예전
+   - Wave 16~20: 총공세
+5. 후반으로 갈수록 용사 수가 조금 증가하고 스폰 간격이 조금 짧아지도록 조정
+6. Stage 4, Stage 7의 다중 전선 설명 문구 보정
+7. 스테이지 선택 요약에 전투 개성과 웨이브 흐름 표시
+
+테스트
+- 전체 JavaScript node --check 문법 검사 통과
+

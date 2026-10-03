@@ -1648,8 +1648,10 @@ function pickEncounterHeroType(pattern,wave,usedIds){
   const poolIds=heroPoolIdsForWave(wave);
   const isBossPattern=!!(pattern&&typeof pattern.id==='string'&&pattern.id.startsWith('boss_'));
   const inPattern=(pattern?.types||[]).filter(id=>poolIds.includes(id));
-  // 패턴 밖의 용사도 등장할 수 있도록 일반 웨이브의 파티 슬롯 일부(25%)는 풀 전체에서 뽑습니다.
-  const wildcard=!isBossPattern && inPattern.length && Math.random()<0.25;
+  // v2.4: 스테이지별 개성을 살리기 위해 일반 웨이브의 패턴 밖 용사 비율을 스테이지마다 다르게 적용합니다.
+  // Stage 2~8은 테마 파티가 더 선명하게 보이고, Stage 9~10은 종합전답게 변주 폭을 조금 더 유지합니다.
+  const wildcardChance=(typeof stageModeWildcardChance==='function')?stageModeWildcardChance():0.25;
+  const wildcard=!isBossPattern && inPattern.length && Math.random()<wildcardChance;
   const base=(inPattern.length && !wildcard)?inPattern:poolIds;
   const fresh=base.filter(id=>!usedIds.has(id));
   const finalPool=fresh.length?fresh:base;
