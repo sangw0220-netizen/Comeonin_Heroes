@@ -109,13 +109,8 @@
     };
     const x=map[tool]||map.dig;
     kicker.textContent=x[0]+' '+x[1];
-    let action=panelWrap.querySelector('.ux-panel-action');
-    if(!action){
-      action=document.createElement('div');
-      action.className='ux-panel-action';
-      panelWrap.appendChild(action); // panelBoxEl 다음(패널 바깥 하단)에 위치
-    }
-    action.textContent='다음 행동 · '+x[2];
+    const action=panelWrap.querySelector('.ux-panel-action');
+    if(action) action.remove();
   }
   setInterval(updatePanelCue,500);
 })();
@@ -156,11 +151,41 @@
   let startPending=false;   // 핵 배치가 끝나면 튜토리얼을 시작해야 함
   let prevMonsters=0, prevObstacles=0;
 
+  function isLoggedInAccount(){
+    return typeof currentPlayerId!=='undefined' && !!currentPlayerId &&
+      !(typeof isLocalOnlySession!=='undefined' && isLocalOnlySession) &&
+      !(typeof debugModeActive!=='undefined' && debugModeActive);
+  }
+  function accountDoneKey(){
+    return isLoggedInAccount()?`${DONE_KEY}:${currentPlayerId}`:null;
+  }
   function isDone(){
-    try{ return localStorage.getItem(DONE_KEY)==='1'; }catch(_){ return false; }
+    try{
+      if(isLoggedInAccount()){
+        // 로그인 계정은 player_meta가 기준입니다. 계정별 로컬 키는 네트워크 오류 시 보조 안전장치입니다.
+        if(typeof metaProgress!=='undefined' && metaProgress?.tutorialSeenV40===true) return true;
+        const key=accountDoneKey();
+        return !!key && localStorage.getItem(key)==='1';
+      }
+      // 게스트는 기존 동작 유지: 튜토리얼을 끝까지 완료했을 때만 이 브라우저에서 다시 보지 않습니다.
+      return localStorage.getItem(DONE_KEY)==='1';
+    }catch(_){ return false; }
   }
   function markDone(){
-    try{ localStorage.setItem(DONE_KEY,'1'); }catch(_){}
+    try{
+      if(isLoggedInAccount()){
+        if(typeof metaProgress!=='undefined'){
+          metaProgress.tutorialSeenV40=true;
+          if(typeof saveMeta==='function') saveMeta();
+          // 최초 표시 직후 서버에도 바로 반영해 새로고침/다른 기기에서도 다시 뜨지 않게 합니다.
+          if(typeof pushMetaToSupabase==='function') Promise.resolve(pushMetaToSupabase(true)).catch(()=>{});
+        }
+        const key=accountDoneKey();
+        if(key) localStorage.setItem(key,'1');
+        return;
+      }
+      localStorage.setItem(DONE_KEY,'1');
+    }catch(_){}
   }
 
   /* 하이라이트 대상은 화면 구성이 바뀌어도 안전하게 찾도록 함수로 둡니다.
@@ -221,6 +246,9 @@
     if(hiddenThisRun || isDone()) return;
     // v40: 핵 배치 단계가 끝나기 전에는 튜토리얼을 띄우지 않습니다.
     if(typeof state!=='undefined' && state && (state.phase==='placeCore' || state.corePlaced===false)) return;
+    // 로그인 사용자는 '완료 여부'가 아니라 '최초로 실제 표시됐는지'를 계정에 기록합니다.
+    // 따라서 다음 Stage/다음 Run부터는 튜토리얼이 다시 나타나지 않습니다.
+    if(isLoggedInAccount()) markDone();
     current=1; show(); render();
   }
   function goto(n){

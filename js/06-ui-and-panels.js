@@ -164,14 +164,16 @@ function renderPanelInner(){
     return;
   }
   if(!sel){
-    const ev=evaluateDungeon(state);
-    els.panelBox.innerHTML=`<h3>🏰 던전 평가</h3>
-      <div class="panel-hint"><b style="color:var(--gold)">${ev.title}</b> · 현재 ${ev.score}점</div>
-      <div class="panel-hint">구조 ${ev.ratings.layout} · 함정 ${ev.ratings.trap} · 방어 ${ev.ratings.defense} · 통제 ${ev.ratings.control}</div>
-      <div class="panel-hint">방 ${ev.rooms} · 통로 ${ev.corridors} · 교차로 ${ev.junctions} · 막다른길 ${ev.deadends} · 장애물 ${ev.obstacleCount}</div>
-      <div class="panel-hint">용사 대응: 발견 ${ev.seen} · 놓침 ${ev.missed} · 파괴 ${ev.broken} · 발동 ${ev.trigger}</div>
-      ${buildSummaryHtml()}`;
-    return;
+    // v115: 던전 평가는 기본 플레이 패널에서 제거합니다.
+    // 마력핵 배치 전에는 필요한 안내만 보여주고, 이후 기본 화면은 몬스터 소환 메뉴입니다.
+    if(state.phase==='placeCore' || state.corePlaced===false){
+      els.panelBox.innerHTML=`<h3>👾 몬스터 소환</h3><div class="panel-hint">먼저 맵에서 <b style="color:var(--gold)">마력의 핵</b>을 배치하세요. 핵을 설치하면 바로 몬스터 소환 메뉴가 열립니다.</div>`;
+      return;
+    }
+    state.activeTool='monster';
+    state.selected={kind:'tool',tool:'monster'};
+    els.toolbar?.querySelectorAll('button[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool==='monster'));
+    return renderPanelInner();
   }
   if(sel.kind==='tool'){
     const info=TOOL_INFO[sel.tool];
@@ -238,6 +240,8 @@ function renderPanelInner(){
       }
     } else if(sel.tool==='obstacle'){
       html+=`<div class="shop-list" data-shop-key="tool:obstacle">`;
+      const fixedTerrain=(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId));
+      if(!fixedTerrain){
       {
         const isSel=state.selectedObstacleType==='__wall_dig__';
         html+=`
@@ -256,6 +260,7 @@ function renderPanelInner(){
             <div class="si-info"><b>벽 생성</b><br><span class="si-desc">개척된 빈 바닥에 새로운 암벽을 세웁니다. 일반 장애물과 달리 바닥에 설치합니다.</span></div>
             <div class="si-cost">${WALL_BUILD_COST}G</div>
           </div>`;
+      }
       }
       OBSTACLE_TYPES.forEach((ob)=>{
         const placeCost=obstaclePlaceCost(ob);
@@ -1060,6 +1065,8 @@ function tr0(v){ return Math.round(v); }
 function villageAlive(){ return state && state.village && state.phase==='village'; }
 
 function startVillageRaid(){
+  // 마을 습격 임시 비공개: 코드/리소스는 유지하되 실제 진입은 차단합니다.
+  if(window.VILLAGE_RAID_ENABLED !== true) return;
   if(!state || state.gameOver) return;
   if(state.village) return;            // v38.6: 중복 진입 방지
   state.villagePrepTimer=null;
@@ -2302,6 +2309,8 @@ function showVillageResult(v, success, done, holdMs){
     return Math.max(0,(Number(state.villageRaidCooldownUntilWave)||0)-(Number(state.wave)||0));
   }
   function grantVillageRaidOpportunity(){
+    // 비공개 기간에는 습격권/토스트/로그를 모두 노출하지 않습니다.
+    if(window.VILLAGE_RAID_ENABLED !== true) return false;
     if(!state || state.gameOver) return false;
     if(state.wave<=0 || state.wave%10!==0) return false;
     // 같은 10웨이브 보상에서 applyReward/applyCard가 중복 호출되어도 1회만 지급합니다.
@@ -2324,6 +2333,8 @@ function showVillageResult(v, success, done, holdMs){
   }
 
   function requestVillageRaid(){
+    // 버튼 외 경로로 호출되어도 비공개 상태에서는 진입할 수 없습니다.
+    if(window.VILLAGE_RAID_ENABLED !== true) return false;
     if(!state || state.gameOver || !state.running) return false;
     if(state.phase!=='build' || state.village || state.villagePrepTimer!=null || state._villageReturnLock) return false;
     const charges=Math.max(0,Number(state.villageRaidCharges)||0);

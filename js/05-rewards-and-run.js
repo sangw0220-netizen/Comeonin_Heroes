@@ -677,6 +677,14 @@ function fmtTime(sec){
 function renderVillageRaidLaunchButton(){
   const raidBtn=document.getElementById('villageRaidLaunchBtn');
   if(!raidBtn || !state) return;
+  // 마을 습격 임시 비공개: 기능 플래그가 꺼져 있으면 버튼을 항상 숨깁니다.
+  if(window.VILLAGE_RAID_ENABLED !== true){
+    raidBtn.classList.add('hidden');
+    raidBtn.classList.remove('cooldown');
+    raidBtn.disabled=true;
+    raidBtn.setAttribute('aria-disabled','true');
+    return;
+  }
   const raidCount=Math.max(0,Number(state.villageRaidCharges)||0);
   const raidMax=Math.max(1,Number(state.villageRaidChargeMax)||2);
   const chargeEl=document.getElementById('villageRaidChargeText');
@@ -712,7 +720,7 @@ function renderUI(){
   els.hpText.textContent=`${Math.max(0,Math.round(state.throneHP))}/${state.maxThroneHP}`;
   els.goldText.textContent=`${Math.floor(state.gold).toLocaleString()}G`;
   if(els.goldRateText) els.goldRateText.textContent=`초당 +${state.goldPerSec}G`;
-  els.waveText.textContent = state.wave>0 ? ('웨이브 '+state.wave) : '대기중';
+  els.waveText.textContent = state.wave>0 ? (`STAGE ${state.stageId||1} · ${Math.min(20,state.wave)}/20`) : (`STAGE ${state.stageId||1} · 준비`);
   els.killCount.textContent=`처치 ${state.killCount}`;
   els.killStatText.textContent=`${state.killCount}명`;
   if(els.monsterCapText) els.monsterCapText.textContent=`${state.monsters.length}/${state.monsterCap||MONSTER_CAP_START}`;
@@ -763,10 +771,18 @@ function renderUI(){
     els.phaseBtn.classList.add('locked');
     els.phaseBtn.title='';
     els.toolbar.classList.add('locked');
+  } else if(state.phase==='stageClear'){
+    els.phaseLabel.textContent='스테이지 클리어';
+    els.timerText.textContent='CLEAR';
+    els.phaseBtn.classList.add('locked');
+    els.phaseBtn.title='';
+    els.toolbar.classList.add('locked');
   } else {
     els.phaseBtn.classList.add('locked');
     els.toolbar.classList.add('locked');
   }
+  // 건설 단계에서는 입구 -> 핵 예상 이동 경로를 보여주고, 전투 시작 즉시 숨깁니다.
+  updateHeroNavigationOverlay();
   // 전투 중에는 토큰만 자주 갱신하고, 맵/사거리/선택 패널은 실제로 필요할 때만 다시 그립니다.
   // 마을 습격 준비 카운트다운에서는 기존 장애물 DOM/이미지를 보존하고,
   // 실제로 맵이 변경된 경우에만 다시 렌더링합니다.
@@ -913,6 +929,157 @@ function installObstacleAnimStyles(){
 }
 installObstacleAnimStyles();
 
+/* =====================================================================
+   v116 · 용사 침입 예상 경로 네비게이션
+   - 건설(build) 단계에서만 입구 -> 마력의 핵 예상 경로를 노란 점선으로 표시합니다.
+   - 웨이브(invasion)가 시작되면 즉시 숨깁니다.
+   - 굴착/벽/장애물 변경으로 dungeonLayoutVersion이 바뀌면 경로를 다시 계산합니다.
+   - 실제 용사는 직업 특성에 따라 일부 장애물 비용 판단이 달라질 수 있으므로
+     이 선은 "기본 예상 경로"를 보여주는 건설 보조선입니다.
+   ===================================================================== */
+const HERO_NAV_SVG_NS='http://www.w3.org/2000/svg';
+let _heroNavCacheKey='';
+
+function heroNavigationShouldShow(){
+  return !!(state && !state.village && state.corePlaced && state.phase==='build' && Array.isArray(state.heroSpawnPoints) && state.heroSpawnPoints.length);
+}
+
+function ensureHeroNavigationLayer(){
+  const board=document.getElementById('board-inner');
+  if(!board) return null;
+  let svg=document.getElementById('heroNavigationLayer');
+  if(svg) return svg;
+  svg=document.createElementNS(HERO_NAV_SVG_NS,'svg');
+  svg.id='heroNavigationLayer';
+  svg.classList.add('hero-navigation-layer','hidden');
+  svg.setAttribute('aria-hidden','true');
+  svg.setAttribute('preserveAspectRatio','none');
+  // 토큰 아래, 맵/함정 위에 위치시키되 포인터 입력은 전혀 가로채지 않습니다.
+  const token=document.getElementById('tokenLayer');
+  if(token) board.insertBefore(svg,token);
+  else board.appendChild(svg);
+  return svg;
+}
+
+function heroNavigationTerrainCost(r,c){
+  const t=state?.grid?.[r]?.[c];
+  if(!t || t.type==='chasm') return Infinity;
+  if(t.type==='core') return 1;
+  if(t.type==='rock'){
+    if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)) return Infinity;
+    return t.isEntrance ? Infinity : (t.obstacle ? 5.5 : 3);
+  }
+  if(t.type!=='floor') return Infinity;
+  if(!t.obstacle) return 1;
+  const danger={
+    spike:4.8,poison:4.5,frost:2.8,web:4.0,curse:4.3,statue:5.0,
+    flame:6.0,lightning:5.5,pit:99,barricade:7.0,gust:6.2,magnet:5.2,
+    stun_cage:6.0,collapse_bridge:(typeof runeGateIsBlocking==='function'&&runeGateIsBlocking(t))?8.5:2.2
+  };
+  return danger[t.obstacle]||3.5;
+}
+
+function heroNavigationPath(startR,startC){
+  if(!state?.grid || !inBounds(startR,startC) || !inBounds(CORE_R,CORE_C)) return [];
+  const total=GRID*GRID;
+  const start=startR*GRID+startC, goal=CORE_R*GRID+CORE_C;
+  if(start===goal) return [[startR,startC]];
+  const g=new Float64Array(total); g.fill(Infinity); g[start]=0;
+  const f=new Float64Array(total); f.fill(Infinity); f[start]=Math.abs(startR-CORE_R)+Math.abs(startC-CORE_C);
+  const parent=new Int16Array(total); parent.fill(-1);
+  const closed=new Uint8Array(total);
+  const open=[start];
+  const inOpen=new Uint8Array(total); inOpen[start]=1;
+  const pushOpen=(idx)=>{
+    const score=f[idx];
+    let i=open.length;
+    while(i>0 && f[open[i-1]]>score) i--;
+    open.splice(i,0,idx); inOpen[idx]=1;
+  };
+  while(open.length){
+    const cur=open.shift(); inOpen[cur]=0;
+    if(closed[cur]) continue;
+    if(cur===goal) break;
+    closed[cur]=1;
+    const r=(cur/GRID)|0,c=cur-r*GRID;
+    const visit=(nr,nc)=>{
+      if(!inBounds(nr,nc)) return;
+      const ni=nr*GRID+nc;
+      if(closed[ni]) return;
+      const cost=heroNavigationTerrainCost(nr,nc);
+      if(!Number.isFinite(cost)) return;
+      const next=g[cur]+cost;
+      if(next>=g[ni]) return;
+      parent[ni]=cur; g[ni]=next;
+      f[ni]=next+Math.abs(nr-CORE_R)+Math.abs(nc-CORE_C);
+      if(!inOpen[ni]) pushOpen(ni);
+    };
+    // 실제 용사 A*와 같은 상 -> 하 -> 좌 -> 우 탐색 순서
+    visit(r-1,c); visit(r+1,c); visit(r,c-1); visit(r,c+1);
+  }
+  if(parent[goal]<0) return [];
+  const rev=[];
+  let cur=goal, guard=0;
+  while(cur!==start && guard++<total+2){
+    const r=(cur/GRID)|0,c=cur-r*GRID; rev.push([r,c]);
+    cur=parent[cur];
+    if(cur<0) return [];
+  }
+  rev.push([startR,startC]);
+  rev.reverse();
+  return rev;
+}
+
+function buildHeroNavigationSvg(svg){
+  svg.innerHTML='';
+  svg.setAttribute('viewBox',`0 0 ${GRID} ${GRID}`);
+  const defs=document.createElementNS(HERO_NAV_SVG_NS,'defs');
+  const marker=document.createElementNS(HERO_NAV_SVG_NS,'marker');
+  marker.setAttribute('id','heroNavArrow');
+  marker.setAttribute('viewBox','0 0 10 10');
+  marker.setAttribute('refX','8'); marker.setAttribute('refY','5');
+  marker.setAttribute('markerWidth','.42'); marker.setAttribute('markerHeight','.42');
+  marker.setAttribute('orient','auto-start-reverse');
+  marker.setAttribute('markerUnits','userSpaceOnUse');
+  const arrow=document.createElementNS(HERO_NAV_SVG_NS,'path');
+  arrow.setAttribute('d','M 0 0 L 10 5 L 0 10 z');
+  arrow.setAttribute('class','hero-navigation-arrowhead');
+  marker.appendChild(arrow); defs.appendChild(marker); svg.appendChild(defs);
+
+  const points=state.heroSpawnPoints||[];
+  points.forEach((sp,index)=>{
+    const path=heroNavigationPath(sp.r,sp.c);
+    if(path.length<2) return;
+    const poly=document.createElementNS(HERO_NAV_SVG_NS,'polyline');
+    poly.setAttribute('points',path.map(([r,c])=>`${c+.5},${r+.5}`).join(' '));
+    poly.setAttribute('class','hero-navigation-route');
+    poly.setAttribute('marker-end','url(#heroNavArrow)');
+    poly.style.setProperty('--hero-nav-delay',`${(index%5)*-.14}s`);
+    svg.appendChild(poly);
+    const startDot=document.createElementNS(HERO_NAV_SVG_NS,'circle');
+    startDot.setAttribute('cx',String(sp.c+.5)); startDot.setAttribute('cy',String(sp.r+.5));
+    startDot.setAttribute('r','.16'); startDot.setAttribute('class','hero-navigation-start');
+    startDot.style.setProperty('--hero-nav-delay',`${(index%5)*-.14}s`);
+    svg.appendChild(startDot);
+  });
+}
+
+function updateHeroNavigationOverlay(force=false){
+  const svg=ensureHeroNavigationLayer();
+  if(!svg) return;
+  if(!heroNavigationShouldShow()){
+    svg.classList.add('hidden');
+    return;
+  }
+  svg.classList.remove('hidden');
+  const entrances=(state.heroSpawnPoints||[]).map(p=>`${p.r},${p.c}`).join('|');
+  const key=`${GRID}:${CORE_R},${CORE_C}:${state.dungeonLayoutVersion||0}:${entrances}`;
+  if(force || key!==_heroNavCacheKey){
+    _heroNavCacheKey=key;
+    buildHeroNavigationSvg(svg);
+  }
+}
+
 function renderMapCells(){
   if(!cellEls.length) return;
   const digTargets={};
@@ -1037,10 +1204,9 @@ function renderMapCells(){
           el.style.setProperty('--ob-level-scale',String(1+(lv-1)*0.05));
           el.classList.toggle('ob-lv-mid', lv>=5 && lv<10);
           el.classList.toggle('ob-lv-max', lv>=10);
-          let lvBadge=el.querySelector('.ob-lv-badge');
-          if(!lvBadge){ lvBadge=document.createElement('div'); lvBadge.className='ob-lv-badge'; el.appendChild(lvBadge); }
-          lvBadge.textContent='Lv.'+lv;
-          lvBadge.className='ob-lv-badge lv-'+(lv>=10?10:lv>=5?5:1);
+          // v115: 맵 위 장애물 레벨 배지는 장애물 그래픽을 가리므로 표시하지 않습니다.
+          const lvBadge=el.querySelector('.ob-lv-badge');
+          if(lvBadge) lvBadge.remove();
           // 장애물 체력바는 v35.2에서 제거했습니다. 실제 obstacleHp 계산은 전투 로직에 그대로 남아 있습니다.
           el.classList.remove('obstacle-damaged');
         } else {
@@ -1426,7 +1592,9 @@ function syncTokens(){
     const key='h'+h.id; seen.add(key);
     const el=ensureToken(key, h.typeId, 'hero');
     const levelMul=1+Math.min(HERO_LEVEL_SIZE_CAP, Math.max(0,(h.level||1)-1)*HERO_LEVEL_SIZE_MUL);
-    const size=px*(h.majorBoss?1.12:(h.isBoss?1.6:1.0))*levelMul*TOKEN_VIEW_SCALE;
+    const bossMul=h.majorBoss?1.12:(h.isBoss?1.6:1.0);
+    const heroVisualMul=Math.min(HERO_TOTAL_SIZE_CAP,bossMul*levelMul);
+    const size=px*heroVisualMul*TOKEN_VIEW_SCALE;
     updateTokenGeometry(el,size,h.c*px+px/2,h.r*px+px/2);
     updateFacing(el, h.r, h.c, Object.prototype.hasOwnProperty.call(HERO_FACING_INVERT,h.typeId)?HERO_FACING_INVERT[h.typeId]:true);
     toggleTokenClass(el,'boss',!!h.isBoss,'_boss');

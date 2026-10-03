@@ -176,3 +176,84 @@
   40%{ transform:translateY(4px) scale(1.05); filter:brightness(1.8) drop-shadow(0 0 14px rgba(255,150,90,.8)); }
   100%{ transform:translateY(0) scale(1); opacity:1; filter:brightness(1); }
 }
+
+
+/* ==================================================================
+   v2.0 · Stage 1 authored fixed-map prototype
+   The full map artwork is rendered once on #map. Grid cells are transparent
+   hit/collision regions so the authored scenery stays visually intact.
+   ================================================================== */
+#map.fixed-stage-map{
+  background-color:#080b11;
+  background-size:100% 100%;
+  background-position:center;
+  background-repeat:no-repeat;
+  image-rendering:auto;
+}
+#map.fixed-stage-map .cell.rock,
+#map.fixed-stage-map .cell.floor,
+#map.fixed-stage-map .cell.entrance{
+  background-color:transparent !important;
+  background-image:none !important;
+  box-shadow:none !important;
+  filter:none !important;
+}
+#map.fixed-stage-map .cell.rock::before,
+#map.fixed-stage-map .cell.rock::after,
+#map.fixed-stage-map .cell.entrance::before,
+#map.fixed-stage-map .cell.entrance::after{
+  content:none !important;
+}
+/* During core placement, keep the artwork visible. Only legal floor cells get a faint outline. */
+#map.fixed-stage-map .cell.core-place-bad{
+  background:transparent !important;
+  box-shadow:none !important;
+}
+#map.fixed-stage-map .cell.core-place-ok{
+  background:rgba(92,214,145,.035) !important;
+  box-shadow:inset 0 0 0 1px rgba(115,217,154,.32) !important;
+}
+#map.fixed-stage-map .cell.core-place-ok:hover{
+  background:rgba(115,217,154,.12) !important;
+  box-shadow:inset 0 0 0 2px rgba(115,217,154,.72),0 0 8px rgba(115,217,154,.24) !important;
+}
+/* Fixed scenery remains immutable: no excavation/build-wall targeting visuals. */
+#map.fixed-stage-map .cell.diggable,
+#map.fixed-stage-map .cell.wall-target,
+#map.fixed-stage-map .cell.wall-dig-target{
+  box-shadow:none !important;
+}
+#map.fixed-stage-map .cell.wall-target::before,
+#map.fixed-stage-map .cell.wall-dig-target::after{content:none !important;}
+
+
+/* ==================================================================
+   v2.1 · Fixed-stage presentation fixes
+   - The authored map image is the board itself, so the legacy stage backdrop
+     behind the board must not render at the same time.
+   - Restore obstacle placement guidance above transparent fixed-map cells.
+   ================================================================== */
+#board-frame.fixed-stage-frame #stageBackdrop{
+  display:none !important;
+  background:none !important;
+  background-image:none !important;
+}
+
+/* Keep the authored artwork untouched while showing legal obstacle anchors.
+   This rule intentionally comes after the fixed rock/floor pseudo cleanup. */
+#map.fixed-stage-map .cell.obstacle-target::before{
+  content:'' !important;
+  border:2px dashed rgba(255,214,72,.94) !important;
+  background:rgba(255,214,72,.055) !important;
+  box-shadow:
+    inset 0 0 6px rgba(255,214,72,.20),
+    0 0 5px rgba(255,214,72,.42),
+    0 0 12px rgba(255,214,72,.20) !important;
+  opacity:.78 !important;
+  z-index:12 !important;
+  animation:fixedStagePlaceableBlink 1.05s ease-in-out infinite !important;
+}
+@keyframes fixedStagePlaceableBlink{
+  0%,100%{opacity:.38;filter:brightness(.92)}
+  50%{opacity:1;filter:brightness(1.16)}
+}

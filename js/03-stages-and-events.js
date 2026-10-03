@@ -74,9 +74,10 @@ function configureStageEvent(){
 }
 
 function setStageBackground(wave){
+  const stageVisual=(typeof stageModeVisual==='function')?stageModeVisual():null;
   const idx=Math.min(STAGE_BACKGROUNDS.length-1, Math.floor(Math.max(1,wave-1)/10));
-  const data=STAGE_BACKGROUNDS[idx]||STAGE_BACKGROUNDS[0];
-  const bg=STAGE_BG_DATA[idx]||STAGE_BG_DATA[0];
+  const data=stageVisual||STAGE_BACKGROUNDS[idx]||STAGE_BACKGROUNDS[0];
+  const bg=stageVisual?.bg||STAGE_BG_DATA[idx]||STAGE_BG_DATA[0];
   if(els.stageBackdrop){
     els.stageBackdrop.style.backgroundImage=`url(\"${bg}\")`;
     els.stageBackdrop.style.backgroundPosition='center center';
@@ -108,6 +109,7 @@ if(els.logToggle&&els.log){ els.logToggle.addEventListener('click',()=>{
 }); }
 
 function isDiggable(r,c){
+  if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)) return false;
   const t=state.grid[r][c];
   if(t.type!=='rock' || t.obstacle) return false;
   if(t.isEntrance) return false;
@@ -418,7 +420,7 @@ els.toolbar.querySelectorAll('button[data-tool]').forEach(btn=>{
     }
   });
 });
-let pendingTool='dig';
+let pendingTool='monster';
 els.phaseBtn.addEventListener('click', ()=>{
   Sound.ui();
   if(state && state.selected?.kind==='altar') closeAltar();
@@ -468,6 +470,21 @@ let cellEls=[];
 function buildMapDOM(){
   els.map.innerHTML='';
   cellEls=[];
+  const fixedDef=(state&&typeof stageFixedMapDef==='function')?stageFixedMapDef(state.stageId):null;
+  els.map.classList.toggle('fixed-stage-map',!!fixedDef);
+  const boardFrame=document.getElementById('board-frame');
+  if(boardFrame) boardFrame.classList.toggle('fixed-stage-frame',!!fixedDef);
+  if(fixedDef){
+    els.map.style.backgroundImage=`url("${fixedDef.image}")`;
+    els.map.style.backgroundSize='100% 100%';
+    els.map.style.backgroundPosition='center';
+    els.map.style.backgroundRepeat='no-repeat';
+  }else{
+    els.map.style.backgroundImage='';
+    els.map.style.backgroundSize='';
+    els.map.style.backgroundPosition='';
+    els.map.style.backgroundRepeat='';
+  }
   for(let r=0;r<GRID;r++){
     const rowArr=[];
     for(let c=0;c<GRID;c++){
@@ -492,6 +509,7 @@ function cellFromEvent(clientX,clientY){
 }
 function attemptDig(r,c){
   if(!state || state.phase!=='build') return false;
+  if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state.stageId)) return false;
   if(state.grid[r][c].type!=='rock' || state.grid[r][c].obstacle) return false;
   if(!isDiggable(r,c)) return false;
   if(state.gold<DIG_COST) return false;
@@ -503,6 +521,7 @@ function attemptDig(r,c){
   return true;
 }
 function placeWall(r,c){
+  if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)) return false;
   if(!state || state.phase!=='build') return false;
   const tile=state.grid[r][c];
   if(tile.type!=='floor' || tile.isEntrance || tile.obstacle || tile.rubbleWall) return false;
@@ -518,6 +537,7 @@ function placeWall(r,c){
   return true;
 }
 function digPlayerWall(r,c){
+  if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)) return false;
   if(!state || state.phase!=='build') return false;
   if(!inBounds(r,c)) return false;
   const tile=state.grid[r][c];
@@ -1126,9 +1146,14 @@ function startGame(){
   mawangProfile=normalizeMawangData(mawangProfile||loadMawangLocal());
   state=freshState();
   state.mawang=createMawangEntity(CORE_R,CORE_C);
-  state.activeTool=pendingTool;
+  // v115: 새 게임의 기본 도구는 몬스터 소환입니다.
+  // 핵 배치 전에는 핵 배치 안내가 우선이고, 핵을 놓는 즉시 몬스터 소환 메뉴를 엽니다.
+  pendingTool='monster';
+  state.activeTool='monster';
+  state.selected=null;
   // 새 게임은 항상 하단 도구 패널이 열린 상태로 시작합니다.
   setBottomToolPanelCollapsed(false);
+  els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool==='monster'));
   state.running=true;
   state.gameSessionId=session;
   state.startedAt=performance.now();
@@ -1140,7 +1165,7 @@ function startGame(){
   els.cardOverlay.classList.add('hidden');
   if(els.altarPanel) els.altarPanel.classList.add('hidden');
   els.altarBtn.classList.remove('active');
-  addLog(`던전 건설을 시작합니다. <span class="hl-gold">1분</span> 뒤 첫 웨이브가 시작됩니다.`);
+  addLog(`<span class="hl-gold">STAGE ${state.stageId||1} · ${typeof stageModeCurrent==='function'?stageModeCurrent().name:'던전 방어'}</span> 도전을 시작합니다. 던전과 Run 성장은 이번 스테이지에서만 유지됩니다.`);
   renderUI();
 }
 
@@ -1213,12 +1238,12 @@ function endGame(){
   els.modalBox.style.padding='22px 14px';
   els.modalBox.innerHTML=`
     <div class="big-emoji">🏆</div>
-    <h2 class="display">던전 운영 기록</h2>
+    <h2 class="display">STAGE ${state.stageId||1} 도전 실패</h2>
     <div style="text-align:center;font-size:8px;color:#544d6b;margin-bottom:6px;">build: ranking-fix-v2</div>
-    <p style="text-align:center;margin-bottom:5px;color:var(--muted);">마력의 핵이 파괴되었습니다.</p><p style="text-align:center;margin:0 0 10px;color:var(--violet-bright);font-size:11px;font-weight:800;">👑 ${currentNickname||DEFAULT_NICKNAME}</p>
+    <p style="text-align:center;margin-bottom:5px;color:var(--muted);">마력의 핵이 파괴되었습니다. Run 데이터는 초기화되지만 영구 성장은 유지됩니다.</p><p style="text-align:center;margin:0 0 10px;color:var(--violet-bright);font-size:11px;font-weight:800;">👑 ${currentNickname||DEFAULT_NICKNAME}</p>
     <div class="achievement-grid">
       <div class="achievement-card"><div class="ak">⏱️ 플레이타임</div><div class="av">${playText}</div></div>
-      <div class="achievement-card"><div class="ak">💀 도달 웨이브</div><div class="av">웨이브 ${state.wave}</div></div>
+      <div class="achievement-card"><div class="ak">💀 도달 지점</div><div class="av">STAGE ${state.stageId||1} · ${state.wave}/20</div></div>
       <div class="achievement-card"><div class="ak">⚔️ 물리친 용사</div><div class="av">${state.killCount}명</div><div class="as">침입 ${state.heroesSpawned}명 · 탈출 ${state.heroesEscaped||0}명</div></div>
       <div class="achievement-card"><div class="ak">👾 총 몬스터 소환</div><div class="av">${state.totalMonsterSpawns}마리</div></div>
       <div class="achievement-card"><div class="ak">🌟 최고 단계 몬스터</div><div class="av">${bestBase?bestBase.name:'-'} ${state.maxMonsterTierSeen||0}단계</div></div>
@@ -1235,7 +1260,8 @@ function endGame(){
     <div class="achievement-card" style="grid-column:1/-1;"><div class="ak">🧩 이번 판 빌드</div><div class="av">${Object.keys(state.buildTags||{}).length?Object.keys(state.buildTags).map(x=>`<span class="build-tag">${x}</span>`).join(''):'아직 빌드 카드가 없습니다.'}</div></div>
     </div>
     <div class="result-actions">
-      <button class="cta" id="restartBtn">다시 도전하기</button>
+      <button class="cta" id="restartBtn">현재 STAGE 다시 도전</button>
+      <button class="cta secondary" id="stageLobbyBtn">🗺️ 스테이지 선택</button>
       <button class="cta secondary" id="metaGrowthEndBtn">🔮 마왕의 성장</button>
       ${isLocalOnlySession
         ? '<div style="margin-top:6px;color:var(--muted);font-size:8.5px;line-height:1.4;text-align:center;">🎮 한판해보기 결과는 랭킹과 온라인 기록에 저장되지 않습니다.</div>'
@@ -1249,7 +1275,9 @@ function endGame(){
     if(els.defeatTransition) els.defeatTransition.classList.remove('show');
     els.overlay.classList.remove('hidden');
     const retry=document.getElementById('restartBtn');
-    if(retry) retry.addEventListener('click', attemptStart, {once:true});
+    if(retry) retry.addEventListener('click', ()=>startGame(), {once:true});
+    const stageLobbyBtn=document.getElementById('stageLobbyBtn');
+    if(stageLobbyBtn && typeof stageModeShowLobby==='function') stageLobbyBtn.addEventListener('click', stageModeShowLobby, {once:true});
     const metaGrowthEndBtn=document.getElementById('metaGrowthEndBtn');
     if(metaGrowthEndBtn) metaGrowthEndBtn.addEventListener('click', ()=>openMetaGrowth());
     const rankingBtn=document.getElementById('rankingBtn');
@@ -1356,19 +1384,23 @@ const WANDER_RETARGET_SEC=16;
 // 초반에는 HP/공격력뿐 아니라 방어력·용사 수·스폰 압력까지 함께 낮춥니다.
 // 11웨이브 이후 기존 난이도 곡선은 그대로 유지합니다.
 function earlyWaveEnemyMul(wave){
+  if(typeof stageModeEarlyEnemyMul==='function') return stageModeEarlyEnemyMul(wave);
   const w=Math.max(1,wave|0);
   if(w>10) return .90;
   return 0.45+(w-1)*(.72-.45)/9;
 }
 function earlyWaveDefenseMul(wave){
+  if(typeof stageModeEarlyDefenseMul==='function') return stageModeEarlyDefenseMul(wave);
   const w=Math.max(1,wave|0);
   if(w>10) return 1;
   return 0.52+(w-1)*(.76-.52)/9;
 }
 function earlyWaveCountMul(wave){
+  if(typeof stageModeEarlyCountMul==='function') return stageModeEarlyCountMul(wave);
   return wave<=10 ? .68 : 1;
 }
 function earlyWaveSpawnIntervalMul(wave){
+  if(typeof stageModeEarlySpawnIntervalMul==='function') return stageModeEarlySpawnIntervalMul(wave);
   return wave<=10 ? 1.24 : 1;
 }
 function heroBaseStats(wave){
@@ -1427,7 +1459,7 @@ function partySizeForWave(wave, remaining){
 }
 function pickPartyEdgeSpawnCells(count){
   // 현재 활성화된 침입구 전부를 실제 스폰 좌표로 사용합니다.
-  // (v40: 침입구 개수가 웨이브에 따라 1~5개로 늘어나므로 예전의 3개 고정 제한을 없앴습니다.)
+  // (v40: Stage에 따라 침입구 개수가 1~10개이므로 예전의 3개 고정 제한을 없앴습니다.)
   // 중요: 침입구가 rock으로 남아 있어도 spawnHero()가 해당 칸을 floor로 바꾸므로
   // 여기서는 rock 여부 때문에 스폰 후보를 탈락시키지 않습니다.
   const anchors=(Array.isArray(state?.heroSpawnPoints)&&state.heroSpawnPoints.length)
@@ -1444,16 +1476,21 @@ function pickPartyEdgeSpawnCells(count){
     if(r===CORE_R&&c===CORE_C) return false;
     const tile=state.grid[r]?.[c];
     if(!tile) return false;
+    if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId) && tile.type!=='floor') return false;
     if(!force && (isHeroAt(r,c)||isMonsterAt(r,c))) return false;
     used.add(key); result.push([r,c]); return true;
   };
 
-  // 1순위: 세 침입구 자체. 웨이브 시작 시 용사가 반드시 이 중 한 곳에서 생성되도록 합니다.
-  const ordered=anchors.slice().sort(()=>Math.random()-.5);
+  // 활성 침입구를 순환 사용합니다. Stage 10의 10개 입구도 특정 몇 곳만 반복 사용하지 않고
+  // 웨이브 동안 차례로 실제 스폰 지점이 되도록 합니다.
+  const startIdx=Math.max(0,Number(state._heroEntranceCursor)||0)%anchors.length;
+  const ordered=[];
+  for(let i=0;i<anchors.length;i++) ordered.push(anchors[(startIdx+i)%anchors.length]);
   for(const a of ordered){
     if(result.length>=count) break;
     add(a.r,a.c,true);
   }
+  state._heroEntranceCursor=(startIdx+Math.max(1,Math.min(count,anchors.length)))%anchors.length;
 
   // 침입구가 이미 다른 유닛으로 막혀 있는 경우에만 주변 바닥 칸을 보조 사용합니다.
   if(result.length<count){
@@ -1512,12 +1549,24 @@ const BOSS_PROFILES={
   100:{name:'빙하기의 재림',bossId:'ice_mage',types:['ice_mage','swordsaint','dragonslayer'],bonus:{hp:1.68,atk:1.62}},
 };
 
+function bossProfileForWave(wave){
+  if(typeof stageModeBossProfile==='function'){
+    const p=stageModeBossProfile(wave);
+    if(p) return p;
+  }
+  return BOSS_PROFILES[wave]||null;
+}
+
 // 웨이브별 보스 영웅 최대 소환 수
 // 10/20/30웨이브: 1명
 // 40웨이브: 2명
 // 50웨이브: 3명
 // 60웨이브 이상: 4명
 function bossCountForWave(wave){
+  if(typeof stageModeBossCount==='function'){
+    const n=stageModeBossCount(wave);
+    if(n>0) return n;
+  }
   if(!BOSS_PROFILES[wave]) return 0;
   if(wave<=30) return 1;
   if(wave===40) return 2;
@@ -1568,6 +1617,10 @@ const HERO_WAVE_POOLS=HERO_WAVE_POOLS_BASE.map(row=>({
 }));
 function heroPoolIdsForWave(wave){
   const w=Math.max(0,Math.floor(Number(wave)||0));
+  if(typeof stageModeHeroPoolIds==='function' && (state?.stageId||typeof selectedStageId!=='undefined')){
+    const stageIds=stageModeHeroPoolIds(Math.max(1,w));
+    if(stageIds&&stageIds.length) return stageIds;
+  }
   let row=HERO_WAVE_POOLS.find(p=>w>=p.from && w<=p.to);
   if(!row) row=HERO_WAVE_POOLS[HERO_WAVE_POOLS.length-1];
   const ids=[...new Set(row.ids)].filter(id=>HERO_TYPES.some(h=>h.id===id));
@@ -1579,6 +1632,10 @@ function heroPoolTypesForWave(wave){
 }
 
 function getEncounterPattern(wave){
+  if(typeof stageModeEncounterPattern==='function'){
+    const stagePattern=stageModeEncounterPattern(wave);
+    if(stagePattern) return stagePattern;
+  }
   const pool=heroPoolIdsForWave(wave);
   // 웨이브 풀과 2종 이상 겹치는 기존 원정대 패턴(이름/이동속도/시너지 연출)만 후보로 삼고,
   // 풀 전체를 쓰는 범용 원정대도 항상 후보에 넣어 어떤 패턴에도 없는 용사(예: 광부)도 등장할 수 있게 합니다.
@@ -1676,19 +1733,22 @@ function spawnHero(isBoss, partyId=null, partyLeaderId=null, spawnCell=null, for
   const majorBoss=(state.wave%10===0&&isBoss);
   // v67: 첫 보스인 10웨이브 성기사단장은 초반 보호 구간에 맞춰 한 단계 더 약화합니다.
   // 20/30웨이브와 40웨이브 이후 보스 배율은 기존 값을 유지합니다.
-  const earlyMajorBossNerf=(majorBoss && state.wave===10) ? 0.55 : (majorBoss && state.wave<=30 ? 0.70 : 1);
-  const earlyMajorBossHpNerf=(majorBoss && state.wave===10) ? 0.30 : earlyMajorBossNerf;
-  const level=Math.min(99,Math.max(1,state.wave+(isBoss?2:0)+(majorBoss?2:0)+(elite?1:0)));
+  const _stageBossNerf=(majorBoss && typeof stageModeBossNerf==='function')?stageModeBossNerf(state.wave):null;
+  const earlyMajorBossNerf=_stageBossNerf?_stageBossNerf.atk:((majorBoss && state.wave===10) ? 0.55 : (majorBoss && state.wave<=30 ? 0.70 : 1));
+  const earlyMajorBossHpNerf=_stageBossNerf?_stageBossNerf.hp:((majorBoss && state.wave===10) ? 0.30 : earlyMajorBossNerf);
+  const stageLevelBonus=(typeof stageModeHeroLevelBonus==='function')?stageModeHeroLevelBonus(type.id):0;
+  const stageLevelStats=(typeof stageModeHeroLevelStatMul==='function')?stageModeHeroLevelStatMul(type.id):{hp:1,atk:1,reward:1};
+  const level=Math.min(99,Math.max(1,state.wave+stageLevelBonus+(isBoss?2:0)+(majorBoss?2:0)+(elite?1:0)));
   const coward=Math.random()<0.18;
   const now=performance.now();
   const id=state.heroSeq++;
   const midwaveMul=midwaveDifficultyScale();
   const hero={
     id, r:e.r, c:e.c, spawnR:e.r, spawnC:e.c, typeId:type.id, range:type.range,
-    hp:Math.round(b.hp*type.hpMult*(isBoss?(majorBoss?4.5:3):(elite?1.75:1))*((state.stageHeroHpMul||1))*midwaveMul*(bossProfile?.bonus?.hp||1)*earlyMajorBossHpNerf*raidMods.heroHpMul),
-    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf*raidMods.heroAtkMul),
+    hp:Math.round(b.hp*type.hpMult*(isBoss?(majorBoss?4.5:3):(elite?1.75:1))*((state.stageHeroHpMul||1))*midwaveMul*(bossProfile?.bonus?.hp||1)*earlyMajorBossHpNerf*raidMods.heroHpMul*(typeof stageModeHeroHpMul==='function'?stageModeHeroHpMul():1)*(typeof stageModeWaveHpGrowthMul==='function'?stageModeWaveHpGrowthMul(state.wave):1)*(stageLevelStats.hp||1)),
+    atk:Math.round(b.atk*type.atkMult*earlyCasterAtkMul(type,level)*(isBoss?(majorBoss?3.0:2.2):(elite?1.35:1))*(state.stageHeroAtkMul||1)*midwaveMul*(bossProfile?.bonus?.atk||1)*earlyMajorBossNerf*raidMods.heroAtkMul*(typeof stageModeHeroAtkMul==='function'?stageModeHeroAtkMul():1)*(stageLevelStats.atk||1)),
     def:Math.max(1,Math.round(level*HERO_DEF_PER_LEVEL*earlyWaveDefenseMul(state.wave)*midwaveMul*earlyMajorBossNerf*raidMods.heroDefMul)),
-    reward:Math.round(b.reward*type.rewardMult*(isBoss?(majorBoss?6:4):(elite?2.2:1))*(state.stageEvent?.id==='redmoon'?1.2:(state.stageEvent?.id==='panic'?1.15:1))*raidMods.rewardMul),
+    reward:Math.round(b.reward*type.rewardMult*(isBoss?(majorBoss?6:4):(elite?2.2:1))*(state.stageEvent?.id==='redmoon'?1.2:(state.stageEvent?.id==='panic'?1.15:1))*raidMods.rewardMul*(stageLevelStats.reward||1)),
     isBoss, majorBoss, elite:false, bossProfileId:null, partySynergy:1, level, coward, fleeing:false, escaped:false, fleeTarget:null, fleeTicks:0, fleeCooldown:0,
     partyId, partyLeaderId:partyLeaderId||id, partyRole:(partyLeaderId&&partyLeaderId!==id)?'member':'leader',
     digging:false, digKind:null, digProgress:0, digTargetR:null, digTargetC:null,
@@ -1722,7 +1782,7 @@ function spawnHeroParty(remaining){
   }
   if(!cells.length) return 0;
 
-  const bossProfile=BOSS_PROFILES[state.wave]||null;
+  const bossProfile=bossProfileForWave(state.wave);
   const pattern=state.wavePattern || (bossProfile ? {id:'boss_'+state.wave,name:bossProfile.name,minWave:state.wave,types:bossProfile.types} : getEncounterPattern(state.wave));
   const usedIds=new Set();
   const members=[];
@@ -1743,11 +1803,12 @@ function spawnHeroParty(remaining){
     let forcedId;
 
     if(isBoss){
-      forcedId=(bossProfile?.bossId && HERO_TYPES.some(x=>x.id===bossProfile.bossId&&state.wave>=x.unlockAt))
+      const stageModeActive=typeof stageModeCurrentId==='function'&&!!state?.stageId;
+      forcedId=(bossProfile?.bossId && HERO_TYPES.some(x=>x.id===bossProfile.bossId&&(stageModeActive||state.wave>=x.unlockAt)))
         ? bossProfile.bossId
         : (pattern.types.find(id=>{
             const h=HERO_TYPES.find(x=>x.id===id);
-            return h&&state.wave>=h.unlockAt;
+            return h&&(stageModeActive||state.wave>=h.unlockAt);
           })||'swordsman');
     } else {
       forcedId=pickEncounterHeroType(pattern,state.wave,usedIds);
@@ -2399,11 +2460,14 @@ function placeCoreAt(r,c){
     return false;
   }
 
-  // 3×3 공간을 열고 중앙에 핵을 놓습니다.
-  for(const [rr,cc] of coreFootprintCells(r,c)){
-    state.grid[rr][cc]={type:'floor',isEntrance:false,obstacle:null};
+  // Procedural maps open a footprint around the core. Fixed authored maps preserve their terrain exactly.
+  const fixedMap=(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state.stageId));
+  if(!fixedMap){
+    for(const [rr,cc] of coreFootprintCells(r,c)){
+      state.grid[rr][cc]={type:'floor',isEntrance:false,obstacle:null};
+    }
   }
-  state.grid[r][c]={type:'core'};
+  state.grid[r][c]={type:'core',fixedTerrain:fixedMap};
   CORE_R=r; CORE_C=c;
 
   // 마왕을 새 핵 위치로 옮깁니다(아직 없으면 생성).
@@ -2416,10 +2480,14 @@ function placeCoreAt(r,c){
   state._mapDirty=true;
   state._rangesDirty=true;
   state._panelDirty=true;
-  state.selected=null;
+  // v115: 핵 설치 직후 기본 하단 메뉴는 몬스터 소환으로 전환합니다.
+  state.activeTool='monster';
+  pendingTool='monster';
+  state.selected={kind:'tool',tool:'monster'};
+  els.toolbar.querySelectorAll('button[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool==='monster'));
   state.fxEvents.push({type:'spawnBurst',r,c,color:'rgba(224,182,74,.98)'});
   Sound.ui();
-  addLog(`<span class="hl-gold">🔮 마력의 핵을 설치했습니다.</span> 이제 던전을 파고 몬스터를 배치하세요. <span class="hl-gold">1분</span> 뒤 첫 웨이브가 시작됩니다.`);
+  addLog(`<span class="hl-gold">🔮 마력의 핵을 설치했습니다.</span> 이제 고정된 통로에 몬스터와 함정을 배치하세요. <span class="hl-gold">1분</span> 뒤 첫 웨이브가 시작됩니다.`);
   buildMapDOM();
   centerZoomOnCore();
   renderUI();

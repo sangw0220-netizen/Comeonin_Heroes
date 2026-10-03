@@ -219,7 +219,8 @@ function wireAuthListener(){
       if(pendingAutoStart && result){
         pendingAutoStart=false;
         closeNicknameScreen();
-        startGame();
+        if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+        else startGame();
       }
     }else if(event==='SIGNED_OUT'){
       currentPlayerId=null;
@@ -270,11 +271,13 @@ function guestStart(){
   metaSyncEnabled=false;
   if(metaSyncTimer){ clearTimeout(metaSyncTimer); metaSyncTimer=null; }
   metaProgress=normalizeMetaData(null);
+  if(typeof stageModeSetSelected==='function') stageModeSetSelected(1,true);
   resetMawangForLocalSession();
   currentPlayerId=null;
   currentNickname='게스트 마왕';
   closeNicknameScreen();
-  startGame();
+  if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+  else startGame();
 }
 
 function testStart(){
@@ -285,7 +288,8 @@ function testStart(){
   currentPlayerId='test-'+Math.random().toString(36).slice(2,10);
   currentNickname='테스트 마왕';
   closeNicknameScreen();
-  startGame();
+  if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+  else startGame();
 }
 
 // 테스트 모드에서만 노출되는 디버그 모드 진입: 로그인 없이 바로 시작하면서
@@ -299,12 +303,18 @@ function debugStart(){
   currentPlayerId='debug-'+Math.random().toString(36).slice(2,10);
   currentNickname='디버그 마왕';
   closeNicknameScreen();
-  startGame();
+  if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+  else startGame();
   if(els.debugBtn) els.debugBtn.style.display='flex';
 }
 
 async function attemptStart(){
-  if(currentPlayerId){ if(!mawangLoaded) await loadMawangFromSupabase(); startGame(); return; }
+  if(currentPlayerId){
+    if(!mawangLoaded) await loadMawangFromSupabase();
+    if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+    else startGame();
+    return;
+  }
   if(!supabaseReady) initSupabase();
   wireAuthListener();
 
@@ -313,7 +323,11 @@ async function attemptStart(){
       const {data,error}=await supabaseClient.auth.getSession();
       if(!error && data && data.session){
         const result=await handleAuthSession(data.session);
-        if(result){ startGame(); return; }
+        if(result){
+          if(typeof stageModeShowLobby==='function') stageModeShowLobby();
+          else startGame();
+          return;
+        }
       }
     }catch(err){
       console.warn('[Supabase] session check failed:',err);
@@ -411,6 +425,16 @@ function coreFootprintCells(r,c){
    불가능하면 사유 문자열을, 가능하면 null을 반환합니다. */
 function corePlacementBlockReason(r,c){
   if(!state||!state.grid) return '아직 준비 중입니다.';
+  if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state.stageId)){
+    if(!inBounds(r,c)) return '맵 바깥에는 놓을 수 없습니다.';
+    const t=state.grid[r]?.[c];
+    if(!t || t.type!=='floor') return '고정 스테이지의 이동 가능한 바닥에만 놓을 수 있습니다.';
+    if(t.isEntrance) return '용사 침입구에는 놓을 수 없습니다.';
+    const spawns=(Array.isArray(state.heroSpawnPoints)&&state.heroSpawnPoints.length)?state.heroSpawnPoints:[];
+    const nearest=spawns.reduce((best,sp)=>Math.min(best,Math.abs(sp.r-r)+Math.abs(sp.c-c)),Infinity);
+    if(nearest<5) return '용사 침입구와 너무 가깝습니다.';
+    return null;
+  }
   const sizeText=`${CORE_FOOTPRINT_SIZE}×${CORE_FOOTPRINT_SIZE}`;
   // 영역이 맵 밖으로 나가면 안 됩니다.
   if(r+CORE_OFFSET_LOW<0||c+CORE_OFFSET_LOW<0||
@@ -788,17 +812,60 @@ const HERO_REGEN_PER_LEVEL=0.12;
 const HERO_DEF_PER_LEVEL=0.55;
 const HERO_LEVEL_SIZE_MUL=0.035;
 const HERO_LEVEL_SIZE_CAP=0.6;
+const HERO_TOTAL_SIZE_CAP=2.0; // v3: 레벨/보스 배율을 모두 합친 용사 표시 크기는 기본 크기의 최대 2배
 /* 전투 화면 시인성(v40): 몬스터/용사/마왕 토큰의 "보이는 크기"에만 곱해지는 배율입니다.
    이동·사거리·충돌 판정은 전부 격자(r,c) 기준이라 이 값을 바꿔도 게임 밸런스는 그대로입니다.
    캐릭터가 더 크게 보이길 원하면 이 숫자만 올리면 됩니다(1.0 = 기존 크기). */
 const TOKEN_VIEW_SCALE=1.3;
-/* v40: 용사 침입구 개수는 웨이브에 따라 늘어납니다.
-   1~20웨이브=1곳, 21~40=2곳, 41~60=3곳, 61~80=4곳, 81~=5곳(최대). */
-const HERO_SPAWN_MAX_POINTS=5;
+/* Stage 모드에서는 Stage 번호와 동일한 수의 용사 침입구를 사용합니다.
+   Stage 1=1곳 ... Stage 10=10곳. 비 Stage 모드의 기존 웨이브 계산도 최대 10곳까지 허용합니다. */
+const HERO_SPAWN_MAX_POINTS=10;
 const HERO_SPAWN_WAVES_PER_POINT=20;
 function heroSpawnCountForWave(wave){
   const w=Math.max(1, wave|0);
+  if(typeof stageModeEntranceCount==='function') return stageModeEntranceCount(w);
   return Math.min(HERO_SPAWN_MAX_POINTS, Math.floor((w-1)/HERO_SPAWN_WAVES_PER_POINT)+1);
+}
+/* Stage 6~10처럼 침입구가 많아져도 한쪽 벽에 몰리지 않도록
+   외곽 전체에서 서로 최대한 멀리 떨어진 위치를 골라 균등하게 배치합니다. */
+function balancedHeroSpawnEdgePoints(count, existingPoints=[]){
+  const perimeter=[];
+  for(let c=0;c<GRID;c++) perimeter.push({r:0,c});
+  for(let r=1;r<GRID;r++) perimeter.push({r,c:GRID-1});
+  for(let c=GRID-2;c>=0;c--) perimeter.push({r:GRID-1,c});
+  for(let r=GRID-2;r>=1;r--) perimeter.push({r,c:0});
+  const want=Math.max(1,Math.min(HERO_SPAWN_MAX_POINTS,Number(count)||1,perimeter.length));
+  const unique=[];
+  const seen=new Set();
+  for(const sp of (Array.isArray(existingPoints)?existingPoints:[])) {
+    if(!sp) continue;
+    const r=Number(sp.r),c=Number(sp.c),key=r+'_'+c;
+    if(r<0||r>=GRID||c<0||c>=GRID||seen.has(key)) continue;
+    if(!(r===0||r===GRID-1||c===0||c===GRID-1)) continue;
+    seen.add(key); unique.push({r,c});
+    if(unique.length>=want) return unique;
+  }
+  if(!unique.length && perimeter.length){
+    const first=perimeter[Math.floor(Math.random()*perimeter.length)];
+    unique.push({...first}); seen.add(first.r+'_'+first.c);
+  }
+  while(unique.length<want){
+    let best=null,bestScore=-1;
+    for(const pos of perimeter){
+      const key=pos.r+'_'+pos.c;
+      if(seen.has(key)) continue;
+      let minDist=Infinity;
+      for(const sp of unique){
+        const dr=sp.r-pos.r,dc=sp.c-pos.c;
+        minDist=Math.min(minDist,dr*dr+dc*dc);
+      }
+      const score=minDist+Math.random()*0.001;
+      if(score>bestScore){ bestScore=score; best=pos; }
+    }
+    if(!best) break;
+    unique.push({...best}); seen.add(best.r+'_'+best.c);
+  }
+  return unique.slice(0,want);
 }
 const HERO_SIGHT_RANGE=5;              // 용사가 마력핵을 발견하는 거리(기존)
 const RANGED_LOS_CHECK=true;
@@ -2112,7 +2179,7 @@ let state=null;
 // 실제 계정으로 로그인한 경우에는 Supabase의 player_meta 테이블과 동기화되어
 // 여러 기기에서도 같은 영구 성장을 이어갈 수 있습니다. (아래 syncMetaFromSupabase 참고)
 const META_KEY='dungeon_defense_v18_meta';
-const META_DEFAULT={souls:0,runs:0,unlockedMonsterIds:[],monsterLevels:{},trapResearch:{},commonResearch:{}};
+const META_DEFAULT={souls:0,runs:0,unlockedMonsterIds:[],monsterLevels:{},trapResearch:{},commonResearch:{},stageUnlocked:1,stageClears:{},tutorialSeenV40:false};
 function normalizeMetaData(d){
   const base=JSON.parse(JSON.stringify(META_DEFAULT));
   if(!d || typeof d!=='object') return base;
@@ -2124,7 +2191,10 @@ function normalizeMetaData(d){
     unlockedMonsterIds:Array.isArray(d.unlockedMonsterIds)?d.unlockedMonsterIds:[],
     monsterLevels:{...base.monsterLevels,...(d.monsterLevels||{})},
     trapResearch:{...base.trapResearch,...(d.trapResearch||{})},       // v35 함정 연구소: 함정별 영구 연구 레벨(1~5)
-    commonResearch:{...base.commonResearch,...(d.commonResearch||{})}  // v35 함정 연구소: 공통 연구 5종의 영구 레벨(1~5)
+    commonResearch:{...base.commonResearch,...(d.commonResearch||{})},  // v35 함정 연구소: 공통 연구 5종의 영구 레벨(1~5)
+    stageUnlocked:Math.max(1,Math.min(5,Math.floor(Number(d.stageUnlocked)||1))),
+    stageClears:{...base.stageClears,...(d.stageClears||{})},
+    tutorialSeenV40:d.tutorialSeenV40===true
   };
 }
 function loadMeta(){

@@ -596,7 +596,10 @@ function renderStartMetaSummary(){
   const el=document.getElementById('startMetaSummary');
   if(!el)return;
   const unlocked=getPermanentUnlockedMonsterIds().length;
-  el.textContent=`🔮 영혼 ${Number(metaProgress.souls||0).toLocaleString()} · 👑 마왕 Lv.${mawangProfile.level||1} · 해금 몬스터 ${unlocked}종 · 육성 가능한 몬스터 ${MONSTER_TYPES.filter(monsterMetaUnlocked).length}종`;
+  const stageUnlocked=Math.max(1,Math.min(5,Number(metaProgress.stageUnlocked)||1));
+  const cleared=Object.values(metaProgress.stageClears||{}).reduce((a,b)=>a+(Number(b)>0?1:0),0);
+  el.textContent=`🔮 영혼 ${Number(metaProgress.souls||0).toLocaleString()} · 👑 마왕 Lv.${mawangProfile.level||1} · STAGE ${stageUnlocked}까지 해금 · 클리어 ${cleared}/5 · 해금 몬스터 ${unlocked}종`;
+  if(typeof renderStageSelect==='function') renderStageSelect();
 }
 let metaGrowthTab='unlock';
 let metaGrowthGradeFilter='all';
@@ -1044,46 +1047,40 @@ function freshState(){
   GRID=BASE_GRID;
   CORE_R=Math.floor(GRID/2); CORE_C=Math.floor(GRID/2);
   ENTRANCES=[];
-  const grid=[];
-  /* v40: 핵 위치는 게임 시작 후 플레이어가 직접 고릅니다.
-     따라서 이 시점에는 핵도, 핵 주변 개방 구역도 만들지 않고 전부 암벽으로 둡니다.
-     실제 배치는 placeCoreAt()에서 처리합니다. */
-  for(let r=0;r<GRID;r++){
-    const row=[];
-    for(let c=0;c<GRID;c++){ row.push({type:'rock'}); }
-    grid.push(row);
+  const _stageId=(typeof selectedStageId!=='undefined'?selectedStageId:1);
+  const fixedDef=(typeof stageFixedMapDef==='function')?stageFixedMapDef(_stageId):null;
+  let grid=(fixedDef&&typeof stageFixedMapBuildGrid==='function')?stageFixedMapBuildGrid(_stageId):null;
+  let heroSpawnPoints=[];
+  if(fixedDef&&grid){
+    heroSpawnPoints=(fixedDef.entrances||[]).map(sp=>({r:sp.r,c:sp.c}));
+  }else{
+    grid=[];
+    /* legacy procedural dungeon: core is placed later and the map begins as rock. */
+    for(let r=0;r<GRID;r++){
+      const row=[];
+      for(let c=0;c<GRID;c++){ row.push({type:'rock'}); }
+      grid.push(row);
+    }
+    const initialSpawnCount=heroSpawnCountForWave(1);
+    heroSpawnPoints=(typeof balancedHeroSpawnEdgePoints==='function')
+      ? balancedHeroSpawnEdgePoints(initialSpawnCount)
+      : [{r:0,c:Math.floor(GRID/2)}];
+    heroSpawnPoints.forEach(sp=>{
+      grid[sp.r][sp.c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
+    });
   }
-  // v40: 게임 시작(1웨이브) 시점의 침입구 개수는 heroSpawnCountForWave(1)=1곳입니다.
-  // 이후 21/41/61/81웨이브에서 한 곳씩 늘어나며 최대 5곳까지 생깁니다.
-  const initialSpawnCount=heroSpawnCountForWave(1);
-  const edgeCandidates=[];
-  for(let c=0;c<GRID;c++){ edgeCandidates.push([0,c],[GRID-1,c]); }
-  for(let r=1;r<GRID-1;r++){ edgeCandidates.push([r,0],[r,GRID-1]); }
-  const shuffled=edgeCandidates.slice().sort(()=>Math.random()-.5);
-  const picks=[];
-  for(const pos of shuffled){
-    if(picks.some(x=>Math.abs(x[0]-pos[0])+Math.abs(x[1]-pos[1])<Math.max(3,Math.floor(GRID*.12)))) continue;
-    picks.push(pos);
-    if(picks.length>=initialSpawnCount) break;
-  }
-  while(picks.length<initialSpawnCount){
-    const pos=edgeCandidates[Math.floor(Math.random()*edgeCandidates.length)];
-    if(!picks.some(x=>x[0]===pos[0]&&x[1]===pos[1])) picks.push(pos);
-  }
-  const heroSpawnPoints=picks.map(([r,c])=>({r,c}));
-  heroSpawnPoints.forEach(sp=>{
-    grid[sp.r][sp.c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
-  });
   ENTRANCES=heroSpawnPoints.map(sp=>({...sp}));
   return {
-    gold:metaStartGold(), throneHP:metaCoreHP(), maxThroneHP:metaCoreHP(),
+    stageId:_stageId, fixedMapMode:!!fixedDef,
+    gold:metaStartGold()+(typeof stageModeStartGoldBonus==='function'?stageModeStartGoldBonus(_stageId):0), throneHP:metaCoreHP(), maxThroneHP:metaCoreHP(),
     grid, heroes:[], monsters:[], heroSeq:1, monsterSeq:1,
     // 10웨이브 단위로 변경되는 용사 침입구
     heroSpawnPoints:heroSpawnPoints.map(sp=>({...sp})),
     heroSpawnPoint:{...heroSpawnPoints[0]},
     heroSpawnPointLocked:true,
     heroSpawnStage:0,
-    phase:'placeCore', corePlaced:false, buildTimer:buildTimeForWave(1), invasionTimer:0,
+    _heroEntranceCursor:Math.floor(Math.random()*Math.max(1,heroSpawnPoints.length)),
+    phase:'placeCore', corePlaced:false, buildTimer:buildTimeForWave(1)+(typeof stageModeFirstBuildBonus==='function'?stageModeFirstBuildBonus(_stageId):0), invasionTimer:0,
     spawnCooldown:2, spawnInterval:SPAWN_INTERVAL_START,
     wave:0, waveHeroesTotal:0, waveHeroesSpawned:0, bossSpawnedThisWave:false, bossesSpawnedThisWave:0,
     nextWaveRiskMul:1, nextWaveRewardMul:1, villageRaidEffects:[],
@@ -1094,7 +1091,7 @@ function freshState(){
     killCount:0, selected:null, deathFx:[], fxEvents:[],
     running:false, gameOver:false,
     lastMinuteLogged:0,
-    activeTool:'dig', selectedMonsterType:null, selectedObstacleType:null, selectedObstacleDirection:1, monsterCommand:normalizeMonsterCommand(mawangProfile.command||'defense'),
+    activeTool:'monster', selectedMonsterType:null, selectedObstacleType:null, selectedObstacleDirection:1, monsterCommand:normalizeMonsterCommand(mawangProfile.command||'defense'),
     auraPositions:{statue:[],curse:[]},
     unlockedMonsterIds:[...getPermanentUnlockedMonsterIds()],
     startedAt:0, totalMonsterSpawns:0, monsterSpawnCounts:{}, monsterPurchaseCounts:{},
@@ -1110,7 +1107,7 @@ function freshState(){
     relicRewardMul:1, relicCoreHealBonus:0,
     contractHeroRiskWaves:0, contractHeroRiskMul:1, contractRewardMul:1, contractRewardWaves:0,
     contractSoulMul:1, contractNoCoreHealWaves:0,
-    monsterCap:metaMonsterCap()+mawangSkillLevel('summon_bond'),
+    monsterCap:metaMonsterCap()+mawangSkillLevel('summon_bond')+(typeof stageModeMonsterCapBonus==='function'?stageModeMonsterCapBonus(_stageId):0),
     dungeonLayoutVersion:1, dungeonStructure:null,
     buildTags:{}, buildBonuses:{}, buildMilestones:{}, riskLevel:0, runSouls:0, eventCount:0, bossDefeated:0, bossName:null,
     // --- v27 마왕의 제단 ---

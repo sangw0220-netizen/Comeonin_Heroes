@@ -54,7 +54,6 @@
   <div id="boardWrap">
     <div id="board-frame">
       <div id="stageBackdrop"></div>
-      <div id="stageBadge"><span class="sb-icon" id="stageBadgeIcon">🌲</span><div><div class="sb-text" id="stageBadgeText">1~10단계 · 어둠의 숲</div><div class="sb-sub" id="stageBadgeSub">잠든 숲의 고대 유적</div></div></div>
       <div id="board-inner">
         <div id="map"></div>
         <div id="rangeLayer"></div>
@@ -94,7 +93,7 @@
     <div class="tutorial-steps">
       <div class="tutorial-step">
         <div class="tutorial-num">1</div>
-        <div><b>⛏️ 던전을 판다</b><span>벽을 파서 용사가 지나갈 길을 직접 만드세요.</span></div>
+        <div><b>🗺️ 맵의 길목을 읽는다</b><span>완성된 스테이지의 통로와 병목을 보고 방어 위치를 정하세요.</span></div>
       </div>
       <div class="tutorial-step">
         <div class="tutorial-num">2</div>
@@ -111,6 +110,7 @@
     </div>
 
     <div class="tutorial-tip">💡 <b>핵심은 하나!</b> 마력의 핵이 파괴되지 않도록 던전을 설계하세요.</div>
+
     <button class="cta" id="startBtn">게임 시작하기</button>
     <button class="cta secondary" id="metaGrowthBtn">🔮 마왕의 성장</button>
     <div id="startMetaSummary" style="margin-top:8px;color:var(--gold);font-size:9.5px;line-height:1.4;">영혼 0 · 해금 몬스터 0종</div>
@@ -240,6 +240,7 @@
 <script src="js/config.js"></script>
 <script src="js/01-backend-and-data.js"></script>
 <script src="js/02-skills-and-heroes.js"></script>
+<script src="js/08-stage-mode.js"></script>
 <script src="js/03-stages-and-events.js"></script>
 <script src="js/04-combat-and-traps.js"></script>
 <script src="js/05-rewards-and-run.js"></script>
@@ -247,10 +248,10 @@
 <div id="firstPlayCoach" aria-live="polite">
   <div class="fpc-head">
     <span class="fpc-step" id="fpcStep">1 / 4</span>
-    <div class="fpc-title" id="fpcTitle">던전의 길을 먼저 만들어보세요</div>
+    <div class="fpc-title" id="fpcTitle">맵의 길목을 먼저 확인해보세요</div>
     <button class="fpc-close" id="fpcClose" aria-label="도움말 닫기">✕</button>
   </div>
-  <div class="fpc-desc" id="fpcDesc">타일을 탭해 벽을 파면 용사가 지나갈 수 있는 길이 생깁니다.</div>
+  <div class="fpc-desc" id="fpcDesc">스테이지의 통로를 확인한 뒤 몬스터와 함정을 배치하세요.</div>
   <div class="fpc-actions"><button id="fpcNext">다음 안내</button><button id="fpcHide">이번 판은 숨기기</button></div>
   <div class="fpc-progress"><i class="fpc-dot on"></i><i class="fpc-dot"></i><i class="fpc-dot"></i><i class="fpc-dot"></i></div>
 </div>

@@ -447,6 +447,7 @@ function handleHeroTileEnter(h, tile){
 
 function midwaveDifficultyScale(){
   const w=state?.wave||0;
+  if(typeof stageModeMidwaveMul==='function') return stageModeMidwaveMul(w);
   return (w>=11 && w<=20) ? MIDWAVE_DIFFICULTY_MUL : 1;
 }
 function heroPower(h){ return Math.max(1,(h.atk*1.4)+(h.def*1.2)+(h.maxHp/18)); }
@@ -1236,7 +1237,10 @@ function processHeroTick(h,dt){
     const terrainCost=(r,c)=>{
       const t=state.grid[r][c];
       if(t.type==='core') return 1;
-      if(t.type==='rock') return t.obstacle ? 5.5 : 3;
+      if(t.type==='rock'){
+        if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)) return Infinity;
+        return t.obstacle ? 5.5 : 3;
+      }
       if(!t.obstacle) return 1;
       const ht=heroTypeOf(h)||{};
       const danger={spike:4.8,poison:4.5,frost:2.8,web:4.0,curse:4.3,statue:5.0,flame:6.0,lightning:5.5,pit:99,barricade:7.0,gust:6.2,magnet:5.2,stun_cage:6.0,collapse_bridge:runeGateIsBlocking(t)?8.5:2.2}[t.obstacle]||3.5;
@@ -1305,6 +1309,10 @@ function processHeroTick(h,dt){
     h.dungeonIntent=responseProfile.role==='scout'?'안전한 경로 탐색':'핵으로 전진';
   }
   if(tile.type==='rock'){
+    if(typeof stageFixedMapEnabled==='function' && stageFixedMapEnabled(state?.stageId)){
+      h.stuckTicks=(h.stuckTicks||0)+1;
+      return;
+    }
     // v49: 다른 용사가 이미 이 벽을 파는 중이면 시작하지 않고 뒤에서 기다립니다.
     if(findHeroDiggingSameTarget(h,'rock',tr,tc)){ heroWaitBehindDigger(h); return; }
     h.digging=true;h.digKind=tile.obstacle?'wallObstacle':'rock';h.digTargetR=tr;h.digTargetC=tc;h.digProgress=0;return;
@@ -1845,52 +1853,62 @@ function simulateStep(dt){
    이제는 21/41/61/81웨이브에서 한 곳씩 "늘어나기만" 합니다. */
 function syncHeroEntrancesForWave(wave){
   if(!state||!state.grid) return null;
+  // v2.2: authored fixed maps keep the door positions from the artwork for the whole run.
+  const fixedDef=(typeof stageFixedMapDef==='function')?stageFixedMapDef(state.stageId):null;
+  if(fixedDef){
+    const points=(fixedDef.entrances||[]).map(sp=>({r:sp.r,c:sp.c}));
+    for(const row of state.grid) for(const tile of row) if(tile) tile.isEntrance=false;
+    for(const sp of points){
+      const tile=state.grid[sp.r]?.[sp.c];
+      if(tile){ tile.type='floor'; tile.isEntrance=true; tile.breached=true; tile.fixedTerrain=true; }
+    }
+    state.heroSpawnPoints=points.map(sp=>({...sp}));
+    state.heroSpawnPoint=points.length?{...points[0]}:null;
+    state._heroEntranceCursor=(Number(state._heroEntranceCursor)||0)%Math.max(1,points.length);
+    ENTRANCES=points.map(sp=>({...sp}));
+    return points;
+  }
   const want=heroSpawnCountForWave(wave);
   const current=Array.isArray(state.heroSpawnPoints)?state.heroSpawnPoints.slice():[];
-  if(current.length>=want) return current;
+  if(current.length===want) return current;
 
-  const candidates=[];
-  for(let c=0;c<GRID;c++){ candidates.push([0,c],[GRID-1,c]); }
-  for(let r=1;r<GRID-1;r++){ candidates.push([r,0],[r,GRID-1]); }
-  const shuffled=candidates.slice().sort(()=>Math.random()-.5);
+  const points=(typeof balancedHeroSpawnEdgePoints==='function')
+    ? balancedHeroSpawnEdgePoints(want,current)
+    : current.slice(0,want);
+  const nextKeys=new Set(points.map(sp=>sp.r+'_'+sp.c));
+  const currentKeys=new Set(current.map(sp=>sp.r+'_'+sp.c));
 
-  const minGap=Math.max(3,Math.floor(GRID*.12));
-  const added=[];
-  const farEnough=(pos,list)=>!list.some(sp=>{
-    const rr=Array.isArray(sp)?sp[0]:sp.r, cc=Array.isArray(sp)?sp[1]:sp.c;
-    return Math.abs(rr-pos[0])+Math.abs(cc-pos[1])<minGap;
-  });
-
-  for(const pos of shuffled){
-    if(current.length+added.length>=want) break;
-    if(!farEnough(pos,current)||!farEnough(pos,added)) continue;
-    added.push(pos);
+  // 이전 버전 저장 상태처럼 개수가 모자라면 새 입구를 열고, 초과한 입구는 일반 바닥으로 되돌립니다.
+  for(const sp of current){
+    if(nextKeys.has(sp.r+'_'+sp.c)) continue;
+    const tile=state.grid[sp.r]?.[sp.c];
+    if(tile) tile.isEntrance=false;
   }
-  // 간격 조건 때문에 자리를 못 찾으면 조건을 풀고 채웁니다.
-  while(current.length+added.length<want){
-    const pos=candidates[Math.floor(Math.random()*candidates.length)];
-    const dup=current.some(sp=>sp.r===pos[0]&&sp.c===pos[1])||added.some(p=>p[0]===pos[0]&&p[1]===pos[1]);
-    if(!dup) added.push(pos);
+  for(const sp of points){
+    const isNew=!currentKeys.has(sp.r+'_'+sp.c);
+    state.grid[sp.r][sp.c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
+    if(isNew) state.fxEvents.push({type:'spawnBurst',r:sp.r,c:sp.c,color:'rgba(224,73,95,.95)'});
   }
-  if(!added.length) return current;
 
-  added.forEach(([r,c])=>{
-    state.grid[r][c]={type:'floor',isEntrance:true,breached:true,obstacle:null};
-    state.fxEvents.push({type:'spawnBurst',r,c,color:'rgba(224,73,95,.95)'});
-  });
-
-  const points=current.concat(added.map(([r,c])=>({r,c})));
   state.heroSpawnPoints=points.map(sp=>({...sp}));
   state.heroSpawnPoint={...points[0]};
+  state._heroEntranceCursor=(Number(state._heroEntranceCursor)||0)%Math.max(1,points.length);
   state._mapDirty=true;
   state._rangesDirty=true;
   state._panelDirty=true;
   ENTRANCES=points.map(sp=>({...sp}));
-  addLog(`<span class="hl-red">🚪 새로운 용사 침입구가 열렸습니다!</span> — 이제 침입구는 총 <b>${points.length}곳</b>입니다.`);
+  if(current.length!==points.length){
+    addLog(`<span class="hl-red">🚪 용사 침입구 재편!</span> — STAGE ${state.stageId||1}의 침입구는 총 <b>${points.length}곳</b>입니다.`);
+  }
   return points;
 }
 
 function startWave(){
+  // v116: 웨이브 시작 순간 건설용 예상 이동 경로를 즉시 숨깁니다.
+  if(typeof updateHeroNavigationOverlay==='function'){
+    const nav=document.getElementById('heroNavigationLayer');
+    if(nav) nav.classList.add('hidden');
+  }
   // 전투 시작과 동시에 온보딩 팝업을 닫아 보드와 전투 화면을 가리지 않게 합니다.
   if(typeof window.hideFirstPlayTutorialForWave==='function') window.hideFirstPlayTutorialForWave();
   state.phase='invasion';
@@ -1920,15 +1938,18 @@ function startWave(){
   const villageMods=typeof villageRaidWaveMods==='function'?villageRaidWaveMods(state.wave):{heroCountMul:1,spawnIntervalMul:1,active:[]};
   const earlyCountMul=(typeof earlyWaveCountMul==='function')?earlyWaveCountMul(state.wave):1;
   const panicBonus=state.stageEvent?.id==='panic'?(state.wave<=10?1:2):0;
-  state.waveHeroesTotal=Math.max(1,Math.round((2+Math.floor(state.wave*1.5)+panicBonus)*.92*riskMul*contractMul*midwaveMul*earlyCountMul*villageMods.heroCountMul));
+  const stageModeCount=(typeof stageModeHeroCountMul==='function'?stageModeHeroCountMul():1);
+  const entranceMinimum=(typeof heroSpawnCountForWave==='function')?heroSpawnCountForWave(state.wave):1;
+  state.waveHeroesTotal=Math.max(1,entranceMinimum,Math.round((2+Math.floor(state.wave*1.5)+panicBonus)*.92*riskMul*contractMul*midwaveMul*earlyCountMul*villageMods.heroCountMul*stageModeCount));
   state.nextWaveRiskMul=1;
   if(state.contractHeroRiskWaves>0) state.contractHeroRiskWaves--;
   state.nextWaveRewardMul=state.nextWaveRewardMul||1;
-  state.wavePattern=BOSS_PROFILES[state.wave] ? {id:'boss_'+state.wave,name:BOSS_PROFILES[state.wave].name,speedMul:0.92,types:BOSS_PROFILES[state.wave].types} : getEncounterPattern(state.wave);
-  state.currentBossName=BOSS_PROFILES[state.wave]?.name || null;
+  const _bossProfile=(typeof bossProfileForWave==='function'?bossProfileForWave(state.wave):BOSS_PROFILES[state.wave]);
+  state.wavePattern=_bossProfile ? {id:'boss_'+state.wave,name:_bossProfile.name,speedMul:0.92,types:_bossProfile.types} : getEncounterPattern(state.wave);
+  state.currentBossName=_bossProfile?.name || null;
   const patternSpeed=state.wavePattern?.speedMul||1;
   const earlySpawnMul=(typeof earlyWaveSpawnIntervalMul==='function')?earlyWaveSpawnIntervalMul(state.wave):1;
-  state.spawnInterval=Math.max(SPAWN_INTERVAL_MIN,(SPAWN_INTERVAL_START-state.wave*0.10)*state.stageSpawnMul*patternSpeed*earlySpawnMul);
+  state.spawnInterval=Math.max(SPAWN_INTERVAL_MIN,(SPAWN_INTERVAL_START-state.wave*0.10)*state.stageSpawnMul*patternSpeed*earlySpawnMul*(typeof stageModeSpawnIntervalMul==='function'?stageModeSpawnIntervalMul():1));
   if(state.currentBossName) addLog(`<span class="hl-gold">☠️ ${state.currentBossName}</span>이(가) ${state.wave}웨이브의 최종 관문으로 출현합니다.`);
   else if(state.wavePattern) addLog(`<span class="hl-red">⚔️ ${state.wavePattern.name}</span>이(가) 침입을 시작합니다.`);
   state.waveHeroesSpawned=0;
@@ -1936,15 +1957,15 @@ function startWave(){
   state.bossesSpawnedThisWave=0;
   setStageBackground(state.wave);
   state.spawnCooldown=1.2;
-  state.spawnInterval=Math.max(SPAWN_INTERVAL_MIN, (SPAWN_INTERVAL_START-state.wave*0.10)*state.stageSpawnMul*earlySpawnMul*(villageMods.spawnIntervalMul||1));
+  state.spawnInterval=Math.max(SPAWN_INTERVAL_MIN, (SPAWN_INTERVAL_START-state.wave*0.10)*state.stageSpawnMul*earlySpawnMul*(villageMods.spawnIntervalMul||1)*(typeof stageModeSpawnIntervalMul==='function'?stageModeSpawnIntervalMul():1));
   if(villageMods.active&&villageMods.active.length){
     const names=[...new Set(villageMods.active.map(e=>e.name).filter(Boolean))];
     if(names.length) addLog(`<span class="hl-gold">🏘️ 마을 약탈 효과</span> — ${names.join(' · ')} 적용 중`);
   }
   if(state.wave>1 && state.wave%10===1){ Sound.setStageMusic(Math.floor((state.wave-1)/10)); Sound.expand(); }
   Sound.waveStart();
-  showWaveBanner(`웨이브 ${state.wave} 시작!`);
-  addLog(`<span class="hl-red">웨이브 ${state.wave} 시작!</span> 용사 ${state.waveHeroesTotal}명이 몰려옵니다.`);
+  showWaveBanner(`STAGE ${state.stageId||1} · 웨이브 ${state.wave}/20`);
+  addLog(`<span class="hl-red">STAGE ${state.stageId||1} · 웨이브 ${state.wave}/20 시작!</span> 용사 ${state.waveHeroesTotal}명이 몰려옵니다.`);
 }
 
 let waveTransitionTimer=null;
@@ -2006,6 +2027,21 @@ function finishWave(){
   if(state.wave%5===0) reviveMawangOnWaveClear();
   showWaveBanner(`웨이브 ${state.wave} 클리어!`);
   addLog(`<span class="hl-gold">웨이브 ${state.wave} 클리어!</span> 골드 <span class="hl-gold">+${waveBonus}G</span> · 핵 회복 <span class="hl-gold">+${coreHeal}</span>`);
+  if(state.wave>=20 && typeof completeCurrentStage==='function'){
+    els.waveTransition.querySelector('.wt-title').textContent=`STAGE ${state.stageId||1} CLEAR!`;
+    const _clearSub=els.waveTransition.querySelector('.wt-sub'); if(_clearSub) _clearSub.textContent='20웨이브 방어에 성공했습니다.';
+    els.waveTransition.classList.add('show');
+    renderUI();
+    const _session=gameSessionId;
+    if(waveTransitionTimer) clearTimeout(waveTransitionTimer);
+    waveTransitionTimer=setTimeout(()=>{
+      waveTransitionTimer=null;
+      if(_session!==gameSessionId||!state||state.stageComplete)return;
+      els.waveTransition.classList.remove('show');
+      completeCurrentStage();
+    },1050);
+    return;
+  }
   if(state.wave%10===0) { /* v49: 던전 크기를 15x15로 고정 — 더 이상 10웨이브마다 커지지 않습니다. */ }
   els.waveTransition.querySelector('.wt-title').textContent=`웨이브 ${state.wave} 클리어!`;
   const subEl=els.waveTransition.querySelector('.wt-sub'); if(subEl){ subEl.textContent=state.stageEvent?`${state.stageEvent.icon} ${state.stageEvent.name} 종료`:'던전이 잠시 숨을 고릅니다…'; }

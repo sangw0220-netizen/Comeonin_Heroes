@@ -1,0 +1,18 @@
+Comeonin Heroes · 10 Stage Challenge v3
+
+- Stage 1~10, each stage is an independent 20-wave Run.
+- Dungeon/monsters/cards/run resources reset for every Stage attempt.
+- Soul/meta growth persists.
+- Stage 1~8 progressively introduce all 42 hero types.
+- Stage 9~10 remix earlier heroes as higher-level veterans.
+- Each Stage has stage-specific pools and party patterns, so frontliners/support/ranged/casters appear in coordinated groups.
+- Earlier heroes reappearing in later stages receive Stage level bonuses plus an extra veteran level bonus. Their HP/ATK/reward scale with those bonus levels.
+- Hero visual size is capped at 2.0x the base size including boss/level scaling.
+- Stage cards scroll horizontally and use the same backgrounds as gameplay.
+- Village Raid remains hidden.
+
+[v112 Wave HP 성장 상향]
+- 각 Stage의 Wave 1 용사 HP는 기존과 동일합니다.
+- Wave가 높아질수록 추가 HP 배율이 곡선형으로 증가합니다.
+- 대략 Wave 5 +7%, Wave 10 +18%, Wave 15 +31%, Wave 20 +45%입니다.
+- 용사 수/공격력/스폰 속도는 이번 수정에서 추가 상향하지 않았습니다.

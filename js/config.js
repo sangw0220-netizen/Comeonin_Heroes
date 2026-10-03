@@ -7,6 +7,13 @@ window.DUNGEON_SUPABASE_URL = 'https://thdhzvozwzsjaicknhgj.supabase.co';
 window.DUNGEON_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ZySCTRrNQdookaHtB0FlLQ_RuXM_7j_';
 window.MAWANG_SPRITE_DATA = 'assets/images/characters/mawang.png';
 
+/* ===== 콘텐츠 기능 플래그 =====
+   마을 습격은 현재 본편 흐름에서 임시 비공개 상태입니다.
+   나중에 다시 공개할 때 아래 값만 true로 바꾸면 UI/습격권 지급/진입이 다시 활성화됩니다.
+   마을 습격의 실제 코드와 리소스는 삭제하지 않습니다.
+*/
+window.VILLAGE_RAID_ENABLED = false;
+
 /* ===== 도메인 잠금 =====
    여기 적힌 주소가 아니면 게임이 실행되지 않고 안내 화면만 뜹니다.
    완전한 차단은 아니고(개발자도구로 이 파일 자체를 지우면 우회 가능), 코드를 그대로
